@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clínica | Renata de Azevedo</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="login-view" class="login-layout" hidden>
+    <form id="login-form" class="login-card">
+      <img src="/logo.png" alt="Renata de Azevedo, Psicologia e Coaching">
+      <h1>Entrar no sistema</h1>
+      <p>Área reservada à equipe da clínica.</p>
+      <label>E-mail<input name="email" type="email" autocomplete="username" required></label>
+      <label>Senha<input name="password" type="password" autocomplete="current-password" required></label>
+      <button type="submit">Entrar</button>
+      <p id="login-error" class="error" role="alert" hidden></p>
+    </form>
+  </div>
+
+  <div id="app-view" class="app-layout" hidden>
+    <aside class="sidebar">
+      <img src="/logo.png" alt="Renata de Azevedo">
+      <p class="eyebrow">SISTEMA DA CLÍNICA</p>
+      <nav id="nav" aria-label="Menu principal"></nav>
+      <div class="account">
+        <strong id="account-name"></strong>
+        <span id="account-role"></span>
+        <button id="change-password" type="button">Trocar senha</button>
+        <button id="logout" type="button">Sair</button>
+      </div>
+    </aside>
+    <div class="workspace">
+      <header class="topbar"><span>Ambiente local de desenvolvimento</span><span id="message" role="status"></span></header>
+      <main id="content"></main>
+    </div>
+  </div>
+
+  <dialog id="password-dialog">
+    <form id="password-form">
+      <h2>Trocar senha</h2>
+      <label>Senha atual<input name="currentPassword" type="password" autocomplete="current-password" required></label>
+      <label>Nova senha (mínimo de 12 caracteres)<input name="newPassword" type="password" autocomplete="new-password" minlength="12" required></label>
+      <div class="dialog-actions"><button class="secondary" type="button" id="cancel-password">Cancelar</button><button type="submit">Salvar senha</button></div>
+      <p id="password-error" class="error" role="alert" hidden></p>
+    </form>
+  </dialog>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

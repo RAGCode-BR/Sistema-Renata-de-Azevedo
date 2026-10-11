@@ -1,0 +1,14 @@
+{
+  "name": "sistema-renata-de-azevedo",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node server/index.mjs",
+    "create-admin": "node server/create-admin.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "pg": "^8.16.3"
+  }
+}
