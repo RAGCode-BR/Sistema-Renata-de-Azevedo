@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Renata de Azevedo | Gestão da clínica</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <a class="brand" href="#/hoje">
+        <img src="assets/logo.png" alt="Renata de Azevedo, Psicologia e Coaching">
+      </a>
+
+      <nav class="navigation" aria-label="Menu principal">
+        <a class="nav-item" href="#/hoje">Hoje</a>
+        <a class="nav-item" href="#/agenda">Agenda</a>
+        <a class="nav-item" href="#/pacientes">Pacientes</a>
+        <a class="nav-item" href="#/prontuarios">Prontuários</a>
+        <a class="nav-item" href="#/profissionais">Profissionais</a>
+        <a class="nav-item" href="#/financeiro">Financeiro</a>
+        <a class="nav-item" href="#/relatorios">Relatórios</a>
+        <div class="nav-group">
+          <a class="nav-item" href="#/configuracoes">Configurações</a>
+          <a class="nav-item" href="#/ajuda">Ajuda</a>
+        </div>
+      </nav>
+
+      <div class="profile">
+        Renata de Azevedo
+        <button type="button" data-action="sair">Sair</button>
+      </div>
+    </aside>
+
+    <main id="view"></main>
+  </div>
+
+  <dialog id="modal" aria-label="Janela"></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <div id="bloqueio" class="lock" hidden>
+    <div>
+      <img src="assets/logo.png" alt="Renata de Azevedo, Psicologia e Coaching">
+      <p>Você saiu do sistema.</p>
+      <button class="button" type="button" data-action="entrar">Entrar novamente</button>
+    </div>
+  </div>
+
+  <script src="assets/js/core.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/actions.js"></script>
+  <script src="assets/js/views/hoje.js"></script>
+  <script src="assets/js/views/agenda.js"></script>
+  <script src="assets/js/views/pacientes.js"></script>
+  <script src="assets/js/views/prontuarios.js"></script>
+  <script src="assets/js/views/profissionais.js"></script>
+  <script src="assets/js/views/financeiro.js"></script>
+  <script src="assets/js/views/relatorios.js"></script>
+  <script src="assets/js/views/configuracoes.js"></script>
+  <script src="assets/js/views/ajuda.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
