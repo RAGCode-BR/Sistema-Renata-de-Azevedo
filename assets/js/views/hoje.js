@@ -58,24 +58,6 @@
       </div>`;
   }
 
-  function saudacao() {
-    const h = new Date().getHours();
-    const periodo = h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
-    const nome = App.primeiroNome(q.profsAtivos()[0]?.nome || "Renata");
-    const hoje = d.hoje();
-    const deHoje = q.sessoesDia(hoje);
-    const faltam = q.proximas().filter((s) => s.data === hoje);
-
-    if (faltam.length) {
-      return `${periodo}, ${esc(nome)}. Ainda há <strong>${App.plural(faltam.length, "sessão", "sessões")}</strong> hoje, a próxima às ${d.hh(faltam[0].hora)}.`;
-    }
-    if (deHoje.length) return `${periodo}, ${esc(nome)}. As sessões de hoje já terminaram.`;
-    const proxima = q.proximas()[0];
-    return proxima
-      ? `${periodo}, ${esc(nome)}. Hoje não há sessões. A próxima é ${d.relativa(proxima.data)} às ${d.hh(proxima.hora)}.`
-      : `${periodo}, ${esc(nome)}. Não há sessões marcadas.`;
-  }
-
   function render(el) {
     const hoje = d.hoje();
     if (!estado.dia) estado.dia = d.diaUtil(hoje);
@@ -97,8 +79,8 @@
     el.innerHTML = `
       <section class="heading">
         <div>
-          <h1>${d.longa(hoje)}</h1>
-          <p class="lead">${saudacao()}</p>
+          <h1>Hoje</h1>
+          <p class="lead">${d.longa(hoje)}</p>
         </div>
         <div class="tools">
           <label class="search"><input id="busca-hoje" type="search" placeholder="Procurar paciente" aria-label="Procurar paciente na agenda" value="${esc(estado.busca)}"></label>
