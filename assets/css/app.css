@@ -85,7 +85,16 @@ hr { border: 0; border-top: 1px solid var(--linha); margin: 6px 0; width: 100%; 
 
 /* Cabeçalho das telas */
 
-main { max-width: 1540px; padding: 42px 48px 64px; min-width: 0; }
+.workspace { min-width: 0; }
+.demo-banner {
+  margin: 0;
+  padding: 9px 48px;
+  border-bottom: 1px solid var(--linha);
+  background: #f1f0ee;
+  color: #625f60;
+  font-size: 12px;
+}
+main { max-width: 1540px; padding: 36px 48px 64px; min-width: 0; }
 
 .back { display: inline-block; color: var(--suave); font-size: 14px; margin-bottom: 8px; }
 .back::before { content: "‹ "; }
@@ -578,6 +587,7 @@ button.task:hover .box { border-color: var(--vinho); }
 @media (max-width: 1180px) {
   .app { grid-template-columns: 200px minmax(0, 1fr); }
   main { padding: 28px 26px 44px; }
+  .demo-banner { padding-inline: 26px; }
   .numbers { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 0; }
   .number:nth-child(3) { padding-left: 0; border-left: 0; }
   .content { grid-template-columns: minmax(0, 1fr); }
@@ -597,6 +607,7 @@ button.task:hover .box { border-color: var(--vinho); }
   .nav-item.active { border-bottom-color: var(--vinho); }
   .profile { display: none; }
   main { padding: 24px 16px 36px; }
+  .demo-banner { padding-inline: 16px; }
   h1 { font-size: 27px; }
   .tools { width: 100%; }
   .search { flex: 1; }
