@@ -137,6 +137,15 @@ textarea.input { resize: vertical; line-height: 1.55; }
 .button:hover:not(:disabled) { background: #482031; }
 .button.light { background: white; color: var(--vinho); border-color: var(--linha); }
 .button.light:hover:not(:disabled) { border-color: var(--vinho); background: white; }
+.button.danger { background: var(--perigo); border-color: var(--perigo); }
+.button.danger:hover:not(:disabled) { background: #823838; }
+
+.link-btn { color: var(--vinho); font-size: 13px; font-weight: 600; }
+.link-btn:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 3px; }
+.link-btn.danger { color: var(--perigo); }
+.actions-cell { text-align: right; white-space: nowrap; }
+.modal-text + .modal-text { margin-top: 10px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .notice {
   margin-bottom: 24px;

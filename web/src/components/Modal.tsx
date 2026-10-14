@@ -1,6 +1,6 @@
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { useFormSubmit } from '../hooks.ts';
+import { errorMessage, useFormSubmit } from '../hooks.ts';
 
 interface ModalProps {
   title: string;
@@ -50,6 +50,40 @@ export function FormModal({ title, submitLabel, onClose, onSubmit, children }: F
           <button type="submit" className="button" disabled={busy}>{busy ? 'Salvando…' : submitLabel}</button>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+interface ConfirmModalProps extends ModalProps {
+  confirmLabel: string;
+  onConfirm: () => Promise<void>;
+}
+
+// Confirmação de ação destrutiva: botão vermelho, erro mostrado na própria janela.
+export function ConfirmModal({ title, confirmLabel, onClose, onConfirm, children }: ConfirmModalProps) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  async function confirm() {
+    setBusy(true);
+    setError('');
+    try {
+      await onConfirm();
+      onClose();
+    } catch (failure) {
+      setError(errorMessage(failure));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal title={title} onClose={onClose}>
+      <div className="modal-body">{children}</div>
+      {error && <p className="erro modal-error" role="alert">{error}</p>}
+      <div className="modal-foot">
+        <button type="button" className="button light" onClick={onClose}>Cancelar</button>
+        <button type="button" className="button danger" disabled={busy} onClick={confirm}>{busy ? 'Excluindo…' : confirmLabel}</button>
+      </div>
     </Modal>
   );
 }

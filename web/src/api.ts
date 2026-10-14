@@ -28,6 +28,16 @@ async function run<T>(query: PromiseLike<{ data: unknown; error: PostgrestError 
   return data as T;
 }
 
+// Chama uma Edge Function e devolve a mensagem de erro dela, quando houver.
+async function invoke<T = unknown>(name: string, body: Record<string, unknown>, fallback: string): Promise<T> {
+  const { data, error } = await supabase.functions.invoke<T>(name, { body });
+  if (error) {
+    const detail = error instanceof FunctionsHttpError ? await error.context.json().catch(() => null) : null;
+    throw new Error(detail?.error || fallback);
+  }
+  return data as T;
+}
+
 let onSessionEnded = () => {};
 let leaving = false;
 
@@ -85,14 +95,11 @@ export const api = {
     .insert({ name: input.name, email: input.email || null }).select('id, name, email, active').single()),
 
   users: () => run<UserAccount[]>(supabase.from('profiles').select('id, name, email, role, professional_id, active').order('name')),
-  // Contas são criadas na Edge Function admin-create-user (precisa da chave de serviço).
-  createUser: async (input: NewUser): Promise<UserAccount> => {
-    const { data, error } = await supabase.functions.invoke<{ item: UserAccount }>('admin-create-user', { body: input });
-    if (error) {
-      const body = error instanceof FunctionsHttpError ? await error.context.json().catch(() => null) : null;
-      throw new Error(body?.error || 'Não foi possível criar a conta.');
-    }
-    return data!.item;
+  // Criar e excluir contas exige a chave de serviço: ficam nas Edge Functions (supabase/functions).
+  createUser: async (input: NewUser) =>
+    (await invoke<{ item: UserAccount }>('admin-create-user', { ...input }, 'Não foi possível criar a conta.')).item,
+  deleteUser: async (userId: string) => {
+    await invoke('admin-delete-user', { userId }, 'Não foi possível excluir a conta.');
   },
 
   patients: async () => (await run<PatientRow[]>(supabase.from('patients').select(PATIENT_COLUMNS).order('name'))).map(toPatient),

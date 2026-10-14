@@ -5,12 +5,12 @@ import logo from '../../../assets/logo.png';
 import { api } from '../api.ts';
 import { roleLabel } from '../format.ts';
 import { useHashRoute } from '../hooks.ts';
-import { AccountsPage } from '../pages/Accounts.tsx';
 import { AgendaPage } from '../pages/Agenda.tsx';
 import { ClinicalNotesPage } from '../pages/ClinicalNotes.tsx';
 import { GoogleCalendarsPage } from '../pages/GoogleCalendars.tsx';
 import { PatientsPage } from '../pages/Patients.tsx';
 import { ProfessionalsPage } from '../pages/Professionals.tsx';
+import { UsersPage } from '../pages/Users.tsx';
 import { PasswordDialog } from './PasswordDialog.tsx';
 
 interface Route {
@@ -23,13 +23,13 @@ const agenda: Route = { path: 'agenda', label: 'Agenda', render: (user) => <Agen
 const patients: Route = { path: 'pacientes', label: 'Pacientes', render: (user) => <PatientsPage user={user} /> };
 const calendars: Route = { path: 'google-agenda', label: 'Google Agenda', render: () => <GoogleCalendarsPage /> };
 
-// A administração não vê prontuários; as profissionais não gerenciam equipe nem contas.
-// O servidor aplica as mesmas regras, o menu apenas as reflete.
+// A administração não vê prontuários; as profissionais não gerenciam equipe nem usuários.
+// As regras valem no banco (políticas RLS em supabase/migrations); o menu apenas as reflete.
 const routesByRole = {
   admin: [
     agenda, patients,
     { path: 'profissionais', label: 'Profissionais', render: () => <ProfessionalsPage /> },
-    { path: 'contas', label: 'Contas', render: () => <AccountsPage /> },
+    { path: 'usuarios', label: 'Usuários', render: (user) => <UsersPage user={user} /> },
     calendars
   ],
   professional: [
@@ -75,7 +75,7 @@ export function Shell({ user, onLogout }: { user: SessionUser; onLogout: () => v
       </aside>
 
       <div className="workspace">
-        <p className="env-banner">Ambiente local de desenvolvimento</p>
+        {import.meta.env.DEV && <p className="env-banner">Ambiente local de desenvolvimento</p>}
         <main key={current.path}>{current.render(user)}</main>
       </div>
 

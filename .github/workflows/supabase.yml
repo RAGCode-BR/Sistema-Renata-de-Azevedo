@@ -21,6 +21,15 @@ jobs:
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       SUPABASE_PROJECT_ID: qnchebjrgnfgszrzlyue
     steps:
+      - name: Conferir segredos
+        run: |
+          missing=""
+          [ -n "$SUPABASE_ACCESS_TOKEN" ] || missing="$missing SUPABASE_ACCESS_TOKEN"
+          [ -n "$SUPABASE_DB_PASSWORD" ] || missing="$missing SUPABASE_DB_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::Segredos ausentes:$missing (Settings → Secrets and variables → Actions)"
+            exit 1
+          fi
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
         with:
@@ -29,6 +38,6 @@ jobs:
       - name: Migrações
         run: supabase db push
       - name: Edge Functions
-        run: supabase functions deploy admin-create-user --project-ref "$SUPABASE_PROJECT_ID"
+        run: supabase functions deploy --use-api --project-ref "$SUPABASE_PROJECT_ID"
       - name: Teste de permissões
         run: supabase db query --linked -f supabase/tests/permissions.sql
