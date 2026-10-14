@@ -2,13 +2,34 @@
   "name": "sistema-renata-de-azevedo",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22.18"
+  },
   "scripts": {
-    "start": "node server/index.mjs",
-    "create-admin": "node server/create-admin.mjs",
-    "test": "node --test"
+    "start": "node --env-file-if-exists=.env server/index.ts",
+    "dev": "vite --config web/vite.config.ts",
+    "build": "vite build --config web/vite.config.ts",
+    "db:start": "node --env-file-if-exists=.env scripts/db.ts start",
+    "db:stop": "node --env-file-if-exists=.env scripts/db.ts stop",
+    "db:status": "node --env-file-if-exists=.env scripts/db.ts status",
+    "db:migrate": "node --env-file-if-exists=.env scripts/db.ts migrate",
+    "create-admin": "node --env-file-if-exists=.env server/create-admin.ts",
+    "typecheck": "tsc && tsc -p web",
+    "test": "npm run typecheck && node --test \"server/**/*.test.ts\""
   },
   "dependencies": {
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "embedded-postgres": "^18.4.0-beta.17",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
   }
 }

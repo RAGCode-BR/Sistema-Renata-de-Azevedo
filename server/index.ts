@@ -1,13 +1,20 @@
 import http from 'node:http';
+import type { IncomingMessage, OutgoingHttpHeaders, ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { pool, transaction } from './db.mjs';
-import { hashPassword, verifyPassword, currentUser, createSession, deleteSession, clearSessionCookie } from './auth.mjs';
+import { extname } from 'node:path';
+import type { PoolClient } from 'pg';
+import { pool, transaction, errorCode } from './db.ts';
+import { hashPassword, verifyPassword, currentUser, createSession, deleteSession, clearSessionCookie } from './auth.ts';
+import type { Role, SessionUser } from './auth.ts';
+import { MIN_PASSWORD_LENGTH } from '../shared/rules.ts';
+
+type Input = Record<string, unknown>;
 
 const root = new URL('../', import.meta.url);
 const port = Number(process.env.PORT || 8787);
-const failedLogins = new Map();
+const failedLogins = new Map<string, number[]>();
 
-function reply(response, status, data, extraHeaders = {}) {
+function reply(response: ServerResponse, status: number, data: unknown, extraHeaders: OutgoingHttpHeaders = {}): void {
   response.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
@@ -17,77 +24,107 @@ function reply(response, status, data, extraHeaders = {}) {
   response.end(JSON.stringify(data));
 }
 
-function problem(status, message) {
-  const error = new Error(message);
-  error.status = status;
-  return error;
+class HttpError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
 }
 
-function requireRole(user, role) {
+function problem(status: number, message: string): HttpError {
+  return new HttpError(status, message);
+}
+
+function requireRole(user: SessionUser | null, role?: Role): asserts user is SessionUser {
   if (!user) throw problem(401, 'Entre na sua conta para continuar.');
   if (role && user.role !== role) throw problem(403, 'Você não tem acesso a esta área.');
 }
 
-async function bodyOf(request) {
+async function bodyOf(request: IncomingMessage): Promise<Input> {
   let text = '';
   for await (const chunk of request) {
     text += chunk;
     if (text.length > 1024 * 1024) throw problem(413, 'Envie um arquivo menor.');
   }
-  try { return JSON.parse(text || '{}'); }
+  let input: unknown;
+  try { input = JSON.parse(text || '{}'); }
   catch { throw problem(400, 'JSON inválido.'); }
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) throw problem(400, 'JSON inválido.');
+  return input as Input;
 }
 
-function string(value, max = 255) {
+function string(value: unknown, max = 255): string {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
 
-function uuid(value) {
+function uuid(value: unknown): value is string {
   return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 
-function emailOf(value) {
+function emailOf(value: unknown): string {
   const email = string(value).toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw problem(400, 'Informe um e-mail válido.');
   return email;
 }
 
-function requireUuid(value, label) {
+function requireUuid(value: unknown, label: string): string {
   if (!uuid(value)) throw problem(400, `${label} inválido.`);
   return value;
 }
 
-function dateOf(value, label) {
+function dateOf(value: unknown, label: string): string {
+  if (!value || (typeof value !== 'string' && typeof value !== 'number')) throw problem(400, `${label} inválida.`);
   const date = new Date(value);
-  if (!value || Number.isNaN(date.getTime())) throw problem(400, `${label} inválida.`);
+  if (Number.isNaN(date.getTime())) throw problem(400, `${label} inválida.`);
   return date.toISOString();
 }
 
-async function audit(client, user, action, entityType, entityId) {
+async function audit(client: PoolClient, user: SessionUser, action: string, entityType: string, entityId: string): Promise<void> {
   await client.query('INSERT INTO audit_log (actor_user_id, action, entity_type, entity_id) VALUES ($1,$2,$3,$4)',
     [user.id, action, entityType, entityId]);
 }
 
-async function serveFile(response, relativePath, contentType) {
-  const content = await readFile(new URL(relativePath, root));
+// Arquivos gerados por `npm run build` (interface React em web/).
+const assetTypes: Record<string, string> = {
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.woff2': 'font/woff2'
+};
+
+async function serveFile(response: ServerResponse, relativePath: string, contentType: string, cacheControl = 'no-store'): Promise<void> {
+  let content: Buffer;
+  try {
+    content = await readFile(new URL(relativePath, root));
+  } catch (error) {
+    if (errorCode(error) !== 'ENOENT') throw error;
+    if (relativePath.endsWith('index.html')) throw problem(503, 'Interface ainda não compilada. Rode npm run build.');
+    throw problem(404, 'Arquivo não encontrado.');
+  }
   response.writeHead(200, {
     'Content-Type': contentType,
-    'Cache-Control': 'no-store',
+    'Cache-Control': cacheControl,
     'X-Content-Type-Options': 'nosniff',
     'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"
   });
   response.end(content);
 }
 
-async function handle(request, response) {
-  const url = new URL(request.url, `http://localhost:${port}`);
+async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
+  const url = new URL(request.url || '/', `http://localhost:${port}`);
   const path = url.pathname;
-  const method = request.method;
+  const method = request.method || 'GET';
 
-  if (method === 'GET' && path === '/') return serveFile(response, 'system/index.html', 'text/html; charset=utf-8');
-  if (method === 'GET' && path === '/app.js') return serveFile(response, 'system/app.js', 'text/javascript; charset=utf-8');
-  if (method === 'GET' && path === '/style.css') return serveFile(response, 'system/style.css', 'text/css; charset=utf-8');
-  if (method === 'GET' && path === '/logo.png') return serveFile(response, 'assets/logo.png', 'image/png');
+  if (method === 'GET' && path === '/') return serveFile(response, 'web/dist/index.html', 'text/html; charset=utf-8');
+  const asset = /^\/assets\/([\w.-]+)$/.exec(path);
+  const assetType = asset && assetTypes[extname(asset[1]!)];
+  if (method === 'GET' && asset && assetType) {
+    // Os nomes gerados pelo Vite mudam a cada versão, então podem ficar em cache.
+    return serveFile(response, `web/dist/assets/${asset[1]}`, assetType, 'public, max-age=31536000, immutable');
+  }
   if (!path.startsWith('/api/')) return reply(response, 404, { error: 'Página não encontrada.' });
 
   if (!['GET', 'HEAD'].includes(method)) {
@@ -104,7 +141,7 @@ async function handle(request, response) {
     const key = `${request.socket.remoteAddress}:${email}`;
     const attempts = (failedLogins.get(key) || []).filter((at) => Date.now() - at < 15 * 60_000);
     if (attempts.length >= 5) throw problem(429, 'Muitas tentativas. Aguarde 15 minutos.');
-    const { rows } = await pool.query('SELECT * FROM users WHERE lower(email) = $1 AND active', [email]);
+    const { rows } = await pool.query<SessionUser & { password_hash: string }>('SELECT * FROM users WHERE lower(email) = $1 AND active', [email]);
     if (!rows[0] || !await verifyPassword(String(input.password || ''), rows[0].password_hash)) {
       failedLogins.set(key, [...attempts, Date.now()]);
       throw problem(401, 'E-mail ou senha inválidos.');
@@ -126,12 +163,12 @@ async function handle(request, response) {
 
   if (method === 'PATCH' && path === '/api/me/password') {
     const input = await bodyOf(request);
-    const { rows } = await pool.query('SELECT password_hash FROM users WHERE id=$1', [user.id]);
+    const { rows } = await pool.query<{ password_hash: string }>('SELECT password_hash FROM users WHERE id=$1', [user.id]);
     if (!await verifyPassword(String(input.currentPassword || ''), rows[0].password_hash)) {
       throw problem(403, 'Senha atual incorreta.');
     }
-    if (typeof input.newPassword !== 'string' || input.newPassword.length < 12) {
-      throw problem(400, 'A nova senha precisa ter pelo menos 12 caracteres.');
+    if (typeof input.newPassword !== 'string' || input.newPassword.length < MIN_PASSWORD_LENGTH) {
+      throw problem(400, `A nova senha precisa ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`);
     }
     const newHash = await hashPassword(input.newPassword);
     await transaction(async (client) => {
@@ -173,9 +210,9 @@ async function handle(request, response) {
     const email = emailOf(input.email);
     const role = input.role;
     const professionalId = role === 'professional' ? requireUuid(input.professionalId, 'Profissional') : null;
-    if (!name || !['admin', 'professional'].includes(role)) throw problem(400, 'Dados de conta inválidos.');
-    if (typeof input.password !== 'string' || input.password.length < 12) {
-      throw problem(400, 'A senha inicial precisa ter pelo menos 12 caracteres.');
+    if (!name || (role !== 'admin' && role !== 'professional')) throw problem(400, 'Dados de conta inválidos.');
+    if (typeof input.password !== 'string' || input.password.length < MIN_PASSWORD_LENGTH) {
+      throw problem(400, `A senha inicial precisa ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`);
     }
     const passwordHash = await hashPassword(input.password);
     const item = await transaction(async (client) => {
@@ -202,12 +239,12 @@ async function handle(request, response) {
     requireRole(user, 'admin');
     const input = await bodyOf(request);
     const name = string(input.name);
-    const professionals = [...new Set(Array.isArray(input.professionalIds) ? input.professionalIds : [])];
-    if (!name || !professionals.length || professionals.some((id) => !uuid(id))) throw problem(400, 'Informe nome e profissionais responsáveis.');
+    const professionals: unknown[] = [...new Set(Array.isArray(input.professionalIds) ? input.professionalIds : [])];
+    if (!name || !professionals.length || !professionals.every(uuid)) throw problem(400, 'Informe nome e profissionais responsáveis.');
     const item = await transaction(async (client) => {
       const { rows } = await client.query(`INSERT INTO patients (name,phone,email,birth_date) VALUES ($1,$2,$3,$4)
         RETURNING id,name,phone,email,birth_date,status`,
-      [name, string(input.phone) || null, string(input.email) || null, input.birthDate || null]);
+      [name, string(input.phone) || null, string(input.email) || null, string(input.birthDate) || null]);
       for (const professionalId of professionals) {
         await client.query('INSERT INTO patient_professionals (patient_id,professional_id) VALUES ($1,$2)', [rows[0].id, professionalId]);
       }
@@ -303,10 +340,11 @@ async function handle(request, response) {
 }
 
 const server = http.createServer((request, response) => {
-  handle(request, response).catch((error) => {
-    if (error.code === '23505') return reply(response, 409, { error: 'Este cadastro já existe.' });
-    if (error.code === '23503' || error.code === '23514' || error.code === '22P02') return reply(response, 400, { error: 'Dados inválidos para este cadastro.' });
-    if (error.status) return reply(response, error.status, { error: error.message });
+  handle(request, response).catch((error: unknown) => {
+    const code = errorCode(error);
+    if (code === '23505') return reply(response, 409, { error: 'Este cadastro já existe.' });
+    if (code === '23503' || code === '23514' || code === '22P02') return reply(response, 400, { error: 'Dados inválidos para este cadastro.' });
+    if (error instanceof HttpError) return reply(response, error.status, { error: error.message });
     console.error(error);
     reply(response, 500, { error: 'Não foi possível concluir a operação.' });
   });

@@ -4,3 +4,6 @@ node_modules/
 .env.*
 !.env.example
 *.log
+web/dist/
+.data/
+supabase/.temp/
