@@ -1,8 +1,8 @@
 # Sistema Renata de Azevedo
 
-Este repositório privado contém duas partes separadas:
+Este repositório público contém duas partes separadas:
 
-- `index.html` e `assets/`: demonstração estática, com dados fictícios no navegador. O [site de demonstração](https://ragcodebr.github.io/sistema-renata-de-azevedo-demo/) é publicado à parte.
+- `index.html` e `assets/`: demonstração estática, com dados fictícios no navegador. Não é a aplicação publicada pela Cloudflare.
 - O sistema da clínica, em React + TypeScript com **Supabase**:
   - `web/`: interface (Vite), com o visual da demonstração.
   - `supabase/`: banco (migrações), regras de acesso (RLS), Edge Functions e configuração do login.
@@ -50,7 +50,7 @@ Projeto **RenatadeAzevedo_Projeto** (região São Paulo, `sa-east-1`). Os comand
 | Comando | O que faz |
 | --- | --- |
 | `npm run db:push` | Aplica as migrações novas de `supabase/migrations`. |
-| `npm run functions:deploy` | Publica a Edge Function `admin-create-user`. |
+| `npm run functions:deploy` | Publica as Edge Functions (`admin-create-user`, `admin-delete-user`). |
 | `npm run test:db` | Testa as permissões (RLS) numa transação desfeita no final, sem deixar dados. |
 | `npm run db:types` | Gera os tipos TypeScript do banco em `shared/database.types.ts`. |
 
@@ -60,14 +60,18 @@ Projeto **RenatadeAzevedo_Projeto** (região São Paulo, `sa-east-1`). Os comand
 - **Automático:** a GitHub Action `.github/workflows/supabase.yml` aplica migrações, publica as Edge Functions e roda o teste de permissões a cada push na `main` que mexa em `supabase/`. Ela precisa dos segredos `SUPABASE_ACCESS_TOKEN` e `SUPABASE_DB_PASSWORD` no repositório.
 - **Login:** a configuração fica em `supabase/config.toml`: sem cadastro público, senha mínima de 10 caracteres (a mesma de `shared/rules.ts`). Para aplicá-la ao projeto, use `npx supabase config push`.
 
-## Contas
+## Usuários
 
-Não há cadastro público. A administração cria as contas pela tela **Contas**, que chama a Edge Function `admin-create-user`. A função:
+Não há cadastro público. A administração cria e exclui contas na página **Usuários**, que chama as Edge Functions `admin-create-user` e `admin-delete-user`. Para criar, a função:
 1. Confere se quem chamou é administração ativa.
 2. Cria a conta no Supabase Auth, com o papel em `app_metadata`.
 3. O gatilho `on_auth_user_created` cria o perfil.
 
 Uma conta sem papel, criada fora da função, não tem acesso a nada.
+
+**Excluir** remove a conta e o acesso na hora, e fica registrado em `audit_log`:
+- Ninguém exclui a própria conta, o que garante que sempre reste uma administração.
+- Prontuários e sessões continuam guardados, porque pertencem à profissional (`professionals`), não à conta. A profissional pode receber uma conta nova depois.
 
 **A primeira conta de administração** precisa ser criada por fora, uma única vez. Em **Authentication → Users → Add user** (com *Auto Confirm User*), defina em *app_metadata* `{"role": "admin"}` e o nome em *user_metadata* `{"name": "..."}`.
 
@@ -90,7 +94,7 @@ A Cloudflare publica apenas a interface compilada, configurada em `wrangler.json
 
 | Função | Acesso |
 | --- | --- |
-| Administração (Bárbara e Mari) | Contas, profissionais, pacientes, agenda e visão das conexões Google. Sem acesso às evoluções clínicas. |
+| Administração (Bárbara e Mari) | Usuários, profissionais, pacientes, agenda e visão das conexões Google. Sem acesso às evoluções clínicas. |
 | Profissional (Renata e demais) | Seus pacientes, suas sessões e as próprias evoluções. Futuramente, a autorização da própria conta Google. |
 
 O registro de criações vai para `audit_log`, preenchido por gatilhos no banco.

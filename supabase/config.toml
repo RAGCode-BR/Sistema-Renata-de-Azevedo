@@ -417,3 +417,7 @@ enabled = true
 # Cria contas (só administração). O token da sessão é validado dentro da função (auth.getUser).
 [functions.admin-create-user]
 verify_jwt = false
+
+# Exclui contas (só administração). O token da sessão é validado dentro da função.
+[functions.admin-delete-user]
+verify_jwt = false

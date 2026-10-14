@@ -410,6 +410,8 @@ select.input { padding-right: 34px; appearance: none; background: var(--branco) 
 
 .link-btn.danger { color: var(--perigo); }
 .link-btn.plain { font-weight: 400; color: var(--texto); }
+.actions-cell { text-align: right; white-space: nowrap; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .pager { display: flex; gap: 4px; flex-wrap: wrap; }
 .pager .link-btn { padding: 8px 14px; border-radius: 999px; transition: background-color 160ms ease; }
@@ -794,6 +796,7 @@ a.number:active { transform: scale(.98); }
 .modal-body { padding: 16px 26px 8px; }
 .modal-lead { margin: 0 0 18px; color: var(--suave); }
 .modal-text { line-height: 1.6; }
+.modal-text + .modal-text { margin-top: 10px; }
 .modal-error { padding: 8px 26px 0; }
 .modal-links { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 18px 0 4px; padding: 12px 16px; border-radius: 14px; background: var(--creme); }
 .modal-foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; padding: 16px 26px 24px; }

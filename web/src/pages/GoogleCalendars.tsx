@@ -12,7 +12,7 @@ export function GoogleCalendarsPage() {
       <Heading title="Google Agenda" lead="Cada profissional poderá autorizar a própria conta e selecionar mais de um calendário." />
 
       <p className="notice">
-        A estrutura para várias contas e calendários já está no banco local. A conexão OAuth e a sincronização aguardam
+        A estrutura para várias contas e calendários já está no banco. A conexão OAuth e a sincronização aguardam
         a configuração do aplicativo no Google Cloud; nenhum calendário está conectado ainda.
       </p>
 
