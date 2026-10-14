@@ -18,7 +18,7 @@ export function AgendaPage({ user }: { user: SessionUser }) {
     const from = startOfToday();
     return { from, to: addDays(from, DAYS) };
   }, []);
-  const { data, error, reload } = useLoad(
+  const { data, error, loading, reload } = useLoad(
     () => Promise.all([api.appointments(range.from, range.to), api.professionals(), api.patients()]), [range]);
   const [appointments, professionals, patients] = data ?? [[], [], []];
   const canSchedule = professionals.some((item) => item.active) && patients.some((item) => item.status === 'active');
@@ -26,7 +26,7 @@ export function AgendaPage({ user }: { user: SessionUser }) {
   return (
     <>
       <Heading title="Agenda" lead={`Próximos sete dias · ${plural(appointments.length, 'sessão', 'sessões')}`}>
-        {admin && <button type="button" className="button" disabled={!canSchedule} onClick={() => setCreating(true)}>Nova sessão</button>}
+        {admin && <button type="button" className="button" disabled={loading || !canSchedule} onClick={() => setCreating(true)}>Nova sessão</button>}
       </Heading>
 
       {admin && data && !canSchedule && (

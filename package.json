@@ -3,33 +3,32 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22.18"
+    "node": ">=22.12"
   },
   "scripts": {
-    "start": "node --env-file-if-exists=.env server/index.ts",
     "dev": "vite --config web/vite.config.ts",
     "build": "vite build --config web/vite.config.ts",
-    "db:start": "node --env-file-if-exists=.env scripts/db.ts start",
-    "db:stop": "node --env-file-if-exists=.env scripts/db.ts stop",
-    "db:status": "node --env-file-if-exists=.env scripts/db.ts status",
-    "db:migrate": "node --env-file-if-exists=.env scripts/db.ts migrate",
-    "create-admin": "node --env-file-if-exists=.env server/create-admin.ts",
+    "preview": "vite preview --config web/vite.config.ts",
     "typecheck": "tsc && tsc -p web",
-    "test": "npm run typecheck && node --test \"server/**/*.test.ts\""
+    "db:push": "supabase db push --linked",
+    "db:types": "supabase gen types typescript --linked --schema public > shared/database.types.ts",
+    "functions:deploy": "supabase functions deploy admin-create-user",
+    "test:db": "supabase db query --linked -f supabase/tests/permissions.sql",
+    "deploy": "npm run typecheck && npm run build && wrangler deploy"
   },
   "dependencies": {
-    "pg": "^8.16.3",
+    "@supabase/supabase-js": "^2.117.3",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
-    "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
-    "embedded-postgres": "^18.4.0-beta.17",
+    "supabase": "^2.121.0",
     "typescript": "^7.0.2",
-    "vite": "^8.3.4"
+    "vite": "^8.3.4",
+    "wrangler": "^4.151.0"
   }
 }

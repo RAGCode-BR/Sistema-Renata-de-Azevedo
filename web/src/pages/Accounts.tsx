@@ -11,14 +11,15 @@ import { secret, text, useLoad } from '../hooks.ts';
 export function AccountsPage() {
   const notify = useToast();
   const [creating, setCreating] = useState(false);
-  const { data, error, reload } = useLoad(() => Promise.all([api.users(), api.professionals()]), []);
+  const { data, error, loading, reload } = useLoad(() => Promise.all([api.users(), api.professionals()]), []);
   const [users, professionals] = data ?? [[], []];
   const names = new Map(professionals.map((item) => [item.id, item.name]));
 
   return (
     <>
       <Heading title="Contas" lead="Acesso individual para administração e profissionais.">
-        <button type="button" className="button" onClick={() => setCreating(true)}>Nova conta</button>
+        {/* Só com os dados atualizados: a janela usa as listas de contas e profissionais. */}
+        <button type="button" className="button" disabled={loading} onClick={() => setCreating(true)}>Nova conta</button>
       </Heading>
 
       <Panel title="Usuários">

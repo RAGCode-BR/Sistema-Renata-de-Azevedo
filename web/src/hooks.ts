@@ -8,6 +8,8 @@ export function errorMessage(error: unknown): string {
 interface Loaded<T> {
   data: T | undefined;
   error: string;
+  // true enquanto busca dados novos (inclusive ao recarregar, quando `data` ainda é o anterior).
+  loading: boolean;
   reload: () => void;
 }
 
@@ -15,19 +17,21 @@ interface Loaded<T> {
 export function useLoad<T>(load: () => Promise<T>, deps: DependencyList): Loaded<T> {
   const [data, setData] = useState<T>();
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
   const [version, setVersion] = useState(0);
 
   useEffect(() => {
     let current = true;
     setError('');
+    setLoading(true);
     load().then(
       (result) => { if (current) setData(result); },
       (failure: unknown) => { if (current) setError(errorMessage(failure)); }
-    );
+    ).finally(() => { if (current) setLoading(false); });
     return () => { current = false; };
   }, [...deps, version]);
 
-  return { data, error, reload: useCallback(() => setVersion((value) => value + 1), []) };
+  return { data, error, loading, reload: useCallback(() => setVersion((value) => value + 1), []) };
 }
 
 // Envia um formulário, mostra o erro do servidor e limpa os campos ao concluir.

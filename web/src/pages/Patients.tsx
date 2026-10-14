@@ -12,7 +12,7 @@ export function PatientsPage({ user }: { user: SessionUser }) {
   const notify = useToast();
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState('');
-  const { data, error, reload } = useLoad(() => Promise.all([api.patients(), api.professionals()]), []);
+  const { data, error, loading, reload } = useLoad(() => Promise.all([api.patients(), api.professionals()]), []);
   const [patients, professionals] = data ?? [[], []];
   const names = new Map(professionals.map((item) => [item.id, item.name]));
   const term = search.trim().toLocaleLowerCase('pt-BR');
@@ -25,7 +25,7 @@ export function PatientsPage({ user }: { user: SessionUser }) {
           <input type="search" placeholder="Buscar por nome" aria-label="Buscar paciente por nome"
             value={search} onChange={(event) => setSearch(event.target.value)} />
         </label>
-        {admin && <button type="button" className="button" onClick={() => setCreating(true)}>Novo paciente</button>}
+        {admin && <button type="button" className="button" disabled={loading} onClick={() => setCreating(true)}>Novo paciente</button>}
       </Heading>
 
       <Panel title="Lista de pacientes">

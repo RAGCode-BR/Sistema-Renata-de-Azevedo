@@ -1,4 +1,6 @@
 {
+  // Arquivos que rodam no Node durante o desenvolvimento (configuração do Vite) e tipos compartilhados.
+  // A interface tem o próprio tsconfig em web/; as Edge Functions (Deno) ficam em supabase/functions.
   "compilerOptions": {
     "target": "es2023",
     "module": "nodenext",
@@ -7,9 +9,8 @@
     "strict": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,
-    "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true
   },
-  "include": ["server/**/*.ts", "shared/**/*.ts", "scripts/**/*.ts", "web/vite.config.ts"]
+  "include": ["shared/**/*.ts", "web/vite.config.ts"]
 }

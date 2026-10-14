@@ -7,7 +7,11 @@ export function LoginPage({ notice, onLogin }: { notice: string; onLogin: (user:
   const { busy, error, onSubmit } = useFormSubmit(async (data) => {
     await api.login(text(data, 'email'), secret(data, 'password'));
     const user = await api.session();
-    if (user) onLogin(user);
+    if (!user) {
+      await api.logout();
+      throw new Error('Esta conta não tem acesso ao sistema.');
+    }
+    onLogin(user);
   });
   const message = error || notice;
 

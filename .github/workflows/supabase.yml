@@ -1,0 +1,34 @@
+# Aplica no Supabase, a cada push na main que mexa em supabase/:
+# migrações do banco, Edge Functions e o teste de permissões (RLS).
+# Segredos do repositório (Settings → Secrets and variables → Actions):
+#   SUPABASE_ACCESS_TOKEN  token pessoal (supabase.com → Account → Access Tokens)
+#   SUPABASE_DB_PASSWORD   senha do banco (Project Settings → Database)
+name: Supabase
+
+on:
+  push:
+    branches: [main]
+    paths: ['supabase/**']
+  workflow_dispatch:
+
+concurrency: supabase-production
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_ID: qnchebjrgnfgszrzlyue
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.121.0
+      - run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
+      - name: Migrações
+        run: supabase db push
+      - name: Edge Functions
+        run: supabase functions deploy admin-create-user --project-ref "$SUPABASE_PROJECT_ID"
+      - name: Teste de permissões
+        run: supabase db query --linked -f supabase/tests/permissions.sql

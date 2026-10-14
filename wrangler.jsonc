@@ -1,0 +1,8 @@
+// Cloudflare: só publica a interface compilada (web/dist). Os dados ficam no Supabase,
+// acessados direto do navegador com a chave pública e protegidos pelas políticas RLS.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sistema-renata-de-azevedo",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "web/dist" }
+}
