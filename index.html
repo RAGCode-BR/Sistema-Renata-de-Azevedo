@@ -2,47 +2,93 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#53102f">
   <title>Renata de Azevedo | Gestão da clínica</title>
-
-  <link rel="stylesheet" href="assets/css/app.css?v=3">
+  <link rel="stylesheet" href="assets/css/app.css?v=4">
 </head>
 
 <body>
-  <div class="app">
-    <aside class="sidebar">
-      <a class="brand" href="#/hoje">
-        <img src="assets/logo.png" alt="Renata de Azevedo, Psicologia e Coaching">
-      </a>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.7M12 17.1v.1"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3.5"/><path d="M2.8 19.5c.6-3.2 3.1-5.2 6.2-5.2s5.6 2 6.2 5.2M16 5.3a3.4 3.4 0 0 1 0 6.4M18.3 14.6c1.6.8 2.6 2.4 2.9 4.9"/></symbol>
+    <symbol id="i-team" viewBox="0 0 24 24"><rect x="3.5" y="7" width="17" height="13" rx="3"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3.5 12.5h17"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="14" rx="3"/><path d="M3 10h18M15.5 14.8h2"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-user-plus" viewBox="0 0 24 24"><circle cx="10" cy="8.5" r="3.5"/><path d="M3.8 19.5c.6-3.2 3.1-5.2 6.2-5.2 1.6 0 3 .5 4.1 1.4M18 14v6M15 17h6"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></symbol>
+    <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M6 3.5h12v17l-3-1.8-3 1.8-3-1.8-3 1.8z"/><path d="M9 8.5h6M9 12.5h6"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M14 4.5h3.5a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H14M10 16l-4-4 4-4M6 12h9"/></symbol>
+    <symbol id="i-person" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.8"/><path d="M5 20c.7-3.5 3.5-5.6 7-5.6s6.3 2.1 7 5.6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  </svg>
 
-      <div class="nav-label">ESPAÇO DE TRABALHO</div>
+  <div class="app" id="app">
+    <header class="topbar">
+      <button class="icon-btn menu-toggle" id="menu-toggle" type="button" aria-label="Recolher menu" aria-expanded="true" aria-controls="subnav">
+        <svg class="icon"><use href="#i-menu"/></svg>
+      </button>
+      <a class="brand" href="#/hoje"><img src="assets/logo.png" alt="Renata de Azevedo, Psicologia e Coaching"></a>
 
-      <nav class="navigation" aria-label="Menu principal">
-        <a class="nav-item" href="#/hoje">Hoje</a>
-        <a class="nav-item" href="#/agenda">Agenda</a>
-        <a class="nav-item" href="#/pacientes">Pacientes</a>
-        <a class="nav-item" href="#/prontuarios">Prontuários</a>
-        <a class="nav-item" href="#/profissionais">Profissionais</a>
-        <a class="nav-item" href="#/financeiro">Financeiro</a>
-        <a class="nav-item" href="#/relatorios">Relatórios</a>
-        <div class="nav-group">
-          <a class="nav-item" href="#/configuracoes">Configurações</a>
-          <a class="nav-item" href="#/ajuda">Ajuda</a>
-        </div>
-      </nav>
-
-      <div class="profile">
-        Renata de Azevedo
-        <button type="button" data-action="sair">Sair</button>
+      <div class="top-search" id="top-search">
+        <svg class="icon"><use href="#i-search"/></svg>
+        <input id="busca-global" type="search" placeholder="Buscar paciente" aria-label="Buscar paciente" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="busca-resultados">
+        <kbd aria-hidden="true">/</kbd>
+        <div class="pop search-pop" id="busca-resultados" role="listbox" hidden></div>
       </div>
+
+      <div class="top-actions">
+        <button class="icon-btn search-open-btn" id="abrir-busca" type="button" aria-label="Buscar paciente">
+          <svg class="icon"><use href="#i-search"/></svg>
+        </button>
+        <a class="icon-btn" href="#/ajuda" data-tip="Ajuda" aria-label="Ajuda"><svg class="icon"><use href="#i-help"/></svg></a>
+        <button class="icon-btn" id="sino" type="button" aria-label="Pendências" aria-expanded="false" aria-controls="sino-menu" data-tip="Pendências">
+          <svg class="icon"><use href="#i-bell"/></svg>
+          <span class="badge" id="sino-total" hidden></span>
+        </button>
+        <div class="pop" id="sino-menu" hidden></div>
+        <button class="avatar-btn" id="conta" type="button" aria-label="Sua conta" aria-expanded="false" aria-controls="conta-menu">RA</button>
+        <div class="pop" id="conta-menu" hidden>
+          <div class="pop-title">Renata de Azevedo<br>Administradora</div>
+          <a class="pop-item" href="#/configuracoes"><svg class="icon"><use href="#i-sliders"/></svg>Configurações</a>
+          <a class="pop-item" href="#/ajuda"><svg class="icon"><use href="#i-help"/></svg>Ajuda</a>
+          <hr>
+          <button class="pop-item" type="button" data-action="sair"><svg class="icon"><use href="#i-logout"/></svg>Sair</button>
+        </div>
+      </div>
+    </header>
+
+    <nav class="rail" id="trilho" aria-label="Módulos"></nav>
+
+    <aside class="subnav" id="subnav" aria-label="Páginas do módulo">
+      <div class="subnav-inner" id="subnav-inner"></div>
     </aside>
 
     <div class="workspace">
-      <p class="demo-banner" role="note">Versão de demonstração · Não insira dados reais. As alterações ficam apenas neste navegador.</p>
+      <p class="demo-banner" role="note">Versão de demonstração. Não insira dados reais: as alterações ficam só neste navegador.</p>
       <main id="view"></main>
     </div>
   </div>
 
+  <div class="fab-wrap">
+    <div class="pop fab-menu" id="criar-menu" hidden>
+      <button class="pop-item" type="button" data-action="nova-sessao"><svg class="icon"><use href="#i-calendar"/></svg>Agendar sessão</button>
+      <button class="pop-item" type="button" data-action="novo-paciente"><svg class="icon"><use href="#i-user-plus"/></svg>Novo paciente</button>
+      <button class="pop-item" type="button" data-action="escolher-evolucao"><svg class="icon"><use href="#i-pen"/></svg>Escrever evolução</button>
+      <button class="pop-item" type="button" data-action="nova-despesa"><svg class="icon"><use href="#i-receipt"/></svg>Lançar despesa</button>
+    </div>
+    <button class="fab" id="criar" type="button" aria-label="Criar" aria-expanded="false" aria-controls="criar-menu">
+      <svg class="icon"><use href="#i-plus"/></svg>
+    </button>
+  </div>
+
+  <div class="tip" id="tip" role="tooltip"></div>
+  <div class="peek" id="peek" aria-hidden="true"></div>
   <dialog id="modal" aria-label="Janela"></dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
@@ -58,7 +104,7 @@
   <script src="assets/js/store.js"></script>
   <script src="assets/js/ui.js"></script>
   <script src="assets/js/actions.js"></script>
-  <script src="assets/js/views/hoje.js?v=2"></script>
+  <script src="assets/js/views/hoje.js?v=3"></script>
   <script src="assets/js/views/agenda.js"></script>
   <script src="assets/js/views/pacientes.js"></script>
   <script src="assets/js/views/prontuarios.js"></script>
@@ -67,6 +113,7 @@
   <script src="assets/js/views/relatorios.js"></script>
   <script src="assets/js/views/configuracoes.js"></script>
   <script src="assets/js/views/ajuda.js"></script>
+  <script src="assets/js/shell.js"></script>
   <script src="assets/js/app.js"></script>
 </body>
 </html>

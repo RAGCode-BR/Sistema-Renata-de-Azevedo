@@ -306,6 +306,32 @@
     });
   };
 
+  // Pelo botão de criar: escolhe o paciente e abre a evolução, sugerindo quem tem sessão sem evolução.
+  A["escolher-evolucao"] = () => {
+    const pendente = q.evolucoesPendentes().reverse()[0];
+    const pacientes = q.pacientesAtivos();
+    if (!pacientes.length) return ui.toast("Cadastre um paciente primeiro.");
+    ui.modal({
+      titulo: "Escrever evolução",
+      corpo: `
+        <form id="form-escolher" class="form-grid" novalidate>
+          <label class="field full"><span>Paciente</span>
+            <select class="input" name="paciente" autofocus>${ui.opcoes(pacientes.map((p) => [p.id, p.nome]), pendente?.pacienteId)}</select>
+          </label>
+          ${pendente ? `<p class="full muted small">${App.plural(q.evolucoesPendentes().length, "sessão realizada está", "sessões realizadas estão")} sem evolução. A mais recente já vem escolhida.</p>` : ""}
+        </form>`,
+      rodape: `<button class="button ghost" type="button" data-fechar>Voltar</button><button class="button" type="submit" form="form-escolher">Continuar</button>`,
+      montar(el) {
+        el.querySelector("form").onsubmit = (e) => {
+          e.preventDefault();
+          const paciente = e.target.paciente.value;
+          const sessao = q.evolucoesPendentes().reverse().find((s) => s.pacienteId === paciente);
+          A["nova-evolucao"]({ paciente, sessao: sessao?.id });
+        };
+      }
+    });
+  };
+
   A["apagar-evolucao"] = ({ id }) => {
     ui.confirmar({
       titulo: "Apagar evolução?",

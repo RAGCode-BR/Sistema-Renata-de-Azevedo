@@ -13,12 +13,7 @@
     const rolagem = window.scrollY;
     view.render(main, id);
     document.title = `${view.titulo} | Renata de Azevedo`;
-    document.querySelectorAll(".nav-item").forEach((a) => {
-      const ativo = a.getAttribute("href") === `#/${nome}`;
-      a.classList.toggle("active", ativo);
-      if (ativo) a.setAttribute("aria-current", "page");
-      else a.removeAttribute("aria-current");
-    });
+    App.shell.atualizar(nome);
     window.scrollTo(0, rolarParaTopo ? 0 : rolagem);
   }
 

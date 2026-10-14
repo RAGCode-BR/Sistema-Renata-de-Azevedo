@@ -89,10 +89,10 @@
       </section>
 
       <section class="numbers" aria-label="Resumo">
-        <div class="number"><strong>${q.sessoesDia(hoje).length}</strong><span>sessões hoje</span></div>
-        <div class="number"><strong>${q.pacientesAtivos().length}</strong><span>pacientes em acompanhamento</span></div>
-        <div class="number"><strong>${vagas ? Math.round((ativosSemana / vagas) * 100) : 0}%</strong><span>da semana ocupada, ${ativosSemana} de ${vagas} horários</span></div>
-        <div class="number"><strong>${App.dinheiro(recebido).replace(",00", "")}</strong><span>recebidos em ${d.nomeMes(mes).split(" ")[0].toLowerCase()}, faltam ${App.dinheiro(aReceber).replace(",00", "")}</span></div>
+        <a class="number" href="#/agenda"><strong>${q.sessoesDia(hoje).length}</strong><span>sessões hoje</span></a>
+        <a class="number" href="#/pacientes"><strong>${q.pacientesAtivos().length}</strong><span>pacientes em acompanhamento</span></a>
+        <a class="number" href="#/agenda"><strong>${vagas ? Math.round((ativosSemana / vagas) * 100) : 0}%</strong><span>da semana ocupada, ${ativosSemana} de ${vagas} horários</span></a>
+        <a class="number" href="#/financeiro"><strong>${App.dinheiro(recebido).replace(",00", "")}</strong><span>recebidos em ${d.nomeMes(mes).split(" ")[0].toLowerCase()}, faltam ${App.dinheiro(aReceber).replace(",00", "")}</span></a>
       </section>
 
       <div class="content">
