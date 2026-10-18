@@ -230,9 +230,9 @@ secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
 max_frequency = "1m0s"
 # Number of characters used in the email OTP.
-otp_length = 8
-# Number of seconds before the email OTP expires (defaults to 1 hour).
-otp_expiry = 3600
+# Portal do paciente: entrada por código de 6 dígitos, válido por 10 minutos.
+otp_length = 6
+otp_expiry = 600
 
 # Use a production-ready SMTP server
 # [auth.email.smtp]
@@ -243,6 +243,12 @@ otp_expiry = 3600
 # pass = "env(SENDGRID_API_KEY)"
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
+
+# Portal do paciente: o e-mail de entrada mostra o código (não um link). Copiar este modelo para
+# Authentication → Email Templates → Magic Link no painel do Supabase.
+[auth.email.template.magic_link]
+subject = "Seu código de acesso ao portal"
+content_path = "./supabase/templates/codigo-de-acesso.html"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]
@@ -424,4 +430,46 @@ verify_jwt = false
 
 # Link temporário de documento clínico (só a profissional autora). Token validado dentro da função.
 [functions.clinical-document-url]
+verify_jwt = false
+
+# Formulário de contato do site: público, sem login (limites e validação dentro da função e no banco).
+[functions.lead-capture]
+verify_jwt = false
+
+# Google Agenda: início e fim da conexão (OAuth), sincronização e desconexão. Autorização dentro das funções.
+[functions.google-oauth-start]
+verify_jwt = false
+
+[functions.google-oauth-callback]
+verify_jwt = false
+
+[functions.google-sync]
+verify_jwt = false
+
+[functions.google-disconnect]
+verify_jwt = false
+
+# WhatsApp: envio da fila (pg_cron ou equipe) e webhook da Meta (assinatura conferida dentro da função).
+[functions.whatsapp-send]
+verify_jwt = false
+
+[functions.whatsapp-webhook]
+verify_jwt = false
+
+# Assistente de IA (desligado até a configuração). Token e autorizações conferidos dentro da função.
+[functions.ai-draft]
+verify_jwt = false
+
+# Push do aplicativo: envio da fila (chamado pelo pg_cron com segredo).
+[functions.push-send]
+verify_jwt = false
+
+# Portal do paciente: convite (cria a conta de paciente), link temporário de documento e envio de e-mails.
+[functions.portal-invite]
+verify_jwt = false
+
+[functions.portal-document-url]
+verify_jwt = false
+
+[functions.portal-email-send]
 verify_jwt = false

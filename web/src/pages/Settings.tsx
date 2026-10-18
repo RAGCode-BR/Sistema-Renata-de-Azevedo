@@ -1,8 +1,10 @@
+import type { ClinicSettings } from '../../../shared/types.ts';
 import { api } from '../api.ts';
 import { Field } from '../components/Modal.tsx';
 import { Heading, Panel, PanelState } from '../components/Page.tsx';
 import { useToast } from '../components/Toast.tsx';
 import { text, useFormSubmit, useLoad } from '../hooks.ts';
+import { dateTime } from '../format.ts';
 
 const whole = (value: string, min: number, max: number, label: string) => {
   const number = Number(value);
@@ -17,6 +19,11 @@ export function SettingsPage() {
   const record = useFormSubmit(async (form) => {
     await api.updateSettings({ note_deadline_hours: whole(text(form, 'hours'), 1, 720, 'Prazo') });
     notify('Configurações salvas.');
+    reload();
+  });
+  const google = useFormSubmit(async (form) => {
+    await api.updateSettings({ google_event_title: text(form, 'title') as ClinicSettings['google_event_title'] });
+    notify('Configuração do Google salva.');
     reload();
   });
   const billing = useFormSubmit(async (form) => {
@@ -44,6 +51,23 @@ export function SettingsPage() {
           <div className="full"><button type="submit" className="button" disabled={record.busy}>{record.busy ? 'Salvando…' : 'Salvar'}</button></div>
         </form>
       </Panel>
+      <Panel title="Google Agenda">
+        <form className="panel-body form-grid" onSubmit={google.onSubmit} key={`g${data.google_event_title}`}>
+          <Field label="Título dos eventos das sessões no Google">
+            <select className="input" name="title" defaultValue={data.google_event_title}>
+              <option value="initials">Só as iniciais do paciente (recomendado)</option>
+              <option value="generic">Apenas "Atendimento"</option>
+              <option value="full">Nome completo do paciente</option>
+            </select>
+          </Field>
+          <p className="muted small full">O Google é um serviço externo: quanto menos dado do paciente, melhor (LGPD). A mudança vale para os próximos envios.</p>
+          {google.error && <p className="erro full" role="alert">{google.error}</p>}
+          <div className="full"><button type="submit" className="button" disabled={google.busy}>{google.busy ? 'Salvando…' : 'Salvar'}</button></div>
+        </form>
+      </Panel>
+      <WhatsappPanel settings={data} onSaved={reload} />
+      <AiPanel />
+      <PushPanel />
       <Panel title="Política de cobrança">
         <form className="panel-body form-grid" onSubmit={billing.onSubmit}
           key={`c${data.missed_charge_percent}-${data.late_cancel_hours}-${data.late_cancel_charge_percent}`}>
@@ -63,5 +87,124 @@ export function SettingsPage() {
         </form>
       </Panel>
     </>
+  );
+}
+
+const TEMPLATES = [
+  ['confirmacao_sessao', 'Olá, {{1}}! Sua sessão com {{2}} está marcada para {{3}}. Podemos confirmar?', 'Botões de resposta rápida: "Confirmar" e "Preciso remarcar"'],
+  ['lembrete_sessao', 'Olá, {{1}}! Lembrete: sua sessão com {{2}} é {{3}}. Atendimento: {{4}}.', 'Sem botões'],
+  ['aviso_tarefa', 'Você tem uma nova tarefa no sistema da clínica Renata de Azevedo. Acesse: {{1}}', 'Sem botões']
+];
+
+// WhatsApp: ativação dos envios, endereço do sistema (links) e horários. Os modelos precisam estar
+// aprovados na Meta com estes nomes e textos (idioma pt_BR, categoria Utilidade).
+function WhatsappPanel({ settings, onSaved }: { settings: ClinicSettings; onSaved: () => void }) {
+  const notify = useToast();
+  const { data: state, reload } = useLoad(api.whatsappState, []);
+  const form = useFormSubmit(async (data) => {
+    await api.updateSettings({
+      whatsapp_confirm_hours: whole(text(data, 'confirm'), 0, 168, 'Confirmação'),
+      whatsapp_reminder_hours: whole(text(data, 'reminder'), 0, 48, 'Lembrete')
+    });
+    await api.setWhatsappSettings(data.get('enabled') === 'on', text(data, 'appUrl'));
+    notify('Configuração do WhatsApp salva.');
+    onSaved();
+    reload();
+  });
+  if (!state) return null;
+  return (
+    <Panel title="WhatsApp">
+      <form className="panel-body form-grid" onSubmit={form.onSubmit} key={`w${state.enabled}${state.app_url}${settings.whatsapp_confirm_hours}${settings.whatsapp_reminder_hours}`}>
+        <label className="check full"><input type="checkbox" name="enabled" defaultChecked={state.enabled} />
+          <span>Ativar envios pelo WhatsApp<span className="sub">Só ative depois de cadastrar as credenciais da Meta e ter os 3 modelos abaixo aprovados.</span></span></label>
+        <Field label="Endereço do sistema (para os links)" full>
+          <input className="input" name="appUrl" type="url" placeholder="https://..." defaultValue={state.app_url ?? ''} />
+        </Field>
+        <Field label="Pedir confirmação quantas horas antes (0 = não pedir)">
+          <input className="input" name="confirm" type="number" min={0} max={168} required defaultValue={settings.whatsapp_confirm_hours} />
+        </Field>
+        <Field label="Lembrete quantas horas antes (0 = não lembrar)">
+          <input className="input" name="reminder" type="number" min={0} max={48} required defaultValue={settings.whatsapp_reminder_hours} />
+        </Field>
+        <p className="muted small full">
+          Só recebem mensagens os pacientes que autorizaram o WhatsApp no cadastro.
+          {state.last_run_at && ` Último envio: ${dateTime(state.last_run_at)}.`}
+          {state.queued > 0 && ` ${state.queued} na fila.`}
+          {state.failed_today > 0 && ` ${state.failed_today} com erro nas últimas 24 h.`}
+          {state.last_error && ` Último erro: ${state.last_error}`}
+        </p>
+        <details className="full templates">
+          <summary>Modelos para cadastrar na Meta</summary>
+          <ul>{TEMPLATES.map(([name, body, note]) => <li key={name}><code>{name}</code> (pt_BR, Utilidade): {body} <span className="sub">{note}</span></li>)}</ul>
+        </details>
+        {form.error && <p className="erro full" role="alert">{form.error}</p>}
+        <div className="full"><button type="submit" className="button" disabled={form.busy}>{form.busy ? 'Salvando…' : 'Salvar'}</button></div>
+      </form>
+    </Panel>
+  );
+}
+
+// IA (Proprietário(a)): ligar exige limite mensal; uso e custo do mês sem conteúdo clínico.
+function AiPanel() {
+  const notify = useToast();
+  const month = new Date().toISOString().slice(0, 7) + '-01';
+  const { data, reload } = useLoad(() => api.aiUsage(month), [month]);
+  const form = useFormSubmit(async (values) => {
+    const limitText = text(values, 'limit').replace(',', '.');
+    const limit = limitText ? Number(limitText) : null;
+    if (limit !== null && (!Number.isFinite(limit) || limit <= 0)) throw new Error('Limite mensal: informe um valor em dólares maior que zero.');
+    await api.setAiSettings(values.get('enabled') === 'on', limit, whole(text(values, 'retention'), 1, 30, 'Prazo'));
+    notify('Configuração da IA salva.');
+    reload();
+  });
+  if (!data?.length) return null;
+  const row = data[0];
+  const usage = data.filter((item) => item.professional_name);
+  return (
+    <Panel title="Assistente de IA">
+      <form className="panel-body form-grid" onSubmit={form.onSubmit} key={`ia${row.enabled}${row.monthly_limit_usd}${row.retention_days}`}>
+        <label className="check full"><input type="checkbox" name="enabled" defaultChecked={row.enabled} />
+          <span>Ligar o assistente de documentação com IA<span className="sub">Só ligue depois da revisão jurídica do termo de consentimento e do contrato com o fornecedor (Anthropic), e com a chave da API cadastrada no Supabase.</span></span></label>
+        <Field label="Limite mensal de custo (US$)"><input className="input" name="limit" inputMode="decimal" defaultValue={row.monthly_limit_usd ?? ''} placeholder="Ex.: 30" /></Field>
+        <Field label="Apagar transcrições quantos dias depois de usar ou descartar">
+          <input className="input" name="retention" type="number" min={1} max={30} required defaultValue={row.retention_days} />
+        </Field>
+        <p className="muted small full">
+          Gasto neste mês: US$ {Number(row.month_cost).toFixed(2).replace('.', ',')}{row.monthly_limit_usd ? ` de ${Number(row.monthly_limit_usd).toFixed(2).replace('.', ',')}` : ''}.
+          {usage.map((item) => ` ${item.professional_name}: ${item.runs} uso(s), US$ ${Number(item.cost_usd).toFixed(2).replace('.', ',')}.`).join('')}
+          {' '}O custo de cada uso vem dos tokens informados pela API (preço de tabela); a fatura oficial é a do fornecedor.
+        </p>
+        {form.error && <p className="erro full" role="alert">{form.error}</p>}
+        <div className="full"><button type="submit" className="button" disabled={form.busy}>{form.busy ? 'Salvando…' : 'Salvar'}</button></div>
+      </form>
+    </Panel>
+  );
+}
+
+// Aplicativo da equipe: avisos no celular. O texto na tela bloqueada é genérico (sem nome de paciente).
+function PushPanel() {
+  const notify = useToast();
+  const { data: state, reload } = useLoad(api.pushState, []);
+  const form = useFormSubmit(async (values) => {
+    await api.setPushEnabled(values.get('enabled') === 'on');
+    notify('Configuração dos avisos no celular salva.');
+    reload();
+  });
+  if (!state) return null;
+  return (
+    <Panel title="Aplicativo da equipe">
+      <form className="panel-body form-grid" onSubmit={form.onSubmit} key={`p${state.enabled}`}>
+        <label className="check full"><input type="checkbox" name="enabled" defaultChecked={state.enabled} />
+          <span>Enviar avisos para o celular<span className="sub">Tarefas, leads e mensagens do sino também chegam como notificação no aplicativo. Na tela bloqueada aparece só um texto genérico.</span></span></label>
+        <p className="muted small full">
+          {state.devices === 1 ? '1 aparelho registrado.' : `${state.devices} aparelhos registrados.`}
+          {state.last_run_at && ` Último envio: ${dateTime(state.last_run_at)}.`}
+          {state.queued > 0 && ` ${state.queued} na fila.`}
+          {state.last_error && ` Último erro: ${state.last_error}`}
+        </p>
+        {form.error && <p className="erro full" role="alert">{form.error}</p>}
+        <div className="full"><button type="submit" className="button" disabled={form.busy}>{form.busy ? 'Salvando…' : 'Salvar'}</button></div>
+      </form>
+    </Panel>
   );
 }

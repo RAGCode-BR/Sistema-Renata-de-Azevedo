@@ -18,13 +18,20 @@ interface AppointmentFormProps {
   professionals: Professional[];
   patients: Patient[];
   initial: { professionalId?: string; start?: Date };
+  // Compromissos no Google Agenda: só avisam, não impedem o agendamento.
+  busy: ScheduleBlock[];
   onClose: () => void;
   onSaved: (message: string) => void;
 }
 
-export function AppointmentForm({ professionals, patients, initial, onClose, onSaved }: AppointmentFormProps) {
+export function AppointmentForm({ professionals, patients, initial, busy, onClose, onSaved }: AppointmentFormProps) {
   const active = professionals.filter((item) => item.active);
   const [professionalId, setProfessionalId] = useState(initial.professionalId ?? active[0]?.id ?? '');
+  const [startText, setStartText] = useState(initial.start ? toLocalInput(initial.start) : '');
+  const [duration, setDuration] = useState(50);
+  const startAt = new Date(startText).getTime();
+  const clash = Number.isNaN(startAt) ? null : busy.find((item) => item.professional_id === professionalId
+    && new Date(item.starts_at).getTime() < startAt + duration * 60_000 && new Date(item.ends_at).getTime() > startAt);
   const [frequency, setFrequency] = useState<Frequency | ''>('');
   // Só aparecem pacientes vinculados à profissional escolhida, como o banco exige.
   const options = patients.filter((item) => item.status === 'active' && item.professional_ids.includes(professionalId));
@@ -58,11 +65,10 @@ export function AppointmentForm({ professionals, patients, initial, onClose, onS
         </select>
       </Field>
       <Field label="Início">
-        <input className="input" name="startsAt" type="datetime-local" required
-          defaultValue={initial.start ? toLocalInput(initial.start) : undefined} />
+        <input className="input" name="startsAt" type="datetime-local" required defaultValue={startText} onChange={(event) => setStartText(event.target.value)} />
       </Field>
       <Field label="Duração">
-        <select className="input" name="duration" defaultValue="50">
+        <select className="input" name="duration" defaultValue={duration} onChange={(event) => setDuration(Number(event.target.value))}>
           {DURATIONS.map((minutes) => <option key={minutes} value={minutes}>{minutes} minutos</option>)}
         </select>
       </Field>
@@ -86,6 +92,11 @@ export function AppointmentForm({ professionals, patients, initial, onClose, onS
         <Field label="Quantidade de sessões">
           <input className="input" name="count" type="number" min={2} max={52} defaultValue={12} required />
         </Field>
+      )}
+      {clash && (
+        <p className="notice full" role="status">
+          Atenção: a profissional tem um compromisso no Google Agenda das {time(clash.starts_at)} às {time(clash.ends_at)}. O agendamento continua permitido.
+        </p>
       )}
       {frequency && (
         <p className="muted small full">
@@ -198,6 +209,7 @@ export function AppointmentDetails({ appointment, canManage, ownProfessional, on
             {appointment.cancellation_reason && <span className="sub">Motivo: {appointment.cancellation_reason}</span>}
           </dd>
           {appointment.series_id && <><dt>Série</dt><dd>Sessão recorrente</dd></>}
+          {appointment.meeting_url && <><dt>On-line</dt><dd><a href={appointment.meeting_url} target="_blank" rel="noreferrer">Entrar no Google Meet</a></dd></>}
           {appointment.rescheduled_from && <><dt>Origem</dt><dd>Remarcada de outro horário</dd></>}
         </dl>
 
@@ -322,13 +334,15 @@ export function BlockDetails({ block, onClose, onChanged }: { block: ScheduleBlo
   const [error, setError] = useState('');
 
   return (
-    <Modal title="Horário bloqueado" onClose={onClose}>
+    <Modal title={block.source === 'google' ? 'Compromisso no Google Agenda' : 'Horário bloqueado'} onClose={onClose}>
       <div className="modal-body">
         <dl className="facts">
           <dt>Profissional</dt><dd>{block.professional_name}</dd>
           <dt>Quando</dt><dd>{longDay(block.starts_at)}, {time(block.starts_at)}–{time(block.ends_at)}</dd>
-          <dt>Motivo</dt>
-          <dd>{block.reason ?? (block.reason_private ? 'Privado' : '—')}{block.reason_private && block.reason && <span className="sub">Motivo privado</span>}</dd>
+          {block.source === 'google' ? <><dt>Origem</dt><dd>Agenda pessoal no Google (sem detalhes, por privacidade)</dd></> : <>
+            <dt>Motivo</dt>
+            <dd>{block.reason ?? (block.reason_private ? 'Privado' : '—')}{block.reason_private && block.reason && <span className="sub">Motivo privado</span>}</dd>
+          </>}
         </dl>
         {error && <p className="erro" role="alert">{error}</p>}
       </div>

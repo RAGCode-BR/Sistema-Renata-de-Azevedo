@@ -20,7 +20,19 @@ import { ExpensesPage } from '../pages/finance/Expenses.tsx';
 import { FinanceOverviewPage } from '../pages/finance/Overview.tsx';
 import { PayoutsPage } from '../pages/finance/Payouts.tsx';
 import { PricesPage } from '../pages/finance/Prices.tsx';
+import { NotificationBell } from './Notifications.tsx';
 import { PasswordDialog } from './PasswordDialog.tsx';
+import { WhatsappNoticeDialog } from './WhatsappNotice.tsx';
+import { ConversationsPage } from '../pages/Conversations.tsx';
+import { RecurrencesPage, TasksPage, TeamTasksPage } from '../pages/tasks/Tasks.tsx';
+import { CampaignsPage } from '../pages/crm/Campaigns.tsx';
+import { CrmDashboardPage } from '../pages/crm/Dashboard.tsx';
+import { CrmSettingsPage } from '../pages/crm/CrmSettings.tsx';
+import { FunnelPage } from '../pages/crm/Funnel.tsx';
+import { CommercialReportPage } from '../pages/reports/Commercial.tsx';
+import { FinancialReportPage } from '../pages/reports/Financial.tsx';
+import { OperationalReportPage } from '../pages/reports/Operational.tsx';
+import { YearlyReportPage } from '../pages/reports/Yearly.tsx';
 
 interface Route {
   path: string;
@@ -30,6 +42,8 @@ interface Route {
 
 interface Module {
   title: string;
+  // Rótulo curto da barra inferior no celular.
+  short?: string;
   icon: IconName;
   routes: Route[];
 }
@@ -43,7 +57,8 @@ const patients: Route = {
   path: 'pacientes', label: 'Pacientes',
   render: (user, params) => <PatientsPage user={user} patientId={params.get('id')} tab={params.get('aba')} />
 };
-const calendars: Route = { path: 'google-agenda', label: 'Google Agenda', render: () => <GoogleCalendarsPage /> };
+const conversations: Route = { path: 'conversas', label: 'WhatsApp', render: (_user, params) => <ConversationsPage phone={params.get('telefone')} /> };
+const calendars: Route = { path: 'google-agenda', label: 'Google Agenda', render: (user, params) => <GoogleCalendarsPage user={user} result={params.get('google')} /> };
 
 const clinicalNotes: Route = {
   path: 'prontuarios', label: 'Prontuários',
@@ -55,6 +70,18 @@ const settings: Route = { path: 'configuracoes', label: 'Configurações', rende
 const printRecord: Route = { path: 'prontuario-impressao', label: 'Exportar prontuário', render: (_user, params) => <PrintRecordPage patientId={params.get('paciente')} /> };
 const professionals: Route = { path: 'profissionais', label: 'Profissionais', render: () => <ProfessionalsPage /> };
 const users: Route = { path: 'usuarios', label: 'Usuários', render: (user) => <UsersPage user={user} /> };
+const tasks: Route = { path: 'tarefas', label: 'Minhas tarefas', render: (user, params) => <TasksPage user={user} taskId={params.get('tarefa')} /> };
+const teamTasks: Route = { path: 'tarefas-equipe', label: 'Tarefas da equipe', render: (user) => <TeamTasksPage user={user} /> };
+const recurrences: Route = { path: 'tarefas-recorrentes', label: 'Recorrentes', render: (user) => <RecurrencesPage user={user} /> };
+const funnel: Route = { path: 'comercial', label: 'Funil', render: (user, params) => <FunnelPage user={user} leadId={params.get('lead')} /> };
+const campaigns: Route = { path: 'comercial-campanhas', label: 'Campanhas', render: (user) => <CampaignsPage user={user} /> };
+const crmDashboard: Route = { path: 'comercial-painel', label: 'Painel comercial', render: () => <CrmDashboardPage /> };
+const crmSettings: Route = { path: 'comercial-configuracoes', label: 'Configurações do comercial', render: () => <CrmSettingsPage /> };
+const operationalReport: Route = { path: 'relatorios', label: 'Operacional', render: (user) => <OperationalReportPage user={user} /> };
+const myNumbers: Route = { ...operationalReport, label: 'Meus números' };
+const financialReport: Route = { path: 'relatorios-financeiro', label: 'Financeiro', render: (user) => <FinancialReportPage user={user} /> };
+const commercialReport: Route = { path: 'relatorios-comercial', label: 'Comercial', render: () => <CommercialReportPage /> };
+const yearlyReport: Route = { path: 'relatorios-comparativo', label: 'Comparativo anual', render: () => <YearlyReportPage /> };
 const financeOverview: Route = { path: 'financeiro', label: 'Visão geral', render: () => <FinanceOverviewPage /> };
 const charges: Route = { path: 'cobrancas', label: 'Cobranças', render: (user) => <ChargesPage user={user} /> };
 const expenses: Route = { path: 'despesas', label: 'Despesas', render: (user) => <ExpensesPage user={user} /> };
@@ -68,7 +95,7 @@ function modulesFor(user: SessionUser): Module[] {
   const professional = user.roles.includes('professional');
   const modules: Module[] = [
     { title: 'Início', icon: 'home', routes: [home] },
-    { title: 'Atendimento', icon: 'calendar', routes: [agenda, calendars] },
+    { title: 'Atendimento', short: 'Agenda', icon: 'calendar', routes: [agenda, ...(can(user, 'messages.manage') ? [conversations] : []), calendars] },
     {
       title: 'Pacientes', icon: 'users', routes: [
         ...(can(user, 'patients.view_all') || professional ? [patients] : []),
@@ -83,9 +110,24 @@ function modulesFor(user: SessionUser): Module[] {
       ]
     },
     {
+      title: 'Comercial', icon: 'target', routes: can(user, 'crm.view')
+        ? [funnel, campaigns, crmDashboard, ...(can(user, 'crm.manage') ? [crmSettings] : [])] : []
+    },
+    {
+      title: 'Relatórios', icon: 'chart', routes: (() => {
+        const list = [
+          ...(can(user, 'appointments.view_all') ? [operationalReport] : professional ? [myNumbers] : []),
+          ...(can(user, 'finance.view') || can(user, 'billing.view') ? [financialReport] : []),
+          ...(can(user, 'crm.view') ? [commercialReport] : [])
+        ];
+        return list.length ? [...list, yearlyReport] : [];
+      })()
+    },
+    { title: 'Tarefas', icon: 'check', routes: [tasks, ...(can(user, 'tasks.manage') ? [teamTasks] : []), recurrences] },
+    {
       // Resultado, despesas e repasses: Proprietário(a) e Financeiro. Cobranças: quem atende o caixa.
       // Profissional: as cobranças das próprias sessões e o próprio repasse.
-      title: 'Financeiro', icon: 'wallet', routes: [
+      title: 'Financeiro', short: 'Finanças', icon: 'wallet', routes: [
         ...(can(user, 'finance.view') ? [financeOverview] : []),
         ...(can(user, 'billing.view') || professional ? [charges] : []),
         ...(can(user, 'finance.view') ? [expenses, payouts] : professional ? [myPayout] : []),
@@ -93,7 +135,7 @@ function modulesFor(user: SessionUser): Module[] {
       ]
     }
   ];
-  if (can(user, 'settings.manage')) modules.push({ title: 'Configurações', icon: 'gear', routes: [settings] });
+  if (can(user, 'settings.manage')) modules.push({ title: 'Configurações', short: 'Ajustes', icon: 'gear', routes: [settings] });
   return modules.filter((module) => module.routes.length);
 }
 
@@ -106,6 +148,7 @@ function readSubmenu(): boolean {
 export function Shell({ user, onLogout }: { user: SessionUser; onLogout: () => void }) {
   const { path, params } = useHashRoute();
   const [changingPassword, setChangingPassword] = useState(false);
+  const [whatsappNotice, setWhatsappNotice] = useState(false);
   const [submenuOpen, setSubmenuOpen] = useState(readSubmenu);
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
@@ -115,6 +158,11 @@ export function Shell({ user, onLogout }: { user: SessionUser; onLogout: () => v
   const current = routes.find((route) => route.path === path) ?? home;
   const currentModule = modules.find((module) => module.routes.includes(current)) ?? modules[0];
   const initials = user.name.split(' ').filter((part) => part.length > 2).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+
+  // No celular a barra de módulos rola de lado: mantém o módulo atual visível.
+  useEffect(() => {
+    document.querySelector('.rail-link.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [currentModule.title]);
 
   useEffect(() => {
     if (!accountOpen) return;
@@ -155,6 +203,7 @@ export function Shell({ user, onLogout }: { user: SessionUser; onLogout: () => v
         </a>
 
         <div className="top-actions" ref={accountRef}>
+          <NotificationBell icon={<Icon name="bell" />} />
           <button type="button" className="avatar-btn" aria-label="Sua conta" aria-expanded={accountOpen} aria-controls="conta-menu"
             onClick={() => setAccountOpen(!accountOpen)}>
             {initials}
@@ -163,6 +212,9 @@ export function Shell({ user, onLogout }: { user: SessionUser; onLogout: () => v
             <div className="pop-title">{user.name}<br />{user.roles.map((role) => roleLabel[role]).join(' · ')}</div>
             <button type="button" className="pop-item" onClick={() => { setAccountOpen(false); setChangingPassword(true); }}>
               <Icon name="key" />Trocar senha
+            </button>
+            <button type="button" className="pop-item" onClick={() => { setAccountOpen(false); setWhatsappNotice(true); }}>
+              <Icon name="bell" />Avisos no WhatsApp
             </button>
             <hr />
             <button type="button" className="pop-item" onClick={logout}><Icon name="logout" />Sair</button>
@@ -176,7 +228,7 @@ export function Shell({ user, onLogout }: { user: SessionUser; onLogout: () => v
           return (
             <a key={module.title} href={`#/${module.routes[0].path}`} className={active ? 'rail-link has-tip active' : 'rail-link has-tip'}
               data-tip={module.title} aria-label={module.title} aria-current={active ? 'true' : undefined}>
-              <Icon name={module.icon} /><span>{module.title}</span>
+              <Icon name={module.icon} /><span>{module.short ?? module.title}</span>
             </a>
           );
         })}
@@ -202,6 +254,7 @@ export function Shell({ user, onLogout }: { user: SessionUser; onLogout: () => v
       </div>
 
       {changingPassword && <PasswordDialog onClose={() => setChangingPassword(false)} />}
+      {whatsappNotice && <WhatsappNoticeDialog onClose={() => setWhatsappNotice(false)} />}
     </div>
   );
 }
@@ -215,6 +268,10 @@ const ICONS = {
   team: <><rect x="3.5" y="7" width="17" height="13" rx="3" /><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3.5 12.5h17" /></>,
   key: <><circle cx="8" cy="15" r="4" /><path d="m11 12 8-8M16 7l2 2M14 9l2 2" /></>,
   wallet: <><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3" /><rect x="4" y="8" width="16.5" height="11.5" rx="2.5" /><path d="M16.5 13.75h.01" strokeWidth="2.4" /></>,
+  target: <><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="4.5" /><circle cx="12" cy="12" r="0.8" /></>,
+  chart: <><path d="M4 20h16" /><rect x="6" y="11" width="3" height="6" rx="1" /><rect x="11" y="6" width="3" height="11" rx="1" /><rect x="16" y="9" width="3" height="8" rx="1" /></>,
+  check: <><rect x="4" y="4" width="16" height="16" rx="4" /><path d="m8.5 12.2 2.4 2.4 4.6-5" /></>,
+  bell: <><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z" /><path d="M10 20.5a2.2 2.2 0 0 0 4 0" /></>,
   logout: <path d="M14 4.5h3.5a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H14M10 16l-4-4 4-4M6 12h9" />
 };
 

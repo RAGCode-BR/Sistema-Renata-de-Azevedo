@@ -95,9 +95,9 @@ Uma pessoa pode ter **vários perfis** (ex.: Renata = Proprietário(a) + Profiss
 | Perfil | Acesso |
 | --- | --- |
 | Proprietário(a) (Renata) | Tudo o que é administrativo, inclusive usuários e configurações. |
-| Gerente (Mari, Bárbara) | Agenda geral, pacientes, profissionais e calendários. Sem usuários. |
-| Recepção (pronto para uso futuro) | Pacientes e agenda. |
-| Financeiro (pronto para uso futuro) | Permissões do financeiro (módulo ainda não criado). |
+| Gerente (Mari, Bárbara) | Agenda geral, pacientes, profissionais, calendários, cobranças, comercial e tarefas da equipe. Sem usuários nem resultado financeiro. |
+| Recepção (pronto para uso futuro) | Pacientes, agenda, cobranças e comercial. |
+| Financeiro (pronto para uso futuro) | Financeiro completo: cobranças, despesas, resultado e repasses. |
 | Profissional | Os próprios pacientes, a própria agenda e o próprio prontuário. |
 | Paciente (fase futura) | Nenhum acesso à área da equipe. |
 
@@ -204,15 +204,319 @@ Cobranças, pagamentos, alocações e repasses não têm acesso direto às tabel
 - **Despesas:** cada uma tem categoria e centro de custo, e as duas listas podem ser editadas em **Despesas**. Os centros de custo iniciais são Administrativo, Atendimento clínico, Comercial e marketing.
 - **Fica para depois:** recibos e nota fiscal, importação do Yampa/Clinical Experts, conciliação bancária e PIX automático.
 
-## Agenda Google
+## Tarefas
 
-O banco já separa contas Google de calendários e permite vários calendários por profissional. Também há uma tabela que liga sessões a eventos do Google, necessária para a sincronização nos dois sentidos.
+**Quem faz o quê:**
 
-**Nenhuma conta Google está conectada ainda.** A autorização OAuth, a sincronização e o tratamento de conflitos ficarão em Edge Functions. Os tokens ficam em `google_accounts`, que a interface não consegue ler.
+| Perfil | Acesso |
+|---|---|
+| Proprietário(a) e Gerente (`tasks.manage`) | Atribuem tarefas a qualquer pessoa ativa da equipe e acompanham todas em **Tarefas da equipe** |
+| Demais perfis | Criam tarefas só para si. Concluem, mudam a situação e comentam as que receberam |
+
+Só quem criou a tarefa (ou tem `tasks.manage`) edita ou cancela. Ninguém lê as tabelas diretamente: tudo passa por funções do banco, que gravam o histórico em `task_events`.
+
+- **Tarefa:** título, descrição, responsável, prazo (data e horário opcionais) e prioridade (baixa, normal, alta ou urgente). Pode ter um vínculo opcional com paciente, só administrativo: o nome do paciente aparece apenas para quem já vê aquele paciente. O formulário avisa para não escrever informação clínica.
+- **Situações:** a fazer, em andamento, concluída e cancelada. O check conclui e registra quem concluiu e quando. Concluídas e canceladas ficam visíveis por 60 dias em "Com concluídas".
+- **Recorrência:** diária, dias úteis, semanal, mensal, último dia do mês ou anual (página **Recorrentes**).
+  - Ao concluir ou cancelar uma ocorrência, a próxima é criada na **data fixa da regra**. Ex.: uma tarefa mensal do dia 5 concluída no dia 8 gera a próxima no dia 5 do mês seguinte. Em meses curtos, vale o último dia do mês.
+  - Se a data calculada já passou, a regra avança até hoje ou depois, para a tarefa não nascer atrasada.
+  - Só existe uma ocorrência em aberto por regra.
+  - Pausar uma regra mantém a tarefa em aberto. Retomar cria a próxima, se não houver uma em aberto.
+- **Avisos (sino no topo):**
+  - Avisam quando a tarefa é atribuída, concluída ou comentada, e mostram o resumo das próprias tarefas que vencem hoje ou estão atrasadas.
+  - "Vence hoje" e "atrasada" são calculados na hora, no fuso de São Paulo, sem rotina agendada no banco.
+  - Os avisos levam só o título e o link da tarefa.
+- **Painel inicial:**
+  - Para quem tem `tasks.manage`, "tarefas atrasadas na equipe"; para os demais, as próprias.
+  - Nas pendências, as tarefas para hoje e as atrasadas.
+- **Fica para depois:** avisos por e-mail, WhatsApp (Bloco 10) e push (Bloco 12). Também automações que criam tarefas sozinhas, como uma tarefa para a recepção quando a cobrança vence há 7 dias, ou para a gerência quando um paciente ativo fica 30 dias sem sessão.
+
+## Comercial (CRM)
+
+Substitui o Converte no controle de contatos, funil e campanhas. É usado por Proprietário(a), Gerente e Recepção (`crm.view` e `crm.manage`); profissionais não acessam. As alterações nos leads passam por funções do banco, que registram cada passo na linha do tempo do lead (`lead_activities`).
+
+- **Lead:**
+  - Dados: nome, telefone/WhatsApp, e-mail, origem, campanha, interesse (serviços do site), local (on-line ou unidade), profissional desejada, responsável e observações.
+  - Ao digitar telefone ou e-mail, o sistema avisa se já existe lead ou paciente com o mesmo contato (telefone comparado com e sem o 55).
+- **Funil** (página **Funil**):
+  - Quadro por etapa, em que arrastar o cartão muda a etapa, ou lista com filtros por responsável, origem e busca.
+  - Etapas: Novo contato → Em atendimento → Primeira consulta agendada → Convertido, ou Perdido. As etapas podem ser editadas.
+  - "Perdido" exige motivo (preço, horário, não respondeu, escolheu outro lugar, outro).
+  - "Convertido" só acontece pela **conversão em paciente**: ela cria o cadastro (ou liga a um paciente com o mesmo contato), com a profissional, a origem e a campanha.
+- **Contatos e retorno:**
+  - Cada ligação, mensagem, e-mail ou conversa é registrada no lead.
+  - "Agendar retorno" cria a tarefa "Retornar contato: …" no módulo de Tarefas, com link para o lead.
+- **Campanhas:**
+  - Nome, canal, período, investimento (lançado à mão) e código para o link do anúncio (`utm_campaign`).
+  - Resultados desde o início da campanha: leads, convertidos, compareceram à sessão, custo por lead, custo por paciente e faturamento.
+  - O faturamento só aparece para quem vê cobranças ou o financeiro.
+- **Painel comercial:**
+  - Os leads que entraram no mês, acompanhados até hoje: convertidos, taxa de conversão, compareceram, faturamento e tempo médio até o primeiro contato.
+  - Novos pacientes de todas as origens.
+  - Por origem, por etapa, motivos de perda e mês a mês, com comparação com o mês anterior e com o mesmo mês do ano anterior.
+  - O Início mostra os novos pacientes do mês e a conversão.
+- **Formulário do site** (Edge Function pública `lead-capture`):
+  - Os códigos ficam em **Configurações do comercial**: um rastreador para o cabeçalho (guarda por 30 dias as UTMs do anúncio) e o formulário, para um bloco "HTML personalizado" do WordPress.
+  - Proteções:
+    - aceita só as origens de `LEAD_ALLOWED_ORIGINS` (padrão: `renatadeazevedo.com.br`, com e sem www);
+    - campo-isca e tempo mínimo de preenchimento contra robôs;
+    - consentimento obrigatório (LGPD);
+    - no máximo 5 envios aceitos por IP por hora e 300 por dia (o IP é guardado só como hash).
+  - Um contato repetido vira registro no lead que já existe, sem duplicar.
+  - O responsável padrão recebe um aviso no sino.
+- **Importação de planilha** (ex.: exportação do Converte): arquivo CSV com vírgula ou ponto e vírgula.
+  - As colunas são reconhecidas pelo título e podem ser ajustadas antes de importar. Datas no formato dd/mm/aaaa são aceitas.
+  - Pula contatos que já existem e cria as campanhas citadas na planilha.
+  - Situações como "perdido" ou "convertido" são reconhecidas.
+- **LGPD:** uma rotina diária (`pg_cron`, 4h30) anonimiza leads perdidos sem nenhuma atividade há 12 meses e apaga o registro de envios com mais de 30 dias.
+- **Origem do paciente:** o cadastro do paciente ganhou "Como conheceu a clínica". Ela vem do lead na conversão ou é escolhida à mão.
+- **Fica para depois:**
+  - atendimento automático com IA e caixa de entrada do WhatsApp (Blocos 10 e 11, que exigem a conta oficial do WhatsApp Business Platform);
+  - investimento puxado automaticamente do Meta Ads e do Google Ads (Bloco 10);
+  - proteção extra contra robôs com Cloudflare Turnstile, se aparecer spam.
+
+## Relatórios
+
+O módulo **Relatórios** reúne o que já estava espalhado e acrescenta comparativos e exportação. As contas são feitas no banco (funções `report_*`), e cada função confere a permissão de quem pede.
+
+| Relatório | Quem vê |
+|---|---|
+| Operacional (sessões, pacientes, prontuários, tarefas) | Quem vê a agenda geral; a profissional vê **Meus números**, só os próprios |
+| Financeiro: DRE, por profissional, despesas, repasses | Proprietário(a) e Financeiro (`finance.view`) |
+| Financeiro: formas de pagamento e inadimplência | Quem vê cobranças (`billing.view`), inclusive Gerente e Recepção |
+| Comercial | Quem acessa o Comercial (`crm.view`) |
+| Comparativo anual | Todos os acima; cada indicador aparece só para quem pode vê-lo |
+
+- **Operacional:**
+  - **Sessões** por profissional, tipo ou modalidade: marcadas, realizadas, faltas, cancelamentos (do paciente, tardios, da clínica), remarcadas, sem presença registrada e horas atendidas.
+  - **Taxa de faltas** = faltas ÷ (realizadas + faltas). O cancelamento tardio usa a antecedência da política de cobrança.
+  - **Pacientes:** situação atual e cadastros no período.
+  - **Retenção:** dos pacientes cuja primeira sessão realizada caiu no período, quantos tiveram outra sessão realizada 4 e 12 semanas depois ou mais. Só entra na conta quem já teve esse tempo.
+  - **Prontuários:** percentual de evoluções finalizadas no prazo, sem conteúdo clínico.
+  - **Tarefas:** criadas, concluídas no prazo e atrasadas.
+- **Financeiro:**
+  - **DRE simplificada** mês a mês: competência (faturado, descontos, despesas por categoria e repasses fechados) e caixa (recebido, despesas pagas e repasses pagos).
+  - **Faturado e recebido** por profissional e tipo de sessão.
+  - **Recebimentos** por forma de pagamento.
+  - **Inadimplência** por paciente, por faixa de atraso (a vencer, até 30, de 31 a 60 e mais de 60 dias).
+  - **Despesas** por categoria e por centro de custo, com o peso de cada um no total.
+  - **Repasses** mês a mês.
+- **Comercial:** leads do período por origem e por campanha (investimento, custo por lead, custo por paciente, faturamento e retorno), etapas e motivos de perda.
+- **Comparativo anual:**
+  - Dois anos no acumulado até o mesmo mês: faturado, recebido, despesas pagas, resultado de caixa, sessões, taxa de faltas, novos pacientes, leads e conversão.
+  - Cada indicador traz a variação e o gráfico mês a mês, que também pode ser visto em tabela.
+  - **Não há histórico anterior ao sistema:** 2025 e os meses sem uso aparecem zerados.
+- **Em todos:** período (este mês, mês passado, trimestre, ano, ano passado ou outro), filtro por profissional quando cabe, **Exportar CSV** (ponto e vírgula e vírgula decimal, abre direto no Excel) e **Imprimir/PDF** (o layout de impressão esconde menus e filtros).
+- **Desempenho:** medido com cerca de 60 mil sessões e 30 mil cobranças. Os relatórios respondem em até cerca de 0,5 s; a inadimplência leva cerca de 1,4 s no pior caso (30 mil cobranças em aberto).
+- **Fica para depois:** ocupação da agenda (exige cadastrar o horário de trabalho de cada profissional) e exportação em .xlsx. O envio automático de relatórios por e-mail não será feito.
+
+## Google Agenda e Google Meet (Bloco 10.1)
+
+**Situação:** tudo pronto e testado com um Google simulado. A integração **liga quando as credenciais do Google forem cadastradas**. Até lá, a página Google Agenda e as funções avisam que a integração ainda não foi configurada.
+
+**Como funciona**
+
+- **Conexão:** cada profissional conecta a própria conta Google (OAuth) na página **Google Agenda**.
+  - O token de acesso contínuo fica **cifrado** (AES-256-GCM) em `google_accounts`, que a interface não lê.
+  - A profissional escolhe para qual calendário as sessões vão e quais calendários informam horário ocupado.
+- **Envio das sessões:** vão para o calendário de destino.
+  - Sessões **on-line** ganham link do **Google Meet**, que fica salvo na sessão ("Entrar no Google Meet" na agenda).
+  - Remarcar atualiza o evento; cancelar ou excluir remove o evento do Google.
+  - O título do evento segue **Configurações → Google Agenda**. O padrão é só as iniciais do paciente (LGPD); nada clínico vai para o Google.
+- **Ocupado:** os compromissos pessoais dos calendários marcados aparecem na agenda da clínica como "Compromisso no Google Agenda", sem título.
+  - Ao marcar uma sessão em cima de um deles, o sistema avisa, mas deixa agendar.
+  - Mudanças feitas no Google **não** alteram a agenda da clínica: ela é a fonte.
+- **Sincronização:** fila `calendar_sync_queue`, alimentada por gatilhos nas sessões.
+  - O `pg_cron` chama a função `google-sync` a cada 5 minutos, via `pg_net`, com o segredo guardado no Vault. Isso só acontece depois que alguma conta é conectada.
+  - Também há o botão "Sincronizar agora". Falhas são tentadas até 5 vezes e aparecem na página.
+- **Desconectar:** remove do Google os eventos criados pelo sistema, revoga a autorização e apaga a conta conectada.
+- **Funções:** `google-oauth-start`, `google-oauth-callback`, `google-sync` e `google-disconnect`.
+
+**O que já está configurado no Supabase:** os segredos internos `GOOGLE_TOKEN_KEY` (chave da cifra) e `GOOGLE_SYNC_SECRET`, gerados aleatoriamente, e as entradas `google_sync_url` e `google_sync_secret` no Vault. **Não troque a `GOOGLE_TOKEN_KEY`**: os tokens já gravados deixariam de abrir.
+
+**O que falta você configurar (uma vez)**
+
+1. No [Google Cloud Console](https://console.cloud.google.com/), crie um projeto (ex.: "Sistema Renata de Azevedo").
+2. Em **APIs e serviços → Biblioteca**, ative a **Google Calendar API**.
+3. Em **Tela de consentimento OAuth**, configure:
+   - tipo **Externo** (ou **Interno**, se a clínica usar Google Workspace e todas as profissionais tiverem conta do domínio);
+   - nome do app, e-mail de suporte e domínio do sistema;
+   - escopos: `openid`, `email`, `.../auth/calendar.events` e `.../auth/calendar.calendarlist.readonly`.
+   - No modo **Teste**, cadastre como usuários de teste os e-mails Google das profissionais (até 100). Para uso sem limite, publique o app; o Google pode pedir verificação por causa dos escopos de agenda.
+4. Em **Credenciais → Criar credenciais → ID do cliente OAuth**, escolha o tipo **Aplicativo da Web** e informe:
+   - URI de redirecionamento autorizado: `https://qnchebjrgnfgszrzlyue.supabase.co/functions/v1/google-oauth-callback`;
+   - origem JavaScript autorizada: o endereço do sistema na Cloudflare.
+5. Cadastre os segredos no Supabase (terminal, na pasta do projeto). Não cole os valores em chats ou e-mails:
+   ```
+   npx supabase secrets set --project-ref qnchebjrgnfgszrzlyue GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... APP_URL=https://endereco-do-sistema
+   ```
+   `APP_URL` é para onde a profissional volta depois de autorizar.
+6. Teste com uma profissional: Google Agenda → **Conectar minha conta Google** → autorizar. Depois crie uma sessão on-line e confira o evento com Meet no Google.
+
+## WhatsApp (Bloco 10.2)
+
+**Situação:** tudo pronto e testado com a API da Meta simulada. Nada é enviado enquanto as credenciais não forem cadastradas **e** alguém marcar **Configurações → WhatsApp → Ativar envios**. O número ainda não foi definido; ele só entra nas credenciais, não no código.
+
+**Como funciona** (API oficial: WhatsApp Business Platform/Cloud API; nada de automação do WhatsApp Web)
+
+- **Pacientes:**
+  - Só recebem mensagens os que **autorizaram** no cadastro ("Aceita receber confirmações e lembretes pelo WhatsApp"). Para isso, o celular precisa ter DDD.
+  - **Pedido de confirmação**, por padrão 48 h antes, com os botões "Confirmar" e "Preciso remarcar". A sessão passa a "aguardando confirmação".
+    - "Confirmar" confirma a sessão na agenda e envia uma resposta automática. Se a sessão já tiver sido cancelada, nada muda.
+    - "Preciso remarcar" cria uma tarefa urgente para o responsável padrão do Comercial e avisa a equipe.
+  - **Lembrete**, por padrão 2 h antes. Em sessão on-line, leva o link do Google Meet.
+  - Os horários de envio ficam em Configurações; 0 desliga.
+- **Equipe:** em "Avisos no WhatsApp" (menu da conta), cada pessoa liga o aviso de nova tarefa no próprio celular. A mensagem traz só um link para o sistema, nunca o conteúdo da tarefa.
+- **Mensagens recebidas:** aparecem em **Atendimento → WhatsApp** (Proprietário(a), Gerente e Recepção; permissão `messages.manage`).
+  - Número de paciente: a mensagem fica ligada ao cadastro.
+  - Número desconhecido: vira **lead "WhatsApp direto"** no Comercial (ou entra no lead em aberto do mesmo número).
+  - A equipe é avisada no sino, no máximo uma vez por hora por conversa.
+- **Respostas da equipe:** texto livre só até **24 h** depois da última mensagem da pessoa, que é a regra da Meta. Fora disso, só os modelos aprovados.
+- **Registro:** cada envio guarda a situação (na fila, enviada, entregue, lida, não enviada). Falhas são tentadas até 5 vezes.
+- **Funcionamento interno:**
+  - Funções `whatsapp-send` (envia a fila; chamada pelo `pg_cron` a cada 5 minutos, com segredo do Vault) e `whatsapp-webhook` (recebe da Meta).
+  - O webhook confere a assinatura `X-Hub-Signature-256` com o App Secret e trata os botões e as mensagens no banco (`whatsapp_inbound`).
+- **LGPD:** a autorização fica registrada com data e as mensagens não levam conteúdo clínico.
+
+**O que já está configurado no Supabase:** o segredo interno `WHATSAPP_SEND_SECRET` e as entradas `whatsapp_send_url` e `whatsapp_send_secret` no Vault.
+
+**O que falta você configurar (quando o número estiver definido)**
+
+1. **Número:**
+   - Use um número que **não** esteja em uso no aplicativo WhatsApp (comum ou Business) do celular. O número do site pode ser migrado, mas deixa de funcionar no aplicativo do celular.
+   - Também pode ser um número novo. As conversas passam a ser atendidas pela tela WhatsApp do sistema.
+2. **Meta:**
+   - No [Meta for Developers](https://developers.facebook.com/), crie um app do tipo **Business** ligado ao Gerenciador de Negócios da clínica e adicione o produto **WhatsApp**.
+   - Faça a verificação da empresa no Gerenciador de Negócios, se for pedida.
+3. Em **WhatsApp → Configuração da API**, adicione o número e anote o **ID do número de telefone**.
+4. **Token:** no Gerenciador de Negócios, em Usuários do sistema, crie um usuário do sistema com acesso ao app e gere um **token permanente**, com as permissões `whatsapp_business_messaging` e `whatsapp_business_management`.
+5. **Modelos:** em **Gerenciador do WhatsApp → Modelos de mensagem**, crie os 3 modelos na categoria **Utilidade**, idioma **Português (BR)**, exatamente como em Configurações → WhatsApp → "Modelos para cadastrar na Meta":
+   - `confirmacao_sessao`, com 2 botões de **resposta rápida**: "Confirmar" (1º) e "Preciso remarcar" (2º);
+   - `lembrete_sessao`;
+   - `aviso_tarefa`.
+6. **Segredos no Supabase:** escolha uma palavra secreta para o webhook (`WHATSAPP_VERIFY_TOKEN`) e copie o **App Secret** (Configurações do app → Básico). Depois rode:
+   ```
+   npx supabase secrets set --project-ref qnchebjrgnfgszrzlyue WHATSAPP_TOKEN=... WHATSAPP_PHONE_NUMBER_ID=... WHATSAPP_APP_SECRET=... WHATSAPP_VERIFY_TOKEN=...
+   ```
+7. **Webhook** (WhatsApp → Configuração):
+   - URL de retorno: `https://qnchebjrgnfgszrzlyue.supabase.co/functions/v1/whatsapp-webhook`;
+   - token de verificação: o mesmo `WHATSAPP_VERIFY_TOKEN`;
+   - assine o campo **messages**.
+8. **Ativar e testar:**
+   - Em Configurações → WhatsApp, informe o endereço do sistema (para os links) e marque **Ativar envios**.
+   - Teste com um paciente de teste autorizado e uma sessão marcada para daqui a 1 dia.
+
+## Assistente de IA (Bloco 11)
+
+**Situação:** pronto e testado com a API da Anthropic simulada. **Entregue desligado.** Pelo documento da clínica, a IA só entra depois da revisão jurídica e com o prontuário já em uso.
+
+**Como funciona** (aba **Assistente de IA** no prontuário de cada paciente)
+
+- **Três autorizações:** a IA só funciona com as três ao mesmo tempo.
+  1. A Proprietária liga a IA em Configurações, com **limite mensal de custo** obrigatório.
+  2. A profissional aceita o **termo de uso** (versão registrada).
+  3. O **paciente tem consentimento específico** registrado pela profissional responsável. O consentimento pode ser revogado; revogar apaga as transcrições e os rascunhos guardados.
+- **Entrada:** colar a transcrição ou enviar o arquivo exportado do tl;dv ou do Google Meet (.txt, .vtt ou .srt; numeração e horários são removidos).
+- **Ocultação antes do envio:** nome (e partes do nome, com e sem acento), nome social, responsável, CPF, telefones, e-mails, endereço, CEP e os **outros nomes** que a profissional informar (cônjuge, familiares) viram marcadores. Os testes conferem que nada disso chega ao fornecedor.
+- **Chamada à IA:**
+  - Edge Function `ai-draft`, com o SDK oficial (`@anthropic-ai/sdk`).
+  - Modelo `claude-opus-5-5` (troca pelo segredo `AI_MODEL`), esforço alto e resposta em **formato JSON fixo**.
+  - Fallback automático (`fallbacks: "default"`) se o modelo recusar o pedido.
+- **O que volta:** resumo, tópicos, rascunho de evolução (temas trabalhados, intervenções realizadas, observações relevantes, combinados e próximos passos), tarefas administrativas e o que falta completar.
+- **Regras conferidas pelo sistema** (além das instruções dadas à IA):
+  - cada item precisa de um **trecho literal da transcrição**, senão é descartado;
+  - itens com diagnóstico, CID, transtorno, prescrição, medicação ou dose são descartados;
+  - os itens descartados aparecem como avisos na revisão.
+- **Revisão:**
+  - A profissional vê o rascunho ao lado da transcrição (com o trecho de origem destacado), marca os itens que entram e edita o texto.
+  - "Usar como rascunho de evolução" cria um **rascunho** em Evoluções, com o selo "rascunho de IA". Ele só vale quando ela **finalizar**.
+  - As tarefas sugeridas viram tarefas reais só com um clique dela.
+- **Rastro:**
+  - A evolução guarda de qual rascunho de IA nasceu.
+  - Cada uso registra profissional, data, modelo, tokens e custo.
+  - Cada abertura entra no registro de acesso clínico.
+- **Guarda:**
+  - A transcrição e o rascunho são apagados **7 dias** (configurável) depois de a evolução ser finalizada ou o rascunho descartado, e no máximo 30 dias depois do envio.
+  - A limpeza é diária, pelo `pg_cron`. Ficam só os dados de uso e custo.
+
+**Custos**
+
+- O custo de cada uso é calculado com os tokens informados pela API e o preço de tabela: Claude Opus 5.5 custa US$ 4 por milhão de tokens de entrada e US$ 20 por milhão de saída (tabela de 06/10/2026, conferir em https://www.anthropic.com/pricing).
+- Uma sessão de 50 minutos tem algo como 8 a 12 mil palavras. Pela tabela, isso daria cerca de 15 a 20 mil tokens de entrada e 2 a 6 mil de saída, ou seja, centavos de dólar por uso. O valor exato aparece depois de cada uso.
+- O total do mês fica em Configurações → Assistente de IA. Ao atingir o limite, o assistente para até o mês seguinte.
+- A fatura oficial é a do fornecedor.
+
+**Para ligar (depois da revisão jurídica)**
+
+1. **Termo do paciente:** revisar com o jurídico o modelo de termo de consentimento (aba Assistente de IA → Registrar consentimento → Modelo de termo).
+2. **Contrato com a Anthropic:**
+   - Criar a conta comercial na Anthropic (console.anthropic.com).
+   - Formalizar o contrato de proteção de dados e as condições de retenção e de não uso para treinamento. Há transferência internacional de dados: LGPD, art. 33.
+3. **Chave da API:** gerar a chave e cadastrá-la sem colar em chats:
+   ```
+   npx supabase secrets set --project-ref qnchebjrgnfgszrzlyue ANTHROPIC_API_KEY=...
+   ```
+4. **Ativar:** em Configurações → Assistente de IA, definir o limite mensal (US$) e o prazo de guarda, e ligar.
+5. **Profissionais:** cada uma aceita o termo de uso na primeira vez e registra o consentimento de cada paciente antes de usar.
+
+**Fica para depois:** integração direta com o tl;dv. A API deles ainda está em versão "alpha" e o acesso exige plano pago.
+
+## Aplicativo da equipe (Bloco 12)
+
+**Situação:** pronto e testado na versão web do aplicativo (tela de celular, contra o Supabase real). Push, biometria e cofre do aparelho só podem ser conferidos num celular de verdade.
+
+- **Projeto:** pasta `mobile/`, com Expo SDK 58 e React Native. Nome "Renata de Azevedo, Equipe", identificador `br.com.renatadeazevedo.equipe`.
+- **Mesmas regras do sistema:** usa a mesma conta, o mesmo Supabase e as mesmas permissões (RLS). Não existe acesso a mais pelo aplicativo.
+- **Código compartilhado:** `shared/api.ts` (chamadas ao Supabase), `shared/format.ts` e `shared/types.ts` servem ao sistema web e ao aplicativo.
+
+**O que o aplicativo faz**
+
+- **Início:** sessões do dia, pendências de evolução (profissional), cobranças vencidas e tarefas abertas.
+- **Agenda:** dia e semana; abrir a sessão, confirmar, registrar presença ou falta; link do Meet.
+- **Pacientes:** busca e ficha resumida com Ligar e WhatsApp.
+- **Tarefas:** concluir, comentar e criar.
+- **Mais:** avisos, cobranças em aberto com registro de pagamento (quem tem permissão de financeiro) e "Meu repasse" (profissional).
+- **Prontuário no celular:** só as pendências e o **rascunho** da evolução. Finalizar e ver o histórico completo continua no computador.
+
+**Segurança**
+
+- A sessão fica no cofre do aparelho (Keychain/Keystore).
+- O aplicativo **trava depois de 5 minutos** em segundo plano e destrava com biometria ou senha.
+- Sem uso por **30 dias**, a pessoa precisa entrar de novo.
+- Notificação com o celular bloqueado mostra só um **texto genérico** ("Você recebeu uma tarefa."), sem nome de paciente ou de lead.
+
+**Para testar no celular (Expo Go)**
+
+1. Instale o **Expo Go** no celular (App Store ou Google Play).
+2. No computador, dentro de `mobile/`, copie `.env.example` para `.env` e preencha a URL e a chave **pública** do Supabase (as mesmas do sistema web).
+3. Rode `npm install` e depois `npx expo start`. Leia o QR code com a câmera (iPhone) ou com o Expo Go (Android). O celular precisa estar na mesma rede do computador.
+
+No Expo Go dá para testar tudo, menos o push (a Expo exige um build próprio para isso).
+
+**O que já está configurado no Supabase:** a função `push-send`, o segredo interno `PUSH_SEND_SECRET`, as entradas `push_send_url` e `push_send_secret` no Vault e o agendamento `push` (a cada minuto). O envio fica **desligado** até alguém ligar em Configurações → Aplicativo da equipe.
+
+**O que falta você configurar (para publicar e ter push)**
+
+1. **Conta na Expo:** crie a conta em expo.dev. Dentro de `mobile/`, rode `npx eas-cli login` e depois `npx eas-cli init`. O comando grava o `projectId` em `app.json` (`extra.eas.projectId`); sem ele, o aplicativo não registra o aparelho para push.
+2. **Lojas:**
+   - Apple Developer (US$ 99/ano) para iPhone.
+   - Google Play Console (US$ 25, uma vez) para Android.
+   - Para uso só da equipe, a distribuição pode ser interna: TestFlight e teste interno do Google Play.
+3. **Build:** `npx eas-cli build --platform ios` e `npx eas-cli build --platform android`. A EAS pede e guarda as credenciais de push da Apple e do Firebase.
+4. **Envio autenticado (opcional):** se ativar "Enhanced security for push" na Expo, gere um token de acesso e cadastre:
+   ```
+   npx supabase secrets set --project-ref qnchebjrgnfgszrzlyue EXPO_ACCESS_TOKEN=...
+   ```
+5. **Ligar:** em Configurações → Aplicativo da equipe, marque **Enviar avisos para o celular**. O painel mostra quantos aparelhos estão registrados e o último erro de envio.
+
+**Fica para o Bloco 14:** ícone e tela de abertura próprios (hoje são os padrões do modelo da Expo) e a publicação nas lojas.
 
 ## Próximas etapas antes de uso real
 
 1. Confirmar os e-mails de Bárbara, Mari, Renata e das demais profissionais para criar suas contas.
-2. Configurar o Google Cloud e implementar a autorização individual e a sincronização da agenda.
+   Definir o número do WhatsApp e seguir o passo a passo da seção "WhatsApp".
+2. Configurar o Google Cloud e cadastrar as credenciais (passo a passo na seção "Google Agenda e Google Meet").
 3. Completar edição e encerramento dos cadastros, recuperação de acesso e cópias de segurança (plano Pro do Supabase).
 4. Revisar permissões e testar com a equipe antes de inserir dados de pacientes reais.
+
+**Pendente por decisão da clínica:** importação do Clinical Experts (pacientes, profissionais responsáveis e histórico de sessões). Por enquanto, os pacientes são cadastrados no sistema. A importação de leads por planilha, no Comercial, já existe.

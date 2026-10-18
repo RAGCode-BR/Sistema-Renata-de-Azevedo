@@ -77,9 +77,12 @@ export function AgendaPage({ user, date, session }: { user: SessionUser; date: s
     api.appointments(range.from, range.to),
     api.professionals(),
     manager ? api.patients() : Promise.resolve([]),
-    api.scheduleBlocks(range.from, range.to)
+    api.scheduleBlocks(range.from, range.to),
+    api.googleBusy(range.from, range.to)
   ]), [range, manager]);
-  const [appointments, professionals, patients, blocks] = data ?? [[], [], [], []];
+  const [appointments, professionals, patients, ownBlocks, googleBusy] = data ?? [[], [], [], [], []];
+  // Compromissos do Google aparecem como bloqueios só de leitura.
+  const blocks = [...ownBlocks, ...googleBusy];
 
   // Abre a sessão pedida pelo endereço assim que os dados chegam.
   useEffect(() => {
@@ -194,7 +197,7 @@ export function AgendaPage({ user, date, session }: { user: SessionUser; date: s
       ) : <p className="notice">Nenhuma profissional com esses filtros.</p>}
 
       {dialog?.kind === 'new' && (
-        <AppointmentForm professionals={professionals} patients={patients} initial={dialog} onClose={() => setDialog(null)} onSaved={closed} />
+        <AppointmentForm professionals={professionals} patients={patients} initial={dialog} busy={googleBusy} onClose={() => setDialog(null)} onSaved={closed} />
       )}
       {dialog?.kind === 'block' && (
         <BlockForm professionals={blockable} initial={dialog} onClose={() => setDialog(null)} onSaved={closed} />

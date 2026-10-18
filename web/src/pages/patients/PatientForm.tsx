@@ -3,7 +3,7 @@ import type { Patient, PatientStatus, Professional } from '../../../../shared/ty
 import { api } from '../../api.ts';
 import { Field, FormModal } from '../../components/Modal.tsx';
 import { age, patientStatusLabel, validCpf } from '../../format.ts';
-import { text } from '../../hooks.ts';
+import { text, useLoad } from '../../hooks.ts';
 
 interface PatientFormProps {
   // Sem `patient`: cadastro novo.
@@ -22,6 +22,8 @@ export function PatientForm({ patient, professionals, onClose, onSaved }: Patien
   const showGuardian = hasGuardian || minor;
   // Profissionais ativas, mais as inativas que ainda estão vinculadas a este paciente.
   const options = professionals.filter((item) => item.active || patient?.professional_ids.includes(item.id));
+  // Origem (Instagram, indicação…): alimenta os indicadores do Comercial.
+  const sources = useLoad(() => api.leadSources().catch(() => []), []).data ?? [];
 
   return (
     <FormModal title={patient ? `Editar ${patient.name}` : 'Novo paciente'} submitLabel={patient ? 'Salvar' : 'Cadastrar paciente'}
@@ -47,6 +49,11 @@ export function PatientForm({ patient, professionals, onClose, onSaved }: Patien
           status: (text(data, 'status') || 'active') as PatientStatus,
           professionalIds
         });
+        const optIn = data.get('whatsapp') === 'on';
+        if (optIn && text(data, 'phone').replace(/\D/g, '').length < 10) throw new Error('Para autorizar o WhatsApp, informe o celular com DDD.');
+        const source = text(data, 'source') || null;
+        if (sources.length && source !== (patient?.source_id ?? null)) await api.setPatientOrigin(id, source, patient?.campaign_id ?? null);
+        if (optIn !== Boolean(patient?.whatsapp_opt_in)) await api.setPatientWhatsapp(id, optIn);
         onSaved(id, patient ? 'Cadastro atualizado.' : 'Paciente cadastrado.');
       }}>
       <fieldset className="full form-section">
@@ -65,6 +72,10 @@ export function PatientForm({ patient, professionals, onClose, onSaved }: Patien
         <legend>Contato</legend>
         <div className="form-grid">
           <Field label="Telefone"><input className="input" name="phone" type="tel" autoComplete="off" defaultValue={patient?.phone ?? ''} /></Field>
+          <label className="check full">
+            <input type="checkbox" name="whatsapp" defaultChecked={patient?.whatsapp_opt_in ?? false} />
+            <span>Aceita receber confirmações e lembretes de sessão pelo WhatsApp<span className="sub">Autorização do paciente (LGPD). Nenhuma informação clínica é enviada.</span></span>
+          </label>
           <Field label="E-mail"><input className="input" name="email" type="email" autoComplete="off" defaultValue={patient?.email ?? ''} /></Field>
           <Field label="Endereço (opcional)" full><input className="input" name="address" maxLength={300} defaultValue={patient?.address ?? ''} /></Field>
         </div>
@@ -93,6 +104,14 @@ export function PatientForm({ patient, professionals, onClose, onSaved }: Patien
               {Object.entries(patientStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </Field>
+          {sources.length > 0 && (
+            <Field label="Como conheceu a clínica">
+              <select className="input" name="source" defaultValue={patient?.source_id ?? ''} key={sources.length}>
+                <option value="">Não informado</option>
+                {sources.filter((item) => item.active || item.id === patient?.source_id).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              </select>
+            </Field>
+          )}
         </div>
         <div className="checks" role="group" aria-label="Profissionais responsáveis">
           <span className="muted small full-row">Profissionais responsáveis</span>

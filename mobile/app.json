@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "Renata de Azevedo, Equipe",
+    "slug": "renata-equipe",
+    "scheme": "renataequipe",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "br.com.renatadeazevedo.equipe"
+    },
+    "android": {
+      "package": "br.com.renatadeazevedo.equipe",
+      "adaptiveIcon": {
+        "backgroundColor": "#53102F",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": true,
+          "faceIDPermission": "Usamos o Face ID para desbloquear o aplicativo da clínica."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Usamos o Face ID para desbloquear o aplicativo da clínica."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#53102F"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
+    }
+  }
+}

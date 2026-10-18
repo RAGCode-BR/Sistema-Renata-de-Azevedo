@@ -12,6 +12,8 @@ interface EvolutionsProps {
   notes: ClinicalNote[];
   pending: PendingNote[];
   appointmentId: string | null;
+  // Evoluções que nasceram de um rascunho de IA (origem do conteúdo).
+  aiNotes?: Set<string>;
   onChanged: () => void;
 }
 
@@ -21,7 +23,7 @@ const sessionLabel = (startsAt: string) => `${relativeDay(startsAt)} às ${time(
 
 // Evoluções: rascunho (editável, cada salvamento guarda a versão anterior) → finalizada (imutável).
 // Uma evolução finalizada só é corrigida por retificação, que fica ligada a ela.
-export function Evolutions({ patientId, notes, pending, appointmentId, onChanged }: EvolutionsProps) {
+export function Evolutions({ patientId, notes, pending, appointmentId, aiNotes, onChanged }: EvolutionsProps) {
   const notify = useToast();
   const draftFor = (session: string) => notes.find((note) => note.status === 'draft' && note.appointment_id === session);
   const [draft, setDraft] = useState<Draft>(() => {
@@ -94,7 +96,7 @@ export function Evolutions({ patientId, notes, pending, appointmentId, onChanged
 
       <Panel title="Histórico de evoluções">
         {notes.length ? notes.map((note) => (
-          <NoteEntry key={note.id} note={note} notes={notes}
+          <NoteEntry key={note.id} note={note} notes={notes} fromAi={aiNotes?.has(note.id) ?? false}
             onEdit={() => setDraft({ id: note.id, appointmentId: note.appointment_id ?? '', body: note.body })}
             onDiscard={() => setDiscarding(note)} onRectify={() => setRectifying(note)} onVersions={() => setVersionsOf(note)} />
         )) : <p className="empty-state">Nenhuma evolução registrada.</p>}
@@ -145,9 +147,10 @@ interface NoteEntryProps {
   onDiscard: () => void;
   onRectify: () => void;
   onVersions: () => void;
+  fromAi: boolean;
 }
 
-function NoteEntry({ note, notes, onEdit, onDiscard, onRectify, onVersions }: NoteEntryProps) {
+function NoteEntry({ note, notes, fromAi, onEdit, onDiscard, onRectify, onVersions }: NoteEntryProps) {
   const original = note.rectifies_id ? notes.find((item) => item.id === note.rectifies_id) : null;
   return (
     <article className={note.rectified_by ? 'entry rectified' : 'entry'}>
@@ -156,6 +159,7 @@ function NoteEntry({ note, notes, onEdit, onDiscard, onRectify, onVersions }: No
         <span className={note.status === 'draft' ? 'note-badge draft' : 'note-badge'}>
           {note.status === 'draft' ? 'Rascunho' : note.rectifies_id ? `Retificação, ${dateTime(note.finalized_at)}` : `Finalizada em ${dateTime(note.finalized_at)}`}
         </span>
+        {fromAi && <span className="note-badge ai" title="O texto partiu de um rascunho do assistente de IA, revisado pela profissional">{note.status === 'draft' ? 'Rascunho de IA: revise antes de finalizar' : 'Partiu de rascunho de IA revisado'}</span>}
       </div>
       {note.rectifies_id && (
         <p className="muted small">Retifica o registro {original?.finalized_at ? `finalizado em ${dateTime(original.finalized_at)}` : 'anterior'}. Motivo: {note.rectification_reason}</p>

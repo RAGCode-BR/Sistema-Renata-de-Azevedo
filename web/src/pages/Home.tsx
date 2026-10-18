@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { can } from '../../../shared/permissions.ts';
 import { occupiesSlot } from '../../../shared/types.ts';
-import type { Appointment, PendingNote, SessionUser } from '../../../shared/types.ts';
+import type { Appointment, PendingNote, SessionUser, Task } from '../../../shared/types.ts';
 import { api } from '../api.ts';
 import { Heading, Panel, PanelState } from '../components/Page.tsx';
 import { addDays, dateKey, longDay, modalityLabel, money, plural, relativeDay, startOfToday, statusLabel, time } from '../format.ts';
@@ -15,6 +15,7 @@ import { useLoad } from '../hooks.ts';
 export function HomePage({ user }: { user: SessionUser }) {
   const overview = can(user, 'appointments.view_all');
   const billing = can(user, 'billing.view');
+  const crm = can(user, 'crm.view');
   const ownProfessional = user.roles.includes('professional') ? user.professional_id : null;
   const range = useMemo(() => {
     const today = startOfToday();
@@ -26,21 +27,33 @@ export function HomePage({ user }: { user: SessionUser }) {
     api.activePatientsCount(),
     overview ? api.activeProfessionalsCount() : Promise.resolve(null),
     api.unrecordedAttendance(addDays(range.today, -60)),
-    billing ? api.receivables() : Promise.resolve(null)
-  ]), [range, overview, billing]);
+    billing ? api.receivables() : Promise.resolve(null),
+    api.tasks('mine', true),
+    api.taskCounts(),
+    crm ? api.crmSummary(dateKey(new Date(range.today.getFullYear(), range.today.getMonth(), 1)), dateKey(range.today)) : Promise.resolve(null)
+  ]), [range, overview, billing, crm]);
 
   const lead = capitalize(longDay(range.today.toISOString()));
+
+  const [appointments, pending, patientsCount, professionalsCount, unrecorded, receivables, myTasks, taskCounts, commercial] =
+    data ?? [[], [], 0, null, [], null, [], null, null];
+  const urgentTasks = myTasks.filter((task) => task.overdue || task.due_date === dateKey(range.today));
 
   if (!overview && !ownProfessional) {
     return (
       <>
         <Heading title={`Olá, ${firstName(user.name)}`} lead={lead} />
-        <p className="notice">Seu painel ganha indicadores quando os módulos do seu perfil estiverem prontos.</p>
+        <section className="numbers" aria-label="Resumo" aria-busy={!data}>
+          <a className="number" href="#/tarefas"><strong>{data ? myTasks.length : '–'}</strong><span>tarefas suas em aberto</span></a>
+          <a className="number" href="#/tarefas"><strong className={taskCounts?.overdue ? 'text-danger' : undefined}>{data ? taskCounts?.overdue ?? 0 : '–'}</strong><span>atrasadas</span></a>
+          {billing && receivables && <a className="number" href="#/cobrancas"><strong>{money(receivables.overdue_amount)}</strong><span>em cobranças vencidas</span></a>}
+        </section>
+        <Pendencies overview={false} ownProfessional={null} pending={[]} myPending={[]} unrecorded={[]} myUnrecorded={[]}
+          overdueCharges={receivables?.overdue_count ?? 0} overdueAmount={receivables?.overdue_amount ?? 0} tasks={urgentTasks} loaded={Boolean(data)} />
       </>
     );
   }
 
-  const [appointments, pending, patientsCount, professionalsCount, unrecorded, receivables] = data ?? [[], [], 0, null, [], null];
   const scheduled = appointments.filter((item) => occupiesSlot(item.status));
   const today = scheduled.filter((item) => new Date(item.starts_at) < range.tomorrow);
   const mine = ownProfessional ? scheduled.filter((item) => item.professional_id === ownProfessional) : [];
@@ -76,6 +89,18 @@ export function HomePage({ user }: { user: SessionUser }) {
             <span>profissionais em atividade</span>
           </a>
         )}
+        {commercial && (
+          <a className="number" href="#/comercial-painel">
+            <strong>{commercial.new_patients}</strong>
+            <span>novos pacientes no mês{commercial.leads > 0 && `, ${Math.round((commercial.converted / commercial.leads) * 100)}% dos ${commercial.leads} leads convertidos`}</span>
+          </a>
+        )}
+        <a className="number" href={taskCounts?.team_overdue != null ? '#/tarefas-equipe' : '#/tarefas'}>
+          <strong className={(taskCounts?.team_overdue ?? taskCounts?.overdue) ? 'text-danger' : undefined}>
+            {data ? taskCounts?.team_overdue ?? taskCounts?.overdue ?? 0 : '–'}
+          </strong>
+          <span>{taskCounts?.team_overdue != null ? 'tarefas atrasadas na equipe' : 'tarefas suas atrasadas'}</span>
+        </a>
         <a className="number" href={ownProfessional ? '#/prontuarios' : '#/agenda'}>
           <strong>{data ? (overview ? pending : myPending).length : '–'}</strong>
           <span>{overview ? 'evoluções pendentes na clínica' : 'evoluções suas pendentes'}</span>
@@ -108,7 +133,7 @@ export function HomePage({ user }: { user: SessionUser }) {
 
           <Pendencies overview={overview} ownProfessional={ownProfessional} pending={pending} myPending={myPending}
             unrecorded={unrecorded} myUnrecorded={myUnrecorded} overdueCharges={receivables?.overdue_count ?? 0}
-            overdueAmount={receivables?.overdue_amount ?? 0} loaded={Boolean(data)} />
+            overdueAmount={receivables?.overdue_amount ?? 0} tasks={urgentTasks} loaded={Boolean(data)} />
         </aside>
       </div>
     </>
@@ -149,17 +174,18 @@ interface PendenciesProps {
   myUnrecorded: Appointment[];
   overdueCharges: number;
   overdueAmount: number;
+  tasks: Task[];
   loaded: boolean;
 }
 
 // Presença não registrada: sessão que já terminou e continua "agendada/confirmada".
 // Profissional: cada pendência vira um atalho (presença na agenda; evolução no prontuário).
 // Gerência: quantas pendências cada profissional tem e desde quando, sem abrir prontuários.
-function Pendencies({ overview, ownProfessional, pending, myPending, unrecorded, myUnrecorded, overdueCharges, overdueAmount, loaded }: PendenciesProps) {
+function Pendencies({ overview, ownProfessional, pending, myPending, unrecorded, myUnrecorded, overdueCharges, overdueAmount, tasks, loaded }: PendenciesProps) {
   const notOwn = <T extends { professional_id: string }>(items: T[]) => items.filter((item) => item.professional_id !== ownProfessional);
   const otherNotes = overview ? byProfessional(notOwn(pending)) : [];
   const otherAttendance = overview ? byProfessional(notOwn(unrecorded)) : [];
-  const count = myPending.length + myUnrecorded.length + overdueCharges
+  const count = myPending.length + myUnrecorded.length + overdueCharges + tasks.length
     + [...otherNotes, ...otherAttendance].reduce((sum, item) => sum + item.count, 0);
 
   return (
@@ -167,6 +193,19 @@ function Pendencies({ overview, ownProfessional, pending, myPending, unrecorded,
       <h2>Pendências{count > 0 && <small>{count}</small>}</h2>
       {!loaded && <p className="muted small">Carregando…</p>}
       {loaded && !count && <p className="muted small">Nada pendente. Tudo em dia.</p>}
+
+      {tasks.slice(0, SHOWN).map((task) => (
+        <a key={task.id} className="task" href={`#/tarefas?tarefa=${task.id}`}>
+          <span className="dot" aria-hidden="true" />
+          <span>{task.title}<p>{task.overdue ? 'Tarefa atrasada' : 'Tarefa para hoje'}{task.due_time ? ` · ${task.due_time.slice(0, 5)}` : ''}</p></span>
+        </a>
+      ))}
+      {tasks.length > SHOWN && (
+        <a className="task" href="#/tarefas">
+          <span className="dot" aria-hidden="true" />
+          <span>Mais {plural(tasks.length - SHOWN, 'tarefa', 'tarefas')} para hoje ou atrasadas<p>Abrir minhas tarefas</p></span>
+        </a>
+      )}
 
       {overdueCharges > 0 && (
         <a className="task" href="#/cobrancas">

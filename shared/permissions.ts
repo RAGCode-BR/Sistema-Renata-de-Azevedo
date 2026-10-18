@@ -19,7 +19,11 @@ export type Permission =
   | 'billing.manage'
   | 'finance.view'
   | 'finance.manage'
-  | 'settings.manage';
+  | 'settings.manage'
+  | 'tasks.manage'
+  | 'crm.view'
+  | 'crm.manage'
+  | 'messages.manage';
 
 export const roleLabel: Record<Role, string> = {
   owner: 'Proprietário(a)',
@@ -32,8 +36,8 @@ export const roleLabel: Record<Role, string> = {
 
 export const roleDescription: Record<Role, string> = {
   owner: 'Tudo o que é administrativo, inclusive usuários. Não vê prontuários de outras profissionais.',
-  manager: 'Agenda geral, pacientes, profissionais e cobranças. Sem usuários, resultado financeiro e prontuários.',
-  reception: 'Pacientes, agenda e cobranças. Sem prontuários.',
+  manager: 'Agenda geral, pacientes, profissionais, cobranças, comercial e tarefas da equipe. Sem usuários, resultado financeiro e prontuários.',
+  reception: 'Pacientes, agenda, cobranças e comercial (leads). Sem prontuários.',
   finance: 'Financeiro completo: cobranças, despesas, resultado e repasses. Sem prontuários.',
   professional: 'Os próprios pacientes, a própria agenda e o próprio prontuário.',
   patient: 'Portal do paciente (fase futura).'
