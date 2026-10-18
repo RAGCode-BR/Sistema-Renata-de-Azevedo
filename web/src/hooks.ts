@@ -68,9 +68,18 @@ export function secret(data: FormData, name: string): string {
   return typeof value === 'string' ? value : '';
 }
 
-const readRoute = () => window.location.hash.replace(/^#\/?/, '');
+export interface HashRoute {
+  path: string;
+  params: URLSearchParams;
+}
 
-export function useHashRoute(): string {
+// "#/prontuarios?paciente=…" → { path: 'prontuarios', params: paciente=… }
+function readRoute(): HashRoute {
+  const [path = '', query = ''] = window.location.hash.replace(/^#\/?/, '').split('?');
+  return { path, params: new URLSearchParams(query) };
+}
+
+export function useHashRoute(): HashRoute {
   const [route, setRoute] = useState(readRoute);
   useEffect(() => {
     const update = () => setRoute(readRoute());

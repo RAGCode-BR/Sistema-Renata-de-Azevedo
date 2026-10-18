@@ -421,3 +421,7 @@ verify_jwt = false
 # Exclui contas (só administração). O token da sessão é validado dentro da função.
 [functions.admin-delete-user]
 verify_jwt = false
+
+# Link temporário de documento clínico (só a profissional autora). Token validado dentro da função.
+[functions.clinical-document-url]
+verify_jwt = false

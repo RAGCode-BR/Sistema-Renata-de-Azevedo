@@ -1,2 +1,194 @@
 /* O sistema real e a demonstração compartilham a identidade visual. */
 @import "../../assets/css/app.css";
+
+/* Perfis do usuário: um por linha, com a descrição do que cada um permite. */
+.role-checks { display: grid; gap: 10px; }
+.role-checks .check { align-items: flex-start; }
+.role-checks .check input { margin-top: 2px; flex: none; }
+.role-checks .sub { font-size: 12px; }
+
+/* Agenda (Bloco 3) ----------------------------------------------------------------------------- */
+
+.agenda-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin: 0 0 18px; }
+.agenda-toolbar .tools { margin-left: auto; }
+.agenda-toolbar .pager .link-btn { min-width: 40px; font-size: 16px; }
+.agenda-period { margin: 0; font-size: 18px; font-weight: 500; }
+.agenda-period::first-letter { text-transform: uppercase; }
+.col-head.today strong { color: var(--vinho); }
+
+/* Sessões e bloqueios posicionados pela hora exata e pela duração (variáveis vindas da grade). */
+.schedule-grid .cell { overflow: visible; }
+.schedule-grid .free { z-index: 0; }
+.slot-item {
+  position: absolute;
+  z-index: 1;
+  top: calc(var(--hora) * var(--start) / 60 + 2px);
+  left: calc(4px + (100% - 8px) * var(--lane) / var(--lanes));
+  width: calc((100% - 8px) / var(--lanes) - 2px);
+  height: calc(var(--hora) * var(--dur) / 60 - 4px);
+  flex: none;
+}
+.slot-item:hover, .slot-item:focus-visible { z-index: 3; }
+
+.b-confirmada { background: var(--vinho-claro); }
+.b-aguardando { background: var(--branco); box-shadow: inset 0 0 0 1px #d7b99f; border: 1px dashed #c9a27f; }
+.session.b-aguardando span { color: var(--ambar); }
+.b-cancelada { background: #f4f0ec; color: var(--suave); opacity: .7; }
+.session.b-cancelada strong { text-decoration: line-through; font-weight: 400; }
+.b-bloqueio {
+  background: repeating-linear-gradient(135deg, #efe9e3 0 8px, #f7f3ef 8px 16px);
+  color: var(--suave);
+}
+.session.b-bloqueio strong { font-weight: 500; color: var(--texto); }
+.key i.b-confirmada { background: var(--vinho-claro); }
+.key i.b-aguardando { background: var(--branco); border: 1px dashed #c9a27f; }
+.key i.b-falta { background: #f8e9ea; }
+.key i.b-bloqueio { background: repeating-linear-gradient(135deg, #e3dad1 0 3px, #f7f3ef 3px 6px); }
+
+.st-awaiting_confirmation { color: var(--ambar); }
+.st-cancelled_by_patient, .st-cancelled_by_clinic, .st-rescheduled { color: var(--suave); text-decoration: line-through; }
+
+/* Mês */
+.month { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.month-head { padding: 0 8px 4px; color: var(--suave); font-size: 13px; text-transform: capitalize; }
+.month-day {
+  display: flex; flex-direction: column; gap: 3px; min-height: 104px; min-width: 0; padding: 8px;
+  border-radius: 14px; background: var(--branco); text-align: left; transition: background-color 140ms ease;
+}
+.month-day:hover { background: var(--vinho-claro); }
+.month-day b { font-weight: 500; font-size: 15px; }
+.month-day.today b { color: var(--branco); background: var(--vinho); border-radius: 999px; padding: 0 8px; align-self: flex-start; }
+.month-day.outside { opacity: .45; }
+.month-item {
+  overflow: hidden; padding: 2px 6px; border-radius: 6px; font-size: 12px; white-space: nowrap; text-overflow: ellipsis;
+  background: var(--vinho-claro);
+}
+.month-more { color: var(--suave); font-size: 12px; padding-left: 4px; }
+
+/* Detalhes da sessão */
+.status-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 18px 0 6px; }
+.history-title { margin: 20px 0 6px; font-size: 15px; font-weight: 500; }
+.history { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; font-size: 14px; }
+.history li { display: grid; gap: 1px; }
+
+@media (max-width: 720px) {
+  .agenda-toolbar .tools { margin-left: 0; }
+  .month { gap: 3px; }
+  .month-day { min-height: 64px; padding: 6px; border-radius: 10px; }
+  .month-item { display: none; }
+  .month-day:has(.month-item)::after { content: "•"; color: var(--vinho); }
+}
+
+/* Pacientes (Bloco 4) -------------------------------------------------------------------------- */
+
+.form-section { display: grid; gap: 10px; margin: 0; padding: 0 0 6px; border: 0; }
+.form-section legend { padding: 0; margin-bottom: 4px; font-size: 15px; font-weight: 500; color: var(--texto); }
+.form-section .form-grid { gap: 12px 16px; }
+.form-section .checks { align-items: center; }
+.full-row { flex-basis: 100%; }
+.patient-tabs { margin: 0 0 20px; }
+.patient-overview { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 0 20px; align-items: start; }
+.pre { white-space: pre-wrap; }
+.table td a { color: var(--vinho); font-weight: 500; }
+.table td a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+@media (max-width: 720px) {
+  .patient-overview { grid-template-columns: minmax(0, 1fr); }
+  .patient-tabs { display: flex; overflow-x: auto; flex-wrap: nowrap; max-width: 100%; }
+  .patient-tabs .tab { white-space: nowrap; }
+}
+
+/* Prontuário (Bloco 5) ------------------------------------------------------------------------- */
+
+.record-tabs { margin: 0 0 20px; }
+.record-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.note-badge { padding: 2px 10px; border-radius: 999px; background: var(--creme); color: var(--suave); font-size: 13px; }
+.note-badge.draft { background: #fbf0df; color: var(--ambar); }
+.entry.rectified > p:not(.muted) { color: var(--suave); }
+.template-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--linha); }
+.field .sub { margin-top: -2px; }
+
+/* Controle de prontuários */
+button.number { text-align: left; cursor: pointer; }
+.number.selected { box-shadow: inset 0 0 0 2px var(--vinho); }
+.fill { padding: 2px 10px; border-radius: 999px; font-size: 13px; white-space: nowrap; }
+.fill-pending { background: #fbf0df; color: var(--ambar); }
+.fill-draft { background: var(--vinho-claro); color: var(--vinho); }
+.fill-final { background: #e7f0eb; color: var(--verde); }
+.fill-final_late { background: #f4efe9; color: var(--suave); }
+.fill.overdue { background: #f8e9ea; color: var(--perigo); }
+
+/* Exportação do prontuário (impressão / PDF) */
+.print-record { max-width: 820px; margin: 0 auto; padding: 8px 0 40px; background: var(--branco); }
+.print-record { padding: 24px 32px 40px; border-radius: 18px; }
+.print-actions { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.print-header { display: flex; gap: 20px; align-items: center; padding-bottom: 16px; margin-bottom: 20px; border-bottom: 1px solid var(--linha); }
+.print-header img { width: 140px; }
+.print-header h1 { font-size: 26px; margin-bottom: 4px; }
+.print-record h2 { margin: 24px 0 8px; font-size: 18px; }
+.print-section { padding: 12px 0; border-bottom: 1px solid var(--linha); break-inside: avoid; }
+.print-section h3 { margin: 0 0 2px; font-size: 15px; font-weight: 500; }
+.print-section p { white-space: pre-wrap; line-height: 1.6; margin: 6px 0 0; }
+.print-footer { margin-top: 28px; }
+
+@media print {
+  .topbar, .rail, .subnav, .env-banner, .no-print, .toast { display: none !important; }
+  .app, .workspace, main { display: block !important; padding: 0 !important; margin: 0 !important; background: #fff !important; }
+  body { background: #fff !important; }
+  .print-record { max-width: none; padding: 0; border-radius: 0; }
+}
+
+/* A barra superior é fixa: ao rolar até um elemento (foco do teclado, âncoras), ele não fica escondido sob ela. */
+html { scroll-padding-top: 88px; }
+
+/* Financeiro */
+.text-danger { color: var(--perigo) !important; }
+.field-inline { display: inline-flex; align-items: center; gap: 8px; color: var(--suave); font-size: 14px; }
+.finance-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0 0 16px; }
+.finance-toolbar .search { margin-left: auto; }
+.charge-pending, .charge-partial { color: var(--ambar); }
+.charge-unpriced { color: var(--ambar); font-weight: 500; }
+.charge-paid { color: var(--verde); }
+.charge-overdue { color: var(--perigo); font-weight: 500; }
+.charge-cancelled { color: var(--suave); }
+.charge-picks { flex-direction: column; flex-wrap: nowrap; gap: 10px; }
+.charge-picks .check { align-items: flex-start; }
+.charge-picks .check input { margin-top: 2px; flex: none; }
+.number .link-btn { align-self: flex-start; font-size: 13px; padding: 0; }
+.finance-numbers { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.kpi-compare { display: flex; flex-direction: column; margin-top: 4px; }
+.kpi-compare small { font-size: 12px; color: var(--suave); }
+.number .kpi-compare .delta-good { color: var(--verde); }
+.number .kpi-compare .delta-bad { color: var(--perigo); }
+.finance-split { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 0 20px; }
+.share-col { width: 38%; white-space: nowrap; }
+.share { display: inline-block; width: calc(100% - 48px); height: 8px; border-radius: 4px; background: var(--creme); vertical-align: middle; overflow: hidden; }
+.share span { display: block; height: 100%; background: #c58b45; border-radius: 4px; }
+.share-value { display: inline-block; width: 44px; text-align: right; font-size: 13px; color: var(--suave); font-variant-numeric: tabular-nums; }
+.named-row { display: flex; gap: 12px; align-items: center; }
+.named-row .input { flex: 1; }
+
+.cash-chart .chart-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+.cash-chart .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0; padding: 0; list-style: none; font-size: 14px; color: var(--texto); }
+.cash-chart .legend li, .chart-tip span { display: inline-flex; align-items: center; gap: 6px; }
+.cash-chart i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+.chart-box { position: relative; }
+.chart-box svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart-box .grid { stroke: var(--linha); stroke-width: 1; }
+.chart-box .baseline { stroke: #cfc4b8; stroke-width: 1; }
+.chart-box .axis { fill: var(--suave); font-size: 12px; font-variant-numeric: tabular-nums; }
+.chart-box path { transition: opacity 120ms ease; }
+.chart-box .dim path { opacity: .35; }
+.chart-box .hit { fill: transparent; cursor: default; outline: none; }
+.chart-box .hit:focus-visible { stroke: var(--vinho); stroke-width: 1.5; stroke-dasharray: 3 3; }
+.chart-tip {
+  position: absolute; top: 0; transform: translateX(-50%); z-index: 2; pointer-events: none;
+  display: flex; flex-direction: column; gap: 3px; min-width: 190px; padding: 10px 12px; border-radius: 10px;
+  background: var(--branco); box-shadow: var(--sombra-flutuante); font-size: 13px; color: var(--texto);
+}
+.chart-tip strong { margin-left: auto; padding-left: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.chart-tip .tip-total { padding-top: 4px; border-top: 1px solid var(--linha); color: var(--suave); }
+@media (max-width: 720px) {
+  .finance-toolbar .search { margin-left: 0; width: 100%; }
+  .finance-toolbar .search input { width: 100%; }
+}

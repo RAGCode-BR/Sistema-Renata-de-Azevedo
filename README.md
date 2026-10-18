@@ -62,20 +62,18 @@ Projeto **RenatadeAzevedo_Projeto** (região São Paulo, `sa-east-1`). Os comand
 
 ## Usuários
 
-Não há cadastro público. A administração cria e exclui contas na página **Usuários**, que chama as Edge Functions `admin-create-user` e `admin-delete-user`. Para criar, a função:
-1. Confere se quem chamou é administração ativa.
-2. Cria a conta no Supabase Auth, com o papel em `app_metadata`.
-3. O gatilho `on_auth_user_created` cria o perfil.
+Não há cadastro público. Quem tem a permissão **gerenciar usuários** (hoje, só Proprietário(a)) cria, edita e exclui contas na página **Usuários**.
 
-Uma conta sem papel, criada fora da função, não tem acesso a nada.
+- **Criar:** a Edge Function `admin-create-user` cria a conta no Supabase Auth, com os perfis em `app_metadata.roles`. O gatilho `on_auth_user_created` cria o perfil e os perfis de acesso. Uma conta sem perfis, criada fora da função, não tem acesso a nada.
+- **Editar** perfis, profissional vinculada e situação (ativa/inativa): função do banco `set_user_access`. Desativar corta o acesso na hora, porque as políticas conferem isso a cada consulta.
+- **Excluir:** Edge Function `admin-delete-user`. Prontuários e sessões continuam guardados, porque pertencem à profissional (`professionals`), não à conta.
+- **Regras, aplicadas no banco e nas funções:**
+  - Ninguém exclui ou desativa a própria conta, nem tira de si o perfil de Proprietário(a).
+  - Sempre resta ao menos um(a) Proprietário(a) ativo(a).
+  - O perfil Profissional exige uma profissional vinculada, e cada profissional tem no máximo uma conta.
+  - Criações, alterações de perfis e exclusões vão para `audit_log`.
 
-**Excluir** remove a conta e o acesso na hora, e fica registrado em `audit_log`:
-- Ninguém exclui a própria conta, o que garante que sempre reste uma administração.
-- Prontuários e sessões continuam guardados, porque pertencem à profissional (`professionals`), não à conta. A profissional pode receber uma conta nova depois.
-
-**A primeira conta de administração** precisa ser criada por fora, uma única vez. Em **Authentication → Users → Add user** (com *Auto Confirm User*), defina em *app_metadata* `{"role": "admin"}` e o nome em *user_metadata* `{"name": "..."}`.
-
-**Desativar uma conta** (`profiles.active = false`) corta o acesso na hora, porque as políticas conferem isso a cada consulta.
+**A primeira conta** precisa ser criada por fora, uma única vez. Em **Authentication → Users → Add user** (com *Auto Confirm User*), defina em *app_metadata* `{"roles": ["owner"]}` e o nome em *user_metadata* `{"name": "..."}`.
 
 ## Deploy na Cloudflare
 
@@ -92,12 +90,119 @@ A Cloudflare publica apenas a interface compilada, configurada em `wrangler.json
 
 ## Estrutura de acesso
 
-| Função | Acesso |
-| --- | --- |
-| Administração (Bárbara e Mari) | Usuários, profissionais, pacientes, agenda e visão das conexões Google. Sem acesso às evoluções clínicas. |
-| Profissional (Renata e demais) | Seus pacientes, suas sessões e as próprias evoluções. Futuramente, a autorização da própria conta Google. |
+Uma pessoa pode ter **vários perfis** (ex.: Renata = Proprietário(a) + Profissional). Cada perfil soma permissões, definidas na tabela `role_permissions`, com os mesmos nomes de `shared/permissions.ts`. As políticas RLS perguntam "tem a permissão X?".
 
-O registro de criações vai para `audit_log`, preenchido por gatilhos no banco.
+| Perfil | Acesso |
+| --- | --- |
+| Proprietário(a) (Renata) | Tudo o que é administrativo, inclusive usuários e configurações. |
+| Gerente (Mari, Bárbara) | Agenda geral, pacientes, profissionais e calendários. Sem usuários. |
+| Recepção (pronto para uso futuro) | Pacientes e agenda. |
+| Financeiro (pronto para uso futuro) | Permissões do financeiro (módulo ainda não criado). |
+| Profissional | Os próprios pacientes, a própria agenda e o próprio prontuário. |
+| Paciente (fase futura) | Nenhum acesso à área da equipe. |
+
+**Prontuários não seguem o cargo:** só a profissional responsável vê as próprias evoluções, e só de pacientes da própria carteira. Nem Proprietário(a) nem Gerente leem o prontuário de outra profissional.
+
+## Painel inicial
+
+A página **Início** é a primeira depois do login e mostra só dados reais, filtrados pelas permissões de cada perfil:
+- **Quem vê a agenda geral** (Proprietário(a), Gerente, Recepção): sessões de hoje e dos próximos 7 dias, pacientes ativos, profissionais em atividade, a próxima sessão e as evoluções pendentes **por profissional**, sem acesso ao conteúdo.
+- **Profissional:** a própria agenda e as próprias evoluções pendentes. Cada uma é um atalho que abre o prontuário já na paciente e na sessão (`#/prontuarios?paciente=…&sessao=…`).
+- **Evolução pendente:** sessão que já terminou, não foi cancelada nem marcada como falta, e não tem evolução ligada a ela (`clinical_notes.appointment_id`). Vem da função `pending_clinical_notes()`, que informa só a existência da pendência, nunca o texto do prontuário.
+- **Fora do painel por enquanto:** indicadores de financeiro, CRM e tarefas, que entram junto com esses módulos.
+
+## Agenda
+
+Visões de **Dia** (uma coluna por profissional), **Semana** e **Mês**, com filtros por profissional e especialidade. Clicar num horário livre abre uma sessão nova (ou um bloqueio, para a profissional); clicar numa sessão abre os detalhes, as ações e o histórico.
+
+- **Situações:** Agendada, Aguardando confirmação, Confirmada, Realizada, Paciente faltou, Cancelada pelo paciente, Cancelada pela clínica e Remarcada. Cancelamento, falta e remarcação são coisas diferentes.
+- **Ações** (funções do banco; a interface não altera `appointments` diretamente):
+  - `set_appointment_status`: confirmar, aguardar confirmação, registrar presença ou falta (só depois do início) e corrigir a situação.
+  - `cancel_appointment`: com motivo e opção de cancelar também as próximas da série.
+  - `reschedule_appointment`: a sessão original fica "Remarcada" e uma nova, ligada a ela, ocupa o novo horário.
+  - `create_appointment_series`: semanal, quinzenal ou mensal, de 2 a 52 sessões. Se alguma data tiver conflito, nenhuma é criada e a mensagem diz qual data impediu.
+- **Quem pode:** a gerência (`appointments.manage`) mexe em qualquer agenda; a profissional, na própria. Séries e sessões novas são da gerência.
+- **Conflitos, no banco:** uma profissional não tem duas sessões ativas no mesmo horário, nem sessão sobre um bloqueio (e vice-versa).
+- **Bloqueios:** com motivo opcionalmente **privado**, que só a profissional e quem bloqueou veem; os demais veem "Horário bloqueado". A tabela só é acessada pelas funções `list_schedule_blocks`, `create_schedule_block` e `delete_schedule_block`.
+- **Histórico:** toda criação e mudança de situação vai para `appointment_events` (por gatilho), com quem fez e quando.
+- **Pendências no Início:** sessão passada ainda agendada/confirmada é **presença não registrada**; sessão **realizada** sem evolução é **evolução pendente**.
+- **Tipo de atendimento** (individual, casal, família, grupo, avaliação) é separado da **modalidade** (presencial/on-line).
+- **Fora deste bloco:** lista de espera e o segundo paciente na terapia de casal.
+
+## Pacientes
+
+- **Lista** com busca (nome, nome social, e-mail ou telefone) e filtro por situação: em acompanhamento, pausado, alta, encerrado.
+- **Página do paciente** (`#/pacientes?id=…`), com abas:
+  - **Visão geral:** cadastro, acompanhamento, responsável legal e observações administrativas.
+  - **Sessões:** realizadas, faltas, canceladas pelo paciente, próximas e histórico.
+  - **Documentos.**
+  - **Prontuário:** atalho só para a profissional responsável.
+  - **Financeiro:** chega com o módulo financeiro.
+- **Cadastro:** só dados administrativos. Nascimento de menor de idade pede o responsável legal; CPF é opcional, validado e único.
+- **Gravação:** pela função `save_patient`, que cria ou edita e acerta os vínculos com profissionais numa transação, e só funciona para quem tem `patients.manage`. Tirar uma profissional do vínculo tira dela o acesso ao paciente; o que ela registrou continua guardado. Criações e edições vão para `audit_log`.
+- **Documentos administrativos:**
+  - Ficam no bucket **privado** `patient-documents`, em `patients/<id do paciente>/`. São PDF, imagem ou Word, até 10 MB.
+  - Lê quem vê o paciente; envia e exclui quem tem `patients.manage`.
+  - São abertos só por **link temporário** de 60 segundos.
+  - Documentos clínicos ficam com o prontuário, não aqui.
+
+## Prontuário
+
+**Princípio:** o conteúdo clínico não é lido nem gravado direto nas tabelas, e ninguém tem acesso direto a elas. Tudo passa por funções do banco que exigem a **profissional responsável** (perfil Profissional com o paciente na carteira) e registram o acesso em `clinical_access_log`: aberturas, exportações e documentos abertos. Nem Proprietário(a) nem Gerente leem o conteúdo; quem gerencia usuários vê só **quem** acessou e quando.
+
+- **Evolução:**
+  - Rascunho editável: cada alteração guarda a versão anterior em `clinical_note_revisions`.
+  - Finalizada: imutável, travada por gatilho no banco.
+  - Correção: só por **retificação**, que é um novo registro finalizado, ligado ao original e com motivo. O original continua visível.
+- **Anotações pessoais:** da profissional, editáveis, fora do prontuário formal e da exportação.
+- **Conceitualização de caso:**
+  - O modelo da clínica separa modalidade, motivo da procura e hipóteses diagnósticas.
+  - Cada profissional pode criar modelos próprios ("Meus modelos").
+  - As seções ficam copiadas na conceitualização, então mudar o modelo não altera o que já foi escrito. Cada alteração guarda a versão anterior.
+  - O documento da Gabriela pode virar um modelo quando estiver disponível.
+- **Documentos clínicos:**
+  - Ficam no bucket privado `clinical-documents`, que não tem leitura direta.
+  - O link de 60 segundos vem da Edge Function `clinical-document-url`, que confere a autoria e registra a abertura.
+  - Não são excluídos: seguem a guarda do prontuário.
+- **Exportação** (`#/prontuario-impressao?paciente=…`): evoluções finalizadas, retificações e conceitualização, para imprimir ou salvar em PDF pelo navegador. Fica registrada.
+- **Controle de preenchimento** (página **Controle de prontuários**, para quem vê a agenda geral):
+  - Cada sessão realizada aparece como Pendente, Rascunho, Finalizado ou Finalizado fora do prazo, e "atrasada" quando o prazo venceu sem finalização.
+  - O prazo fica em **Configurações** (padrão de 48 h após a sessão).
+- **Assinatura:** a finalização registra quem finalizou e quando. Assinatura digital com certificado (ICP-Brasil), se exigida, é uma etapa posterior.
+
+## Financeiro
+
+**Quem vê o quê:**
+
+| Perfil | Acesso |
+|---|---|
+| Proprietário(a) e Financeiro | Tudo: visão geral, cobranças, despesas, repasses e preços |
+| Gerente e Recepção | Cobranças e pagamentos, inadimplência e tabela de preços (só leitura). Não veem resultado, despesas nem repasses |
+| Profissional | Só as cobranças das próprias sessões (sem valores de caixa) e o próprio repasse |
+
+Cobranças, pagamentos, alocações e repasses não têm acesso direto às tabelas. Tudo passa por funções do banco, que fazem as somas e aplicam as regras.
+
+- **Preços:** na hora de cobrar vale, nesta ordem:
+  1. valor combinado com o paciente (aba Financeiro do paciente);
+  2. profissional + tipo de sessão;
+  3. profissional;
+  4. tipo de sessão;
+  5. padrão da clínica.
+
+  Sem preço, a cobrança fica como **Valor a definir** e continua em aberto até alguém definir o valor.
+- **Cobrança automática:** é criada quando a sessão vira **Realizada** (100%), **Falta** (padrão 100%) ou **cancelamento pelo paciente com menos de 24 h** (padrão 100%). Os percentuais e o prazo ficam em **Configurações**. Cancelamento pela clínica não cobra. Corrigir a situação da sessão não duplica a cobrança. Competência e vencimento seguem a data da sessão.
+- **Pagamento:** PIX, dinheiro, débito, crédito ou transferência. Quita as cobranças marcadas, na ordem do vencimento. O que sobra vira **crédito do paciente** e é abatido sozinho das próximas cobranças, o que atende pacotes e pagamentos adiantados.
+- **Estorno e cancelamento:** pedem motivo e ficam na auditoria. O estorno reabre as cobranças que o pagamento quitava. Ao cancelar uma cobrança, o que já foi pago volta a ser crédito.
+- **Repasse:**
+  - É o percentual da profissional sobre o valor **recebido** no mês pelas sessões dela.
+  - O fechamento só é possível em meses encerrados e congela a base, o percentual e o valor.
+- **Visão geral:**
+  - O faturado conta pela data da sessão (competência). O recebido, as despesas pagas e os repasses contam pela data do caixa.
+  - Resultado de caixa = recebido − despesas pagas − repasses.
+  - Cada indicador traz a comparação com o mês anterior e com o mesmo mês do ano passado.
+  - O gráfico de entradas e saídas mostra os 12 meses e pode ser visto também em tabela.
+- **Despesas:** cada uma tem categoria e centro de custo, e as duas listas podem ser editadas em **Despesas**. Os centros de custo iniciais são Administrativo, Atendimento clínico, Comercial e marketing.
+- **Fica para depois:** recibos e nota fiscal, importação do Yampa/Clinical Experts, conciliação bancária e PIX automático.
 
 ## Agenda Google
 
