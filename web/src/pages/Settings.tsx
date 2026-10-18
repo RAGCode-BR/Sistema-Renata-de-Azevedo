@@ -68,6 +68,7 @@ export function SettingsPage() {
       <WhatsappPanel settings={data} onSaved={reload} />
       <AiPanel />
       <PushPanel />
+      <PortalPanel />
       <Panel title="Política de cobrança">
         <form className="panel-body form-grid" onSubmit={billing.onSubmit}
           key={`c${data.missed_charge_percent}-${data.late_cancel_hours}-${data.late_cancel_charge_percent}`}>
@@ -201,6 +202,54 @@ function PushPanel() {
           {state.last_run_at && ` Último envio: ${dateTime(state.last_run_at)}.`}
           {state.queued > 0 && ` ${state.queued} na fila.`}
           {state.last_error && ` Último erro: ${state.last_error}`}
+        </p>
+        {form.error && <p className="erro full" role="alert">{form.error}</p>}
+        <div className="full"><button type="submit" className="button" disabled={form.busy}>{form.busy ? 'Salvando…' : 'Salvar'}</button></div>
+      </form>
+    </Panel>
+  );
+}
+
+// Portal do paciente: ligar, endereço, instruções de pagamento, quem recebe os pedidos e avisos por e-mail.
+function PortalPanel() {
+  const notify = useToast();
+  const { data, reload } = useLoad(() => Promise.all([api.portalState(), api.taskAssignees()]), []);
+  const form = useFormSubmit(async (values) => {
+    await api.setPortalSettings({
+      enabled: values.get('enabled') === 'on', url: text(values, 'url'), paymentInstructions: text(values, 'instructions'),
+      assigneeId: text(values, 'assignee') || null, emailEnabled: values.get('email') === 'on'
+    });
+    notify('Configuração do portal salva.');
+    reload();
+  });
+  if (!data?.[0]) return null;
+  const [state, people] = data;
+  return (
+    <Panel title="Portal do paciente">
+      <form className="panel-body form-grid" onSubmit={form.onSubmit}
+        key={`portal${state.enabled}${state.url}${state.assignee_id}${state.email_enabled}${state.payment_instructions}`}>
+        <label className="check full"><input type="checkbox" name="enabled" defaultChecked={state.enabled} />
+          <span>Ligar o portal do paciente<span className="sub">Pacientes e responsáveis convidados (na ficha do paciente, aba Portal) veem sessões, cobranças e documentos compartilhados. Desligar bloqueia o acesso de todos na hora.</span></span></label>
+        <Field label="Endereço do portal" full>
+          <input className="input" name="url" type="url" placeholder="https://portal.renatadeazevedo.com.br" defaultValue={state.url ?? ''} />
+        </Field>
+        <Field label="Quem recebe os pedidos do portal (remarcar, cancelar, já paguei)" full>
+          <select className="input" name="assignee" defaultValue={state.assignee_id ?? ''}>
+            <option value="">Ninguém fixo (avisa a recepção e o financeiro)</option>
+            {people.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
+          </select>
+        </Field>
+        <Field label="Como pagar (aparece para o paciente)" full>
+          <textarea className="input" name="instructions" rows={3} maxLength={2000} defaultValue={state.payment_instructions ?? ''}
+            placeholder="Ex.: PIX (CNPJ) 00.000.000/0001-00, em nome de ... Depois de pagar, use o botão Já paguei." />
+        </Field>
+        <label className="check full"><input type="checkbox" name="email" defaultChecked={state.email_enabled} />
+          <span>Avisar por e-mail<span className="sub">E-mail genérico ("há uma novidade no portal"), no máximo um por hora. Só ligue depois de configurar o envio de e-mails (veja o README).</span></span></label>
+        <p className="muted small full">
+          {state.active_accesses === 1 ? '1 acesso ativo.' : `${state.active_accesses} acessos ativos.`}
+          {state.email_last_run_at && ` Último envio de e-mails: ${dateTime(state.email_last_run_at)}.`}
+          {state.email_queued > 0 && ` ${state.email_queued} e-mail(s) na fila.`}
+          {state.email_last_error && ` Último erro: ${state.email_last_error}`}
         </p>
         {form.error && <p className="erro full" role="alert">{form.error}</p>}
         <div className="full"><button type="submit" className="button" disabled={form.busy}>{form.busy ? 'Salvando…' : 'Salvar'}</button></div>

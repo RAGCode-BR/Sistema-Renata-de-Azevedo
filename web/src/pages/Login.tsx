@@ -8,7 +8,12 @@ export function LoginPage({ notice, onLogin }: { notice: string; onLogin: (user:
     await api.login(text(data, 'email'), secret(data, 'password'));
     const user = await api.session();
     if (!user) {
+      const patient = await api.isPatientAccount().catch(() => false);
       await api.logout();
+      if (patient) {
+        window.location.hash = '#/portal';
+        return;
+      }
       throw new Error('Esta conta não tem acesso ao sistema.');
     }
     onLogin(user);

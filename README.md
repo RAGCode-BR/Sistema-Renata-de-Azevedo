@@ -511,6 +511,82 @@ No Expo Go dá para testar tudo, menos o push (a Expo exige um build próprio pa
 
 **Fica para o Bloco 14:** ícone e tela de abertura próprios (hoje são os padrões do modelo da Expo) e a publicação nas lojas.
 
+## Portal do paciente (Bloco 13)
+
+**Situação:** pronto e testado contra o Supabase real. **Entregue desligado.**
+
+- **Formato:** portal web separado do sistema da equipe, no mesmo projeto (`web/src/portal/`).
+  - Abre em `#/portal`, ou sozinho num endereço que comece com `portal.` (ex.: `portal.renatadeazevedo.com.br`).
+  - Funciona no navegador do celular; não precisa instalar nada.
+- **Por que não um app nas lojas:** o paciente usa poucas vezes por mês. Um app exigiria instalação e revisão da Apple e do Google, e misturá-lo ao app da equipe aumentaria o risco de vazamento.
+
+**Como funciona**
+
+- **Acesso só por convite:**
+  - Na ficha do paciente, aba **Portal**, quem gerencia pacientes libera o acesso para o e-mail do paciente ou do responsável.
+  - Paciente menor de 18 anos: o acesso é do responsável. Uma mesma pessoa pode acompanhar mais de um paciente (ex.: dois filhos).
+  - "Encerrar acesso" corta tudo na hora.
+- **Entrada sem senha:**
+  - A pessoa informa o e-mail e recebe um **código de 6 dígitos** (vale 10 minutos).
+  - A resposta é a mesma exista ou não a conta, para não revelar quem é paciente.
+- **Primeiro acesso:** a pessoa aceita os **termos de uso e o aviso de privacidade**, com a versão registrada. O texto é um **rascunho para revisão jurídica**, em `web/src/portal/terms.ts`.
+- **Telas do paciente:**
+  - **Início:** próxima sessão e quanto está em aberto.
+  - **Sessões:**
+    - próximas e do último ano;
+    - **Confirmar presença**, que grava na agenda;
+    - **Preciso remarcar ou cancelar**: não mexe na agenda, cria uma tarefa para a equipe entrar em contato;
+    - o link do Meet aparece 1 hora antes da sessão on-line.
+  - **Financeiro:**
+    - cobranças em aberto, com o saldo depois de pagamentos parciais;
+    - pagamentos recebidos, sem as observações internas;
+    - instruções de pagamento escritas pela clínica;
+    - botão **Já paguei**, que cria uma tarefa para o financeiro conferir. O pagamento continua sendo registrado pelo financeiro.
+  - **Documentos:** só os que a clínica compartilhou, abertos por link de 60 segundos. Cada download fica registrado.
+  - **Avisos:** sessão marcada, remarcada ou cancelada (uma série semanal vira um aviso só), nova cobrança e novo documento.
+- **Na ficha do paciente (equipe), aba Portal:**
+  - quem tem acesso, último acesso e aceite dos termos;
+  - documentos compartilhados e se o paciente já abriu;
+  - pedidos feitos pelo portal, com link para a tarefa.
+  - Compartilhar documentos: quem gerencia pacientes ou a profissional responsável.
+  - Os documentos do portal ficam num armazenamento **separado** do prontuário e dos documentos administrativos.
+- **Segurança:**
+  - O paciente não lê nenhuma tabela diretamente. Tudo passa pelas funções `portal_*`, que conferem o vínculo da conta com o paciente, o portal ligado e o aceite dos termos.
+  - O teste do banco (`npm run test:db`) entra como paciente, tenta ler **todas** as tabelas e chamar **todas** as funções da equipe, e falha se alguma devolver dados.
+  - O prontuário nunca aparece no portal.
+  - Contas de paciente não entram no sistema nem no aplicativo da equipe, e não aparecem em Usuários.
+
+**O que já está configurado no Supabase:**
+- funções `portal-invite`, `portal-document-url` e `portal-email-send`;
+- segredo interno `PORTAL_EMAIL_SECRET`;
+- entradas `portal_email_url` e `portal_email_secret` no Vault;
+- agendamento `portal-email` (a cada minuto).
+
+**O que falta você configurar**
+
+1. **E-mail de envio dos códigos (obrigatório antes de uso real):**
+   - O envio padrão do Supabase só entrega para os membros do projeto e poucas mensagens por hora.
+   - Crie uma conta num serviço de e-mail. A sugestão é o Resend (resend.com), que também serve para os avisos do item 5.
+   - Verifique o domínio `renatadeazevedo.com.br` nesse serviço, cadastrando os registros DNS indicados.
+   - No painel do Supabase, em **Authentication → Emails → SMTP Settings**, informe servidor, usuário, senha e o remetente (ex.: `portal@renatadeazevedo.com.br`).
+2. **Modelo do e-mail do código:**
+   - Em **Authentication → Emails → Templates → Magic Link**, use o assunto "Seu código de acesso ao portal" e cole o conteúdo de `supabase/templates/codigo-de-acesso.html`. Ele mostra o código, não um link.
+   - Em **Authentication → Providers → Email**, deixe o código com **6 dígitos** e validade de **600 segundos**.
+   - No ambiente local, isso já vem de `supabase/config.toml`.
+3. **Endereço:** crie o subdomínio `portal.renatadeazevedo.com.br` apontando para o mesmo projeto do sistema na Cloudflare (domínio personalizado). Sem ele, o portal funciona em `https://<endereço do sistema>/#/portal`.
+4. **Ligar:**
+   - Em **Configurações → Portal do paciente**, informe o endereço e as instruções de pagamento (ex.: chave PIX).
+   - Escolha quem recebe os pedidos e marque **Ligar o portal do paciente**.
+   - Teste primeiro com um paciente de teste.
+5. **Avisos por e-mail (opcional):** gere uma chave da API no Resend e cadastre, sem colar em chats:
+   ```
+   npx supabase secrets set --project-ref qnchebjrgnfgszrzlyue RESEND_API_KEY=... PORTAL_EMAIL_FROM="Clínica Renata de Azevedo <portal@renatadeazevedo.com.br>"
+   ```
+   Depois marque **Avisar por e-mail** em Configurações. O e-mail é genérico ("há uma novidade no portal") e vai no máximo um por hora por pessoa.
+6. **Revisão jurídica:** dos termos do portal e do caso de pacientes adolescentes (hoje, menor de 18 anos só tem acesso pelo responsável). Se o texto mudar, a versão em `private.portal_terms_version()` precisa mudar numa nova migração, e todos aceitam de novo.
+
+**Fica para depois:** agendamento pelo próprio paciente, envio de arquivos pelo paciente, pagamento por PIX automático, recibos e um aplicativo do paciente nas lojas.
+
 ## Próximas etapas antes de uso real
 
 1. Confirmar os e-mails de Bárbara, Mari, Renata e das demais profissionais para criar suas contas.
@@ -518,5 +594,6 @@ No Expo Go dá para testar tudo, menos o push (a Expo exige um build próprio pa
 2. Configurar o Google Cloud e cadastrar as credenciais (passo a passo na seção "Google Agenda e Google Meet").
 3. Completar edição e encerramento dos cadastros, recuperação de acesso e cópias de segurança (plano Pro do Supabase).
 4. Revisar permissões e testar com a equipe antes de inserir dados de pacientes reais.
+5. Portal do paciente: configurar o e-mail de envio dos códigos (SMTP), o subdomínio e a revisão jurídica dos termos (seção "Portal do paciente").
 
 **Pendente por decisão da clínica:** importação do Clinical Experts (pacientes, profissionais responsáveis e histórico de sessões). Por enquanto, os pacientes são cadastrados no sistema. A importação de leads por planilha, no Comercial, já existe.

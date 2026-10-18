@@ -12,10 +12,12 @@ import {
 import { errorMessage, text, useFormSubmit, useLoad } from '../../hooks.ts';
 import { PatientFinance } from './PatientFinance.tsx';
 import { PatientForm } from './PatientForm.tsx';
+import { PatientPortal } from './PatientPortal.tsx';
 
-type Tab = 'geral' | 'sessoes' | 'documentos' | 'prontuario' | 'financeiro';
+type Tab = 'geral' | 'sessoes' | 'documentos' | 'prontuario' | 'financeiro' | 'portal';
 const TABS: [Tab, string][] = [
-  ['geral', 'Visão geral'], ['sessoes', 'Sessões'], ['documentos', 'Documentos'], ['prontuario', 'Prontuário'], ['financeiro', 'Financeiro']
+  ['geral', 'Visão geral'], ['sessoes', 'Sessões'], ['documentos', 'Documentos'], ['prontuario', 'Prontuário'], ['financeiro', 'Financeiro'],
+  ['portal', 'Portal']
 ];
 
 // Página central do paciente. O que aparece segue as permissões do banco: a profissional vê só os
@@ -80,6 +82,7 @@ export function PatientPage({ user, patientId, initialTab }: { user: SessionUser
         </Panel>
       )}
       {tab === 'financeiro' && <PatientFinance user={user} patient={patient} />}
+      {tab === 'portal' && <PatientPortal user={user} patient={patient} caresFor={caresFor} />}
 
       {editing && (
         <PatientForm patient={patient} professionals={professionals} onClose={() => setEditing(false)}

@@ -1,11 +1,26 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import type { SessionUser } from '../../shared/types.ts';
 import { api, setUnauthorizedHandler } from './api.ts';
 import { Shell } from './components/Shell.tsx';
 import { errorMessage } from './hooks.ts';
 import { LoginPage } from './pages/Login.tsx';
 
+// Portal do paciente: carregado à parte, em #/portal ou num endereço que comece com "portal.".
+const PortalApp = lazy(() => import('./portal/PortalApp.tsx').then((module) => ({ default: module.PortalApp })));
+const isPortal = () => window.location.hash.startsWith('#/portal') || window.location.hostname.startsWith('portal.');
+
 export function App() {
+  const [portal, setPortal] = useState(isPortal);
+  useEffect(() => {
+    const update = () => setPortal(isPortal());
+    window.addEventListener('hashchange', update);
+    return () => window.removeEventListener('hashchange', update);
+  }, []);
+  if (portal) return <Suspense fallback={null}><PortalApp /></Suspense>;
+  return <StaffApp />;
+}
+
+function StaffApp() {
   // undefined: ainda verificando a sessão; null: ninguém conectado.
   const [user, setUser] = useState<SessionUser | null>();
   const [notice, setNotice] = useState('');

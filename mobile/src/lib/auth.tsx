@@ -78,8 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await api.login(email, password);
       await load();
       if (!(await api.session())) {
+        const patient = await api.isPatientAccount().catch(() => false);
         await api.logout();
-        throw new Error('Esta conta não tem acesso ao aplicativo da equipe.');
+        throw new Error(patient ? 'Esta conta é de paciente: use o portal do paciente, pelo navegador.'
+          : 'Esta conta não tem acesso ao aplicativo da equipe.');
       }
     },
     signOut: async () => {

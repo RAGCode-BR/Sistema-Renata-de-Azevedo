@@ -218,6 +218,9 @@ export interface ClinicSettings {
   google_event_title: 'initials' | 'generic' | 'full';
   whatsapp_confirm_hours: number;
   whatsapp_reminder_hours: number;
+  // Portal do paciente: só leitura aqui (alterar por set_portal_settings).
+  portal_enabled: boolean;
+  portal_url: string | null;
 }
 
 // Financeiro -----------------------------------------------------------------------------------
@@ -393,7 +396,7 @@ export interface TaskCounts { open_count: number; due_today: number; overdue: nu
 
 export interface AppNotification {
   id: string;
-  kind: 'task_assigned' | 'task_done' | 'task_comment' | 'lead_new' | 'lead_assigned' | 'message_new';
+  kind: 'task_assigned' | 'task_done' | 'task_comment' | 'lead_new' | 'lead_assigned' | 'message_new' | 'portal';
   title: string;
   link: string | null;
   read_at: string | null;
@@ -599,3 +602,109 @@ export interface PendingNote {
 export interface ItemsResponse<T> { items: T[] }
 export interface ItemResponse<T> { item: T }
 export interface ErrorResponse { error: string }
+
+// Portal do paciente (Bloco 13). O paciente só vê o que as funções portal_* devolvem.
+export type PortalRelationship = 'self' | 'guardian';
+
+export interface PortalMe {
+  portal_user: boolean;
+  enabled: boolean;
+  name: string | null;
+  email: string | null;
+  terms_version: string;
+  terms_accepted: boolean;
+  payment_instructions: string | null;
+  patients: { id: string; name: string; relationship: PortalRelationship }[];
+}
+
+export interface PortalAppointment {
+  id: string;
+  starts_at: string;
+  ends_at: string;
+  status: AppointmentStatus;
+  modality: Modality;
+  professional_name: string;
+  meeting_url: string | null;
+  can_confirm: boolean;
+  can_request: boolean;
+  requested: boolean;
+}
+
+export interface PortalCharge {
+  id: string;
+  description: string;
+  competence_date: string;
+  due_date: string;
+  amount: number | null;
+  discount: number;
+  paid: number;
+  balance: number | null;
+  status: Exclude<ChargeStatus, 'cancelled'>;
+  paid_notice_at: string | null;
+}
+
+export interface PortalPayment {
+  id: string;
+  received_at: string;
+  amount: number;
+  method: PaymentMethod;
+}
+
+export interface PortalDocument {
+  id: string;
+  title: string;
+  mime_type: string | null;
+  size_bytes: number | null;
+  created_at: string;
+  downloaded: boolean;
+}
+
+// Visão da equipe.
+export interface PortalAccess {
+  id: string;
+  user_id: string;
+  name: string;
+  email: string;
+  relationship: PortalRelationship;
+  invited_at: string;
+  invited_by_name: string | null;
+  revoked_at: string | null;
+  last_sign_in_at: string | null;
+  terms_accepted_at: string | null;
+}
+
+export interface PortalSharedDocument {
+  id: string;
+  title: string;
+  mime_type: string | null;
+  size_bytes: number | null;
+  created_at: string;
+  shared_by_name: string | null;
+  downloads: number;
+  first_download_at: string | null;
+  can_remove: boolean;
+}
+
+export interface PortalRequest {
+  id: string;
+  kind: 'reschedule' | 'cancel' | 'paid';
+  created_at: string;
+  requested_by: string | null;
+  appointment_starts_at: string | null;
+  charge_description: string | null;
+  message: string | null;
+  task_id: string | null;
+  task_status: TaskStatus | null;
+}
+
+export interface PortalState {
+  enabled: boolean;
+  url: string | null;
+  payment_instructions: string | null;
+  assignee_id: string | null;
+  email_enabled: boolean;
+  active_accesses: number;
+  email_last_run_at: string | null;
+  email_last_error: string | null;
+  email_queued: number;
+}

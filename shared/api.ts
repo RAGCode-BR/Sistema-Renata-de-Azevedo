@@ -60,6 +60,16 @@ import type {
   Payment,
   PayoutRow,
   PendingNote,
+  PortalAccess,
+  PortalAppointment,
+  PortalCharge,
+  PortalDocument,
+  PortalMe,
+  PortalPayment,
+  PortalRelationship,
+  PortalRequest,
+  PortalSharedDocument,
+  PortalState,
   Professional,
   Receivables,
   Role,
@@ -85,7 +95,8 @@ function databaseError(error: PostgrestError): Error {
     case '23505': return new Error('Este cadastro já existe.');
     case '23P01': return new Error('Já existe sessão nesse horário para esta profissional.');
     case 'P0001': return new Error(error.message);
-    case '42501': return new Error('Você não tem acesso a esta área.');
+    // Recusas escritas para quem usa (ex.: portal desligado, termos não aceitos) passam como estão.
+    case '42501': return new Error(/^(O portal|Aceite os termos)/.test(error.message) ? error.message : 'Você não tem acesso a esta área.');
     case '23503': case '23514': case '22P02': case '22007': case '22008': return new Error('Dados inválidos para este cadastro.');
     default:
       console.error(error);
@@ -107,6 +118,7 @@ async function count(query: PromiseLike<{ count: number | null; error: Postgrest
 }
 
 const DOCUMENTS_BUCKET = 'patient-documents';
+const PORTAL_BUCKET = 'portal-documents';
 
 const PATIENT_COLUMNS = 'id, name, social_name, phone, email, birth_date, cpf, address, admin_notes, guardian_name, '
   + 'guardian_relationship, guardian_phone, guardian_email, status, created_at, source_id, campaign_id, whatsapp_opt_in, patient_professionals(professional_id)';
@@ -162,6 +174,11 @@ export function createApi(supabase: SupabaseClient) {
       const { active: _active, ...user } = profile;
       return { ...user, ...access };
     },
+    // Conta só de paciente: vai para o portal, não para o sistema da equipe.
+    isPatientAccount: async () => {
+      const access = await run<{ roles: Role[] }>(supabase.rpc('my_access'));
+      return access.roles.length > 0 && access.roles.every((role) => role === 'patient');
+    },
     login: async (email: string, password: string) => {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw new Error(error.status === 429 ? 'Muitas tentativas. Aguarde alguns minutos.' : 'E-mail ou senha inválidos.');
@@ -190,7 +207,9 @@ export function createApi(supabase: SupabaseClient) {
     users: async (): Promise<UserAccount[]> => {
       const rows = await run<(Omit<UserAccount, 'roles'> & { user_roles: { role: Role }[] })[]>(supabase.from('profiles')
         .select('id, name, email, professional_id, active, user_roles(role)').order('name'));
-      return rows.map(({ user_roles, ...row }) => ({ ...row, roles: user_roles.map((item) => item.role) }));
+      // Contas do portal do paciente são geridas na ficha do paciente, não entre as contas da equipe.
+      return rows.map(({ user_roles, ...row }) => ({ ...row, roles: user_roles.map((item) => item.role) }))
+        .filter((account) => !(account.roles.length && account.roles.every((role) => role === 'patient')));
     },
     // Criar e excluir contas exige a chave de serviço: ficam nas Edge Functions (supabase/functions).
     createUser: async (input: NewUser) => {
@@ -351,7 +370,7 @@ export function createApi(supabase: SupabaseClient) {
       p_from: from.toISOString(), p_to: to.toISOString()
     })),
     settings: () => run<ClinicSettings>(supabase.from('clinic_settings')
-      .select('note_deadline_hours, missed_charge_percent, late_cancel_hours, late_cancel_charge_percent, google_event_title, whatsapp_confirm_hours, whatsapp_reminder_hours').single()),
+      .select('note_deadline_hours, missed_charge_percent, late_cancel_hours, late_cancel_charge_percent, google_event_title, whatsapp_confirm_hours, whatsapp_reminder_hours, portal_enabled, portal_url').single()),
     // Financeiro. Cobranças e pagamentos só por funções do banco (somas, situação e regras ficam lá).
     charges: (from: string | null, to: string | null, options: { patientId?: string; open?: boolean } = {}) =>
       run<Charge[]>(supabase.rpc('charge_list', { p_from: from, p_to: to, p_patient_id: options.patientId ?? null, p_open: options.open ?? false })),
@@ -405,7 +424,7 @@ export function createApi(supabase: SupabaseClient) {
     financeSummary: (year: number) => run<FinanceMonth[]>(supabase.rpc('finance_summary', { p_year: year })),
     expenseBreakdown: (year: number) => run<{ dimension: 'cost_center' | 'category'; name: string; amount: number }[]>(
       supabase.rpc('expense_breakdown', { p_year: year })),
-    updateSettings: (input: Partial<ClinicSettings>) => run<unknown>(supabase.from('clinic_settings')
+    updateSettings: (input: Partial<Omit<ClinicSettings, 'portal_enabled' | 'portal_url'>>) => run<unknown>(supabase.from('clinic_settings')
       .update({ ...input, updated_at: new Date().toISOString() }).eq('id', true).select('id').single()),
     // Sessões realizadas sem evolução: todas para quem vê a agenda geral, só as próprias para a profissional.
     pendingNotes: () => run<PendingNote[]>(supabase.rpc('pending_clinical_notes')),
@@ -533,6 +552,64 @@ export function createApi(supabase: SupabaseClient) {
     pushState: async () => (await run<{ enabled: boolean; devices: number; last_run_at: string | null; last_error: string | null; queued: number }[]>(
       supabase.rpc('push_state')))[0] ?? null,
     setPushEnabled: (enabled: boolean) => run<unknown>(supabase.rpc('set_push_enabled', { p_enabled: enabled })),
+
+    // Portal do paciente: entrada por código enviado ao e-mail (sem senha). Só contas já convidadas
+    // recebem o código (shouldCreateUser: false); a resposta é a mesma exista ou não a conta.
+    portalSendCode: async (email: string) => {
+      const { error } = await supabase.auth.signInWithOtp({ email: email.trim().toLowerCase(), options: { shouldCreateUser: false } });
+      if (error?.status === 429) throw new Error('Muitos pedidos de código. Aguarde alguns minutos e tente de novo.');
+    },
+    portalVerifyCode: async (email: string, code: string) => {
+      const { error } = await supabase.auth.verifyOtp({ email: email.trim().toLowerCase(), token: code.replace(/\D/g, ''), type: 'email' });
+      if (error) throw new Error(error.status === 429 ? 'Muitas tentativas. Aguarde alguns minutos.' : 'Código inválido ou vencido. Peça um novo código.');
+    },
+    portalMe: () => run<PortalMe>(supabase.rpc('portal_me')),
+    portalAcceptTerms: (version: string) => run<unknown>(supabase.rpc('portal_accept_terms', { p_version: version })),
+    portalAppointments: (patientId: string) => run<PortalAppointment[]>(supabase.rpc('portal_appointments', { p_patient_id: patientId })),
+    portalConfirm: (appointmentId: string) => run<unknown>(supabase.rpc('portal_confirm', { p_appointment_id: appointmentId })),
+    portalRequestChange: (appointmentId: string, kind: 'reschedule' | 'cancel', message: string) =>
+      run<unknown>(supabase.rpc('portal_request_change', { p_appointment_id: appointmentId, p_kind: kind, p_message: message || null })),
+    portalCharges: (patientId: string) => run<PortalCharge[]>(supabase.rpc('portal_charges', { p_patient_id: patientId })),
+    portalPayments: (patientId: string) => run<PortalPayment[]>(supabase.rpc('portal_payments', { p_patient_id: patientId })),
+    portalNotifyPaid: (chargeId: string, message: string) =>
+      run<unknown>(supabase.rpc('portal_notify_paid', { p_charge_id: chargeId, p_message: message || null })),
+    portalDocuments: (patientId: string) => run<PortalDocument[]>(supabase.rpc('portal_document_list', { p_patient_id: patientId })),
+    // Paciente e equipe: link de 60 s, com o download registrado no banco.
+    portalDocumentUrl: async (id: string) =>
+      (await invoke<{ url: string }>('portal-document-url', { documentId: id }, 'Não foi possível abrir o documento.')).url,
+    // Equipe.
+    portalAccessList: (patientId: string) => run<PortalAccess[]>(supabase.rpc('portal_access_list', { p_patient_id: patientId })),
+    portalInvite: (patientId: string, email: string, relationship: PortalRelationship) =>
+      invoke<{ id: string; created: boolean }>('portal-invite', { patientId, email, relationship }, 'Não foi possível convidar.'),
+    revokePortalAccess: (id: string) => run<unknown>(supabase.rpc('revoke_portal_access', { p_id: id })),
+    portalSharedDocuments: (patientId: string) =>
+      run<PortalSharedDocument[]>(supabase.rpc('portal_documents_for_patient', { p_patient_id: patientId })),
+    sharePortalDocument: async (patientId: string, file: File, title: string) => {
+      const extension = file.name.includes('.') ? file.name.split('.').pop()!.toLowerCase().replace(/[^a-z0-9]/g, '') : 'bin';
+      const path = `patients/${patientId}/${crypto.randomUUID()}.${extension}`;
+      const { error } = await supabase.storage.from(PORTAL_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
+      if (error) throw new Error(/size|exceed/i.test(error.message) ? 'Arquivo maior que 10 MB.'
+        : /mime|type/i.test(error.message) ? 'Tipo de arquivo não aceito. Use PDF, imagem (JPG ou PNG) ou Word (.docx).' : 'Não foi possível enviar o arquivo.');
+      try {
+        await run(supabase.rpc('share_portal_document', {
+          p_patient_id: patientId, p_title: title, p_path: path, p_size: file.size, p_mime: file.type || null
+        }));
+      } catch (failure) {
+        await supabase.storage.from(PORTAL_BUCKET).remove([path]);
+        throw failure;
+      }
+    },
+    removePortalDocument: async (id: string) => {
+      const path = await run<string>(supabase.rpc('remove_portal_document', { p_id: id }));
+      await supabase.storage.from(PORTAL_BUCKET).remove([path]);
+    },
+    portalRequests: (patientId: string) => run<PortalRequest[]>(supabase.rpc('portal_requests_for_patient', { p_patient_id: patientId })),
+    portalState: async () => (await run<PortalState[]>(supabase.rpc('portal_state')))[0] ?? null,
+    setPortalSettings: (input: { enabled: boolean; url: string; paymentInstructions: string; assigneeId: string | null; emailEnabled: boolean }) =>
+      run<unknown>(supabase.rpc('set_portal_settings', {
+        p_enabled: input.enabled, p_url: input.url || null, p_payment_instructions: input.paymentInstructions || null,
+        p_assignee_id: input.assigneeId, p_email_enabled: input.emailEnabled
+      })),
 
     googleCalendars: () => run<GoogleCalendar[]>(supabase.rpc('list_google_calendars')),
     googleSyncStatus: async () => (await run<GoogleSyncStatus[]>(supabase.rpc('google_sync_status')))[0] ?? null,
