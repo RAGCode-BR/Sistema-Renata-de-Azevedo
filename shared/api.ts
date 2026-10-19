@@ -28,6 +28,8 @@ import type {
   LeadDuplicate,
   LeadInput,
   LeadStage,
+  MfaEnrollment,
+  MfaState,
   Appointment,
   AppointmentEvent,
   AppointmentStatus,
@@ -167,13 +169,44 @@ export function createApi(supabase: SupabaseClient) {
       const [profile, access] = await Promise.all([
         run<{ id: string; name: string; email: string; professional_id: string | null; active: boolean } | null>(
           supabase.from('profiles').select('id, name, email, professional_id, active').eq('id', session.user.id).maybeSingle()),
-        run<Pick<SessionUser, 'roles' | 'permissions'>>(supabase.rpc('my_access'))
+        run<Pick<SessionUser, 'roles' | 'permissions' | 'mfa'>>(supabase.rpc('my_access'))
       ]);
       const staff = access.roles.some((role) => role !== 'patient');
       if (!profile?.active || !staff) return null;
       const { active: _active, ...user } = profile;
-      return { ...user, ...access };
+      // Quem cadastrou o app autenticador digita o código ao entrar, mesmo quando a clínica não exige.
+      const { data: level } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      const mfa: MfaState = level?.nextLevel === 'aal2' && level.currentLevel !== 'aal2' ? 'verify' : access.mfa ?? 'ok';
+      return { ...user, ...access, mfa };
     },
+    // Verificação em duas etapas (TOTP do Supabase Auth).
+    mfaFactor: async () => {
+      const { data, error } = await supabase.auth.mfa.listFactors();
+      if (error) throw new Error('Não foi possível consultar a verificação em duas etapas.');
+      return data.totp.find((factor) => factor.status === 'verified') ?? null;
+    },
+    mfaEnroll: async (): Promise<MfaEnrollment> => {
+      // Tentativas anteriores não concluídas impedem um cadastro novo: saem antes.
+      const { data: current } = await supabase.auth.mfa.listFactors();
+      for (const factor of current?.all ?? []) {
+        if (factor.status !== 'verified') await supabase.auth.mfa.unenroll({ factorId: factor.id });
+      }
+      const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: `App autenticador ${new Date().toISOString()}` });
+      if (error || !data) throw new Error('Não foi possível iniciar o cadastro do app autenticador.');
+      return { factorId: data.id, qrCode: data.totp.qr_code, secret: data.totp.secret };
+    },
+    // Confere o código de 6 dígitos; a sessão passa a valer como verificada.
+    mfaVerify: async (code: string, factorId?: string) => {
+      const id = factorId ?? (await supabase.auth.mfa.listFactors()).data?.totp.find((factor) => factor.status === 'verified')?.id;
+      if (!id) throw new Error('Nenhum app autenticador cadastrado.');
+      const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: id, code: code.replace(/\D/g, '') });
+      if (error) throw new Error(error.status === 429 ? 'Muitas tentativas. Aguarde alguns minutos.' : 'Código inválido. Confira o horário do celular e tente o código atual.');
+    },
+    mfaUnenroll: async (factorId: string) => {
+      const { error } = await supabase.auth.mfa.unenroll({ factorId });
+      if (error) throw new Error('Para desativar, entre de novo usando o código do app autenticador.');
+    },
+    setMfaRequired: (required: boolean) => run<unknown>(supabase.rpc('set_mfa_required', { p_required: required })),
     // Conta só de paciente: vai para o portal, não para o sistema da equipe.
     isPatientAccount: async () => {
       const access = await run<{ roles: Role[] }>(supabase.rpc('my_access'));
@@ -370,7 +403,7 @@ export function createApi(supabase: SupabaseClient) {
       p_from: from.toISOString(), p_to: to.toISOString()
     })),
     settings: () => run<ClinicSettings>(supabase.from('clinic_settings')
-      .select('note_deadline_hours, missed_charge_percent, late_cancel_hours, late_cancel_charge_percent, google_event_title, whatsapp_confirm_hours, whatsapp_reminder_hours, portal_enabled, portal_url').single()),
+      .select('note_deadline_hours, missed_charge_percent, late_cancel_hours, late_cancel_charge_percent, google_event_title, whatsapp_confirm_hours, whatsapp_reminder_hours, portal_enabled, portal_url, require_mfa').single()),
     // Financeiro. Cobranças e pagamentos só por funções do banco (somas, situação e regras ficam lá).
     charges: (from: string | null, to: string | null, options: { patientId?: string; open?: boolean } = {}) =>
       run<Charge[]>(supabase.rpc('charge_list', { p_from: from, p_to: to, p_patient_id: options.patientId ?? null, p_open: options.open ?? false })),
@@ -424,7 +457,7 @@ export function createApi(supabase: SupabaseClient) {
     financeSummary: (year: number) => run<FinanceMonth[]>(supabase.rpc('finance_summary', { p_year: year })),
     expenseBreakdown: (year: number) => run<{ dimension: 'cost_center' | 'category'; name: string; amount: number }[]>(
       supabase.rpc('expense_breakdown', { p_year: year })),
-    updateSettings: (input: Partial<Omit<ClinicSettings, 'portal_enabled' | 'portal_url'>>) => run<unknown>(supabase.from('clinic_settings')
+    updateSettings: (input: Partial<Omit<ClinicSettings, 'portal_enabled' | 'portal_url' | 'require_mfa'>>) => run<unknown>(supabase.from('clinic_settings')
       .update({ ...input, updated_at: new Date().toISOString() }).eq('id', true).select('id').single()),
     // Sessões realizadas sem evolução: todas para quem vê a agenda geral, só as próprias para a profissional.
     pendingNotes: () => run<PendingNote[]>(supabase.rpc('pending_clinical_notes')),

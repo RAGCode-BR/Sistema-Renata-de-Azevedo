@@ -1968,6 +1968,109 @@ END $$;
 RESET ROLE;
 UPDATE public.integration_state SET enabled = false WHERE key = 'portal_email';
 
+-- Verificação em duas etapas (Bloco 14) ------------------------------------------------------------
+-- Exigência ligada: Proprietária que entrou só com a senha (aal1) não alcança nada até digitar o código.
+UPDATE public.clinic_settings SET require_mfa = true WHERE id;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000d1","role":"authenticated","aal":"aal1"}', true);
+DO $$
+DECLARE
+  access jsonb := public.my_access();
+  t record;
+  f record;
+  total bigint;
+  result text;
+  args text;
+  leaked text[] := '{}';
+BEGIN
+  IF access->>'mfa' <> 'enroll' OR jsonb_array_length(access->'permissions') <> 0 OR NOT (access->'roles') ? 'owner' THEN
+    RAISE EXCEPTION 'FALHA: my_access da Proprietária sem o código: %', access;
+  END IF;
+  IF private.has_permission('users.manage') OR private.is_staff() OR private.has_role('owner') THEN
+    RAISE EXCEPTION 'FALHA: Proprietária sem o código manteve permissões';
+  END IF;
+  BEGIN
+    PERFORM public.set_mfa_required(false);
+    RAISE EXCEPTION 'FALHA: Proprietária sem o código desligou a exigência';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  -- Tabelas: nada, exceto as linhas da própria conta.
+  FOR t IN SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relkind IN ('r', 'v', 'p') AND has_table_privilege('authenticated', c.oid, 'SELECT')
+  LOOP
+    EXECUTE format('SELECT count(*) FROM public.%I', t.relname) INTO total;
+    IF total > 0 AND t.relname NOT IN ('profiles', 'user_roles', 'notifications') THEN leaked := leaked || (t.relname || '=' || total); END IF;
+  END LOOP;
+  IF (SELECT count(*) FROM public.profiles) <> 1 OR (SELECT count(*) FROM public.user_roles) <> 1
+    OR EXISTS (SELECT 1 FROM public.notifications WHERE user_id <> auth.uid()) THEN
+    leaked := leaked || 'perfis/avisos de outras contas'::text;
+  END IF;
+  IF EXISTS (SELECT 1 FROM storage.objects) THEN leaked := leaked || 'storage.objects'::text; END IF;
+  IF leaked <> '{}' THEN RAISE EXCEPTION 'FALHA: Proprietária sem o código leu tabelas: %', leaked; END IF;
+
+  -- Funções da equipe, chamadas com argumentos vazios: precisam recusar ou não devolver nada.
+  FOR f IN SELECT p.oid, p.proname, p.proretset, p.prorettype,
+      (SELECT string_agg('NULL::' || format_type(a, NULL), ', ' ORDER BY i) FROM unnest(p.proargtypes) WITH ORDINALITY x(a, i)) AS nulls
+    FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.prokind = 'f' AND has_function_privilege('authenticated', p.oid, 'EXECUTE')
+      -- Revisadas: só mexem nos dados da própria conta (ou somam zero sem permissão, conferido abaixo).
+      AND p.proname NOT IN ('portal_me', 'my_access', 'mark_notifications_read', 'my_whatsapp', 'unregister_push_device', 'receivables_now')
+      AND p.prorettype <> 'trigger'::regtype
+  LOOP
+    args := coalesce(f.nulls, '');
+    BEGIN
+      IF f.proretset THEN
+        EXECUTE format('SELECT count(*) FROM public.%I(%s)', f.proname, args) INTO total;
+        IF total > 0 THEN leaked := leaked || (f.proname || ' devolveu ' || total); END IF;
+      ELSIF f.prorettype = 'void'::regtype THEN
+        EXECUTE format('SELECT public.%I(%s)', f.proname, args);
+        leaked := leaked || (f.proname || ' executou');
+      ELSE
+        EXECUTE format('SELECT public.%I(%s)::text', f.proname, args) INTO result;
+        IF result IS NOT NULL AND result NOT IN ('0', 'false', '[]', '{}', '') THEN leaked := leaked || (f.proname || '=' || left(result, 80)); END IF;
+      END IF;
+    EXCEPTION WHEN OTHERS THEN NULL;
+    END;
+  END LOOP;
+  IF EXISTS (SELECT 1 FROM public.receivables_now() r WHERE r.open_amount <> 0 OR r.overdue_count <> 0) THEN
+    leaked := leaked || 'receivables_now com valores'::text;
+  END IF;
+  IF leaked <> '{}' THEN RAISE EXCEPTION 'FALHA: Proprietária sem o código alcançou funções: %', leaked; END IF;
+END $$;
+
+-- Proprietária que também atende: sem o código, nem o prontuário dos próprios pacientes.
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000d3","role":"authenticated","aal":"aal1"}', true);
+DO $$ BEGIN
+  IF private.current_professional_id() IS NOT NULL OR private.cares_for('00000000-0000-4000-8000-0000000000f4') THEN
+    RAISE EXCEPTION 'FALHA: Proprietária que atende viu prontuário sem o código';
+  END IF;
+END $$;
+
+-- Recepção não é obrigada; Proprietária com o código (aal2) volta a ter tudo.
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000f2","role":"authenticated","aal":"aal1"}', true);
+DO $$ BEGIN
+  IF NOT private.is_staff() OR NOT private.has_permission('patients.manage') OR (public.my_access())->>'mfa' <> 'ok' THEN
+    RAISE EXCEPTION 'FALHA: Recepção perdeu acesso com a exigência (só vale para Proprietária e Gerência)';
+  END IF;
+END $$;
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000d1","role":"authenticated","aal":"aal2"}', true);
+DO $$ BEGIN
+  IF NOT private.has_permission('users.manage') OR (public.my_access())->>'mfa' <> 'ok' THEN
+    RAISE EXCEPTION 'FALHA: Proprietária com o código continuou sem acesso';
+  END IF;
+  PERFORM public.set_mfa_required(false);
+  BEGIN
+    PERFORM set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000d1","role":"authenticated","aal":"aal1"}', true);
+    PERFORM public.set_mfa_required(true);
+    RAISE EXCEPTION 'FALHA: exigência ligada por sessão sem o código';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'FALHA%' THEN RAISE; END IF;
+  END;
+END $$;
+RESET ROLE;
+DO $$ BEGIN
+  IF (SELECT require_mfa FROM public.clinic_settings) THEN RAISE EXCEPTION 'FALHA: exigência deveria estar desligada'; END IF;
+END $$;
+
 -- Financeiro (Bloco 6) ------------------------------------------------------------------------
 -- Sem preço cadastrado: cobrança "valor a definir" fica em aberto (não como paga) até ser ajustada.
 SET LOCAL ROLE authenticated;

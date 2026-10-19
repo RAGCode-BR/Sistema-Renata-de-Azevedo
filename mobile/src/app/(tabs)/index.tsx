@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { router } from 'expo-router';
 import { View } from 'react-native';
 import { can } from '../../../../shared/permissions.ts';
@@ -10,6 +11,7 @@ import { useLoad, useReloadOnFocus } from '../../lib/useLoad';
 
 // Início: sessões de hoje, próxima sessão e pendências (presença, evolução, tarefas, cobranças).
 export default function Home() {
+  const [now] = useState(() => Date.now());
   const { user } = useAuth();
   const overview = can(user!, 'appointments.view_all');
   const own = user!.roles.includes('professional') ? user!.professional_id : null;
@@ -28,7 +30,7 @@ export default function Home() {
   const tomorrow = addDays(startOfToday(), 1);
   const scheduled = appointments.filter((item) => occupiesSlot(item.status) && (overview || item.professional_id === own));
   const today = scheduled.filter((item) => new Date(item.starts_at) < tomorrow);
-  const next = scheduled.find((item) => new Date(item.ends_at).getTime() > Date.now());
+  const next = scheduled.find((item) => new Date(item.ends_at).getTime() > now);
   const myPending = pending.filter((item) => !own || item.professional_id === own);
   const myUnrecorded = unrecorded.filter((item) => overview || item.professional_id === own);
   const urgent = tasks.filter((task) => task.overdue || task.due_date === new Date().toISOString().slice(0, 10));

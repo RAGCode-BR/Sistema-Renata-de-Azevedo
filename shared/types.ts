@@ -12,6 +12,16 @@ export interface SessionUser {
   professional_id: string | null;
   roles: Role[];
   permissions: Permission[];
+  // Verificação em duas etapas: ok | verify (falta digitar o código) | enroll (precisa cadastrar o app).
+  mfa: MfaState;
+}
+
+export type MfaState = 'ok' | 'verify' | 'enroll';
+
+export interface MfaEnrollment {
+  factorId: string;
+  qrCode: string;
+  secret: string;
 }
 
 export interface Professional {
@@ -221,6 +231,7 @@ export interface ClinicSettings {
   // Portal do paciente: só leitura aqui (alterar por set_portal_settings).
   portal_enabled: boolean;
   portal_url: string | null;
+  require_mfa: boolean;
 }
 
 // Financeiro -----------------------------------------------------------------------------------

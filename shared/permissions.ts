@@ -40,7 +40,7 @@ export const roleDescription: Record<Role, string> = {
   reception: 'Pacientes, agenda, cobranças e comercial (leads). Sem prontuários.',
   finance: 'Financeiro completo: cobranças, despesas, resultado e repasses. Sem prontuários.',
   professional: 'Os próprios pacientes, a própria agenda e o próprio prontuário.',
-  patient: 'Portal do paciente (fase futura).'
+  patient: 'Só o portal do paciente: as próprias sessões, cobranças e documentos compartilhados.'
 };
 
 export function can(access: { permissions: readonly string[] }, permission: Permission): boolean {

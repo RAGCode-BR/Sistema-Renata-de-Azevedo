@@ -11,6 +11,7 @@ import { message, useLoad } from '../../lib/useLoad';
 
 // Sessão: confirmar, registrar presença ou falta, cancelar; entrar no Meet; ligar/WhatsApp do paciente.
 export default function Session() {
+  const [now] = useState(() => Date.now());
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
   const { data, error, loading, reload } = useLoad(async () => {
@@ -26,7 +27,7 @@ export default function Session() {
   if (!data?.appointment) return <Screen><State error={error || (data ? 'Sessão não encontrada.' : '')} loading={loading} /></Screen>;
   const { appointment, patient } = data;
   const canManage = can(user!, 'appointments.manage') || appointment.professional_id === user!.professional_id;
-  const started = new Date(appointment.starts_at).getTime() <= Date.now();
+  const started = new Date(appointment.starts_at).getTime() <= now;
   const open = ['scheduled', 'awaiting_confirmation', 'confirmed'].includes(appointment.status);
   const own = appointment.professional_id === user!.professional_id;
 

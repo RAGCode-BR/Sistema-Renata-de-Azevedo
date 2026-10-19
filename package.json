@@ -13,8 +13,9 @@
     "db:push": "supabase db push --linked",
     "db:types": "supabase gen types typescript --linked --schema public > shared/database.types.ts",
     "functions:deploy": "supabase functions deploy --use-api",
-    "test:db": "supabase db query --linked -f supabase/tests/permissions.sql",
-    "deploy": "npm run typecheck && npm run build && wrangler deploy"
+    "test:db": "supabase db query --linked -f supabase/tests/permissions.sql && supabase db query --linked -f supabase/tests/seguranca.sql && supabase db query --linked -f supabase/tests/financeiro.sql",
+    "deploy": "npm run typecheck && npm run build && wrangler deploy",
+    "test:e2e": "cd tests && node run.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3",

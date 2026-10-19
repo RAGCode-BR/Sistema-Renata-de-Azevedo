@@ -36,6 +36,7 @@ export function LoginPage({ notice, onLogin }: { notice: string; onLogin: (user:
         </label>
         <button type="submit" className="button" disabled={busy}>{busy ? 'Entrando…' : 'Entrar'}</button>
         {message && <p className="erro" role="alert">{message}</p>}
+        <p className="muted small login-legal"><a href="/privacidade.html" target="_blank" rel="noreferrer">Política de privacidade</a></p>
       </form>
     </div>
   );

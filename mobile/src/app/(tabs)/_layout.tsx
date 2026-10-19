@@ -5,7 +5,10 @@ import { useAuth } from '../../lib/auth';
 import { useTheme } from '../../lib/theme';
 
 type Icon = keyof typeof Ionicons.glyphMap;
-const icon = (name: Icon) => ({ color, size }: { color: ColorValue; size: number }) => <Ionicons name={name} color={color as string} size={size} />;
+const icon = (name: Icon) => {
+  const TabIcon = ({ color, size }: { color: ColorValue; size: number }) => <Ionicons name={name} color={color as string} size={size} />;
+  return TabIcon;
+};
 
 export default function TabsLayout() {
   const theme = useTheme();

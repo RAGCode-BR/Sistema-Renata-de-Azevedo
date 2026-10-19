@@ -11,6 +11,8 @@ export async function registerForPush(): Promise<string | null> {
   const projectId = Constants?.expoConfig?.extra?.eas?.projectId || Constants?.easConfig?.projectId;
   if (!projectId) return null;
   if (Platform.OS === 'android') {
+    // AndroidImportance é reexportado por export * (o TypeScript confere); o lint não acompanha.
+    // eslint-disable-next-line import/namespace
     await Notifications.setNotificationChannelAsync('default', { name: 'Avisos', importance: Notifications.AndroidImportance.HIGH, lightColor: '#53102F' });
   }
   const current = await Notifications.getPermissionsAsync();

@@ -1,29 +1,42 @@
 # Sistema Renata de Azevedo
 
-Este repositório público contém duas partes separadas:
+Sistema da clínica Renata de Azevedo: atendimento, prontuário, financeiro, tarefas, comercial e relatórios, com aplicativo da equipe e portal do paciente.
 
-- `index.html` e `assets/`: demonstração estática, com dados fictícios no navegador. Não é a aplicação publicada pela Cloudflare.
-- O sistema da clínica, em React + TypeScript com **Supabase**:
-  - `web/`: interface (Vite), com o visual da demonstração.
-  - `supabase/`: banco (migrações), regras de acesso (RLS), Edge Functions e configuração do login.
-  - `shared/`: tipos e regras usados pela interface.
+| Parte | Pasta | O que é |
+| --- | --- | --- |
+| Sistema da equipe e portal do paciente | `web/` | React + TypeScript (Vite), publicado na Cloudflare. O portal abre em `#/portal`. |
+| Aplicativo da equipe | `mobile/` | Expo (React Native) para iOS e Android. |
+| Banco, regras e funções | `supabase/` | Migrações, regras de acesso (RLS), Edge Functions e testes do banco. |
+| Código compartilhado | `shared/` | Acesso aos dados, tipos, permissões e formatação, usados pela web e pelo app. |
+| Testes automáticos | `tests/` | Roteiros no navegador, integrações e banco local ([tests/README.md](tests/README.md)). |
+| Documentação | `docs/` | Ver o índice abaixo. |
 
-O sistema ainda não está conectado ao Google nem usa dados reais de pacientes.
+`index.html` e `assets/` na raiz são a demonstração estática antiga, com dados fictícios. Não fazem parte do sistema publicado (a pasta `assets/` também guarda a fonte, o CSS base e o logotipo usados pelo sistema).
+
+## Documentação
+
+- [Módulos](docs/modulos.md): como cada parte funciona.
+- [Configurações pendentes](docs/configuracoes-pendentes.md): tudo o que falta configurar antes do uso real, numa lista só.
+- [Matriz de acesso](docs/matriz-de-acesso.md): o que cada perfil vê e faz.
+- [Segurança e LGPD](docs/seguranca-lgpd.md): como os dados são protegidos, o que é testado e os riscos conhecidos.
+- [Homologação](docs/homologacao.md): roteiro para a equipe validar o sistema com dados fictícios.
+- [Guia rápido da equipe](docs/guia-rapido.md): o essencial de cada perfil.
+- [Lojas de aplicativos](docs/lojas.md): preparação do app para Google Play e App Store.
+- [Publicação](docs/publicacao.md): passo a passo para colocar no ar (só com autorização).
 
 ## Arquitetura
 
 ```
-Navegador (React) ──supabase-js──▶ Supabase
-                                   ├─ Auth: login (sem cadastro público)
-                                   ├─ Banco + RLS: quem vê e altera o quê
-                                   └─ Edge Functions: o que precisa da chave de serviço
-Cloudflare: publica só a interface (web/dist)
+Navegador / app (React) ──supabase-js──▶ Supabase (São Paulo)
+                                         ├─ Auth: login (sem cadastro público), código por e-mail (portal), verificação em duas etapas
+                                         ├─ Banco + RLS: quem vê e altera o quê (todas as regras ficam aqui)
+                                         ├─ Storage: arquivos privados, abertos só por link temporário
+                                         ├─ Edge Functions: o que precisa da chave de serviço (contas, Google, WhatsApp, IA, push, e-mails)
+                                         └─ pg_cron: rotinas (sincronizações, lembretes, limpezas)
+Cloudflare: publica só a interface compilada (web/dist)
 ```
 
-A interface usa a chave **pública** do Supabase. Por isso **toda regra de acesso está no banco**, nas políticas RLS de `supabase/migrations`. Esconder um item do menu não protege nada.
-
-- Sem login, nenhuma tabela pode ser lida.
-- A interface nunca recebe a chave de serviço, os tokens do Google nem o registro de auditoria.
+A interface usa a chave **pública** do Supabase. Por isso **toda regra de acesso está no banco**: esconder um item do menu não protege nada. A interface nunca recebe a chave de serviço, tokens de terceiros nem o registro de auditoria.
 
 ## Iniciar localmente
 
@@ -31,569 +44,44 @@ Requisito: Node.js 22.12+.
 
 ```sh
 npm install
-cp .env.example .env   # preencha com a URL e a chave pública do projeto
-npm run dev
+cp .env.example .env   # URL e chave pública do projeto (Project Settings → API)
+npm run dev            # http://localhost:5173 (portal: http://localhost:5173/#/portal)
 ```
 
-Abra `http://localhost:5173`. Não há banco local: o desenvolvimento usa o próprio projeto do Supabase.
+Não há banco local para o dia a dia: o desenvolvimento usa o próprio projeto do Supabase. **Nunca** coloque a chave *secret*/*service_role* no `.env`: tudo que começa com `VITE_` vai para o navegador.
 
-O `.env` tem duas variáveis, as duas públicas:
-- `VITE_SUPABASE_URL`: endereço do projeto, em **Project Settings → API**.
-- `VITE_SUPABASE_ANON_KEY`: a chave *publishable* (ou *anon*), na mesma tela.
-
-**Nunca** coloque a chave *secret*/*service_role* no `.env`: tudo que começa com `VITE_` vai para o navegador.
+Aplicativo: ver [docs/modulos.md → Aplicativo da equipe](docs/modulos.md#aplicativo-da-equipe-bloco-12).
 
 ## Supabase
 
-Projeto **RenatadeAzevedo_Projeto** (região São Paulo, `sa-east-1`). Os comandos usam o Supabase CLI do projeto (`npx supabase login` uma vez por computador).
+Projeto **RenatadeAzevedo_Projeto** (região São Paulo). Os comandos usam o Supabase CLI do projeto (`npx supabase login` uma vez por computador).
 
 | Comando | O que faz |
 | --- | --- |
 | `npm run db:push` | Aplica as migrações novas de `supabase/migrations`. |
-| `npm run functions:deploy` | Publica as Edge Functions (`admin-create-user`, `admin-delete-user`). |
-| `npm run test:db` | Testa as permissões (RLS) numa transação desfeita no final, sem deixar dados. |
+| `npm run functions:deploy` | Publica as Edge Functions. |
+| `npm run test:db` | Testes do banco no projeto real, numa transação desfeita no final: permissões, segurança e integridade financeira. |
 | `npm run db:types` | Gera os tipos TypeScript do banco em `shared/database.types.ts`. |
 
-- **Migrações:**
-  - Para mudar o banco, crie um arquivo novo com `npx supabase migration new descricao`. Não edite migrações já aplicadas.
-  - Toda tabela nova precisa de RLS e de políticas próprias: o Supabase concede acesso padrão às tabelas novas do schema `public`.
-- **Automático:** a GitHub Action `.github/workflows/supabase.yml` aplica migrações, publica as Edge Functions e roda o teste de permissões a cada push na `main` que mexa em `supabase/`. Ela precisa dos segredos `SUPABASE_ACCESS_TOKEN` e `SUPABASE_DB_PASSWORD` no repositório.
-- **Login:** a configuração fica em `supabase/config.toml`: sem cadastro público, senha mínima de 10 caracteres (a mesma de `shared/rules.ts`). Para aplicá-la ao projeto, use `npx supabase config push`.
+- **Migrações:** crie um arquivo novo com `npx supabase migration new descricao`; não edite migrações já aplicadas. Antes de aplicar, rode `npm run test:banco-local` em `tests/` (aplica tudo num Postgres temporário). Toda tabela nova precisa de RLS e de políticas próprias.
+- **Automático:** a GitHub Action `.github/workflows/supabase.yml` aplica migrações, publica as Edge Functions e roda os testes do banco a cada push na `main` que mexa em `supabase/`. Precisa dos segredos `SUPABASE_ACCESS_TOKEN` e `SUPABASE_DB_PASSWORD` no repositório.
+- **Login:** configuração em `supabase/config.toml` (sem cadastro público, senha mínima de 10 caracteres, código de 6 dígitos no portal). No projeto real, os ajustes de e-mail ficam no painel (ver [configurações pendentes](docs/configuracoes-pendentes.md)).
 
-## Usuários
+## Testes
 
-Não há cadastro público. Quem tem a permissão **gerenciar usuários** (hoje, só Proprietário(a)) cria, edita e exclui contas na página **Usuários**.
+```sh
+cd tests && npm install
+node run.mjs                 # tudo: banco, telas, app, portal, verificação em duas etapas e integrações
+node run.mjs agenda portal   # só alguns roteiros
+npm run test:banco-local     # migrações e testes do banco num Postgres temporário (inclui pagamentos simultâneos)
+```
 
-- **Criar:** a Edge Function `admin-create-user` cria a conta no Supabase Auth, com os perfis em `app_metadata.roles`. O gatilho `on_auth_user_created` cria o perfil e os perfis de acesso. Uma conta sem perfis, criada fora da função, não tem acesso a nada.
-- **Editar** perfis, profissional vinculada e situação (ativa/inativa): função do banco `set_user_access`. Desativar corta o acesso na hora, porque as políticas conferem isso a cada consulta.
-- **Excluir:** Edge Function `admin-delete-user`. Prontuários e sessões continuam guardados, porque pertencem à profissional (`professionals`), não à conta.
-- **Regras, aplicadas no banco e nas funções:**
-  - Ninguém exclui ou desativa a própria conta, nem tira de si o perfil de Proprietário(a).
-  - Sempre resta ao menos um(a) Proprietário(a) ativo(a).
-  - O perfil Profissional exige uma profissional vinculada, e cada profissional tem no máximo uma conta.
-  - Criações, alterações de perfis e exclusões vão para `audit_log`.
+Detalhes em [tests/README.md](tests/README.md). Os roteiros criam e apagam os próprios dados de teste e entram com uma conta de teste temporária, nunca com a conta de uma pessoa real.
 
-**A primeira conta** precisa ser criada por fora, uma única vez. Em **Authentication → Users → Add user** (com *Auto Confirm User*), defina em *app_metadata* `{"roles": ["owner"]}` e o nome em *user_metadata* `{"name": "..."}`.
+## Publicação
 
-## Deploy na Cloudflare
+O sistema está em `https://sistema-renata-de-azevedo.ragcodebr.workers.dev/` (Cloudflare Workers, plano gratuito; configuração em `wrangler.jsonc`). Build: `npm run build`; publicação: `npm run deploy` ou integração do painel da Cloudflare com o GitHub, com as variáveis `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`.
 
-A Cloudflare publica apenas a interface compilada, configurada em `wrangler.jsonc`. Funciona no plano gratuito.
-
-- **Pelo painel (integração com o GitHub):**
-  - Comando de build: `npm run build`. Comando de implantação: `npx wrangler deploy`.
-  - Em **Variáveis de build**, defina `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`.
-- **Pelo terminal:** `npm run deploy`.
-- **Depois do primeiro deploy:**
-  - Coloque o endereço publicado em `site_url` (e em `additional_redirect_urls`) no `supabase/config.toml` e rode `npx supabase config push`.
-  - Os cabeçalhos de segurança estão em `web/public/_headers`. A política de segurança (CSP) só libera conexões com o projeto Supabase. Se trocar de projeto, atualize esse arquivo.
-  - Em domínio próprio, deixe desligados o *Rocket Loader* e a *Email Obfuscation*, que inserem scripts bloqueados pela CSP.
-
-## Estrutura de acesso
-
-Uma pessoa pode ter **vários perfis** (ex.: Renata = Proprietário(a) + Profissional). Cada perfil soma permissões, definidas na tabela `role_permissions`, com os mesmos nomes de `shared/permissions.ts`. As políticas RLS perguntam "tem a permissão X?".
-
-| Perfil | Acesso |
-| --- | --- |
-| Proprietário(a) (Renata) | Tudo o que é administrativo, inclusive usuários e configurações. |
-| Gerente (Mari, Bárbara) | Agenda geral, pacientes, profissionais, calendários, cobranças, comercial e tarefas da equipe. Sem usuários nem resultado financeiro. |
-| Recepção (pronto para uso futuro) | Pacientes, agenda, cobranças e comercial. |
-| Financeiro (pronto para uso futuro) | Financeiro completo: cobranças, despesas, resultado e repasses. |
-| Profissional | Os próprios pacientes, a própria agenda e o próprio prontuário. |
-| Paciente (fase futura) | Nenhum acesso à área da equipe. |
-
-**Prontuários não seguem o cargo:** só a profissional responsável vê as próprias evoluções, e só de pacientes da própria carteira. Nem Proprietário(a) nem Gerente leem o prontuário de outra profissional.
-
-## Painel inicial
-
-A página **Início** é a primeira depois do login e mostra só dados reais, filtrados pelas permissões de cada perfil:
-- **Quem vê a agenda geral** (Proprietário(a), Gerente, Recepção): sessões de hoje e dos próximos 7 dias, pacientes ativos, profissionais em atividade, a próxima sessão e as evoluções pendentes **por profissional**, sem acesso ao conteúdo.
-- **Profissional:** a própria agenda e as próprias evoluções pendentes. Cada uma é um atalho que abre o prontuário já na paciente e na sessão (`#/prontuarios?paciente=…&sessao=…`).
-- **Evolução pendente:** sessão que já terminou, não foi cancelada nem marcada como falta, e não tem evolução ligada a ela (`clinical_notes.appointment_id`). Vem da função `pending_clinical_notes()`, que informa só a existência da pendência, nunca o texto do prontuário.
-- **Fora do painel por enquanto:** indicadores de financeiro, CRM e tarefas, que entram junto com esses módulos.
-
-## Agenda
-
-Visões de **Dia** (uma coluna por profissional), **Semana** e **Mês**, com filtros por profissional e especialidade. Clicar num horário livre abre uma sessão nova (ou um bloqueio, para a profissional); clicar numa sessão abre os detalhes, as ações e o histórico.
-
-- **Situações:** Agendada, Aguardando confirmação, Confirmada, Realizada, Paciente faltou, Cancelada pelo paciente, Cancelada pela clínica e Remarcada. Cancelamento, falta e remarcação são coisas diferentes.
-- **Ações** (funções do banco; a interface não altera `appointments` diretamente):
-  - `set_appointment_status`: confirmar, aguardar confirmação, registrar presença ou falta (só depois do início) e corrigir a situação.
-  - `cancel_appointment`: com motivo e opção de cancelar também as próximas da série.
-  - `reschedule_appointment`: a sessão original fica "Remarcada" e uma nova, ligada a ela, ocupa o novo horário.
-  - `create_appointment_series`: semanal, quinzenal ou mensal, de 2 a 52 sessões. Se alguma data tiver conflito, nenhuma é criada e a mensagem diz qual data impediu.
-- **Quem pode:** a gerência (`appointments.manage`) mexe em qualquer agenda; a profissional, na própria. Séries e sessões novas são da gerência.
-- **Conflitos, no banco:** uma profissional não tem duas sessões ativas no mesmo horário, nem sessão sobre um bloqueio (e vice-versa).
-- **Bloqueios:** com motivo opcionalmente **privado**, que só a profissional e quem bloqueou veem; os demais veem "Horário bloqueado". A tabela só é acessada pelas funções `list_schedule_blocks`, `create_schedule_block` e `delete_schedule_block`.
-- **Histórico:** toda criação e mudança de situação vai para `appointment_events` (por gatilho), com quem fez e quando.
-- **Pendências no Início:** sessão passada ainda agendada/confirmada é **presença não registrada**; sessão **realizada** sem evolução é **evolução pendente**.
-- **Tipo de atendimento** (individual, casal, família, grupo, avaliação) é separado da **modalidade** (presencial/on-line).
-- **Fora deste bloco:** lista de espera e o segundo paciente na terapia de casal.
-
-## Pacientes
-
-- **Lista** com busca (nome, nome social, e-mail ou telefone) e filtro por situação: em acompanhamento, pausado, alta, encerrado.
-- **Página do paciente** (`#/pacientes?id=…`), com abas:
-  - **Visão geral:** cadastro, acompanhamento, responsável legal e observações administrativas.
-  - **Sessões:** realizadas, faltas, canceladas pelo paciente, próximas e histórico.
-  - **Documentos.**
-  - **Prontuário:** atalho só para a profissional responsável.
-  - **Financeiro:** chega com o módulo financeiro.
-- **Cadastro:** só dados administrativos. Nascimento de menor de idade pede o responsável legal; CPF é opcional, validado e único.
-- **Gravação:** pela função `save_patient`, que cria ou edita e acerta os vínculos com profissionais numa transação, e só funciona para quem tem `patients.manage`. Tirar uma profissional do vínculo tira dela o acesso ao paciente; o que ela registrou continua guardado. Criações e edições vão para `audit_log`.
-- **Documentos administrativos:**
-  - Ficam no bucket **privado** `patient-documents`, em `patients/<id do paciente>/`. São PDF, imagem ou Word, até 10 MB.
-  - Lê quem vê o paciente; envia e exclui quem tem `patients.manage`.
-  - São abertos só por **link temporário** de 60 segundos.
-  - Documentos clínicos ficam com o prontuário, não aqui.
-
-## Prontuário
-
-**Princípio:** o conteúdo clínico não é lido nem gravado direto nas tabelas, e ninguém tem acesso direto a elas. Tudo passa por funções do banco que exigem a **profissional responsável** (perfil Profissional com o paciente na carteira) e registram o acesso em `clinical_access_log`: aberturas, exportações e documentos abertos. Nem Proprietário(a) nem Gerente leem o conteúdo; quem gerencia usuários vê só **quem** acessou e quando.
-
-- **Evolução:**
-  - Rascunho editável: cada alteração guarda a versão anterior em `clinical_note_revisions`.
-  - Finalizada: imutável, travada por gatilho no banco.
-  - Correção: só por **retificação**, que é um novo registro finalizado, ligado ao original e com motivo. O original continua visível.
-- **Anotações pessoais:** da profissional, editáveis, fora do prontuário formal e da exportação.
-- **Conceitualização de caso:**
-  - O modelo da clínica separa modalidade, motivo da procura e hipóteses diagnósticas.
-  - Cada profissional pode criar modelos próprios ("Meus modelos").
-  - As seções ficam copiadas na conceitualização, então mudar o modelo não altera o que já foi escrito. Cada alteração guarda a versão anterior.
-  - O documento da Gabriela pode virar um modelo quando estiver disponível.
-- **Documentos clínicos:**
-  - Ficam no bucket privado `clinical-documents`, que não tem leitura direta.
-  - O link de 60 segundos vem da Edge Function `clinical-document-url`, que confere a autoria e registra a abertura.
-  - Não são excluídos: seguem a guarda do prontuário.
-- **Exportação** (`#/prontuario-impressao?paciente=…`): evoluções finalizadas, retificações e conceitualização, para imprimir ou salvar em PDF pelo navegador. Fica registrada.
-- **Controle de preenchimento** (página **Controle de prontuários**, para quem vê a agenda geral):
-  - Cada sessão realizada aparece como Pendente, Rascunho, Finalizado ou Finalizado fora do prazo, e "atrasada" quando o prazo venceu sem finalização.
-  - O prazo fica em **Configurações** (padrão de 48 h após a sessão).
-- **Assinatura:** a finalização registra quem finalizou e quando. Assinatura digital com certificado (ICP-Brasil), se exigida, é uma etapa posterior.
-
-## Financeiro
-
-**Quem vê o quê:**
-
-| Perfil | Acesso |
-|---|---|
-| Proprietário(a) e Financeiro | Tudo: visão geral, cobranças, despesas, repasses e preços |
-| Gerente e Recepção | Cobranças e pagamentos, inadimplência e tabela de preços (só leitura). Não veem resultado, despesas nem repasses |
-| Profissional | Só as cobranças das próprias sessões (sem valores de caixa) e o próprio repasse |
-
-Cobranças, pagamentos, alocações e repasses não têm acesso direto às tabelas. Tudo passa por funções do banco, que fazem as somas e aplicam as regras.
-
-- **Preços:** na hora de cobrar vale, nesta ordem:
-  1. valor combinado com o paciente (aba Financeiro do paciente);
-  2. profissional + tipo de sessão;
-  3. profissional;
-  4. tipo de sessão;
-  5. padrão da clínica.
-
-  Sem preço, a cobrança fica como **Valor a definir** e continua em aberto até alguém definir o valor.
-- **Cobrança automática:** é criada quando a sessão vira **Realizada** (100%), **Falta** (padrão 100%) ou **cancelamento pelo paciente com menos de 24 h** (padrão 100%). Os percentuais e o prazo ficam em **Configurações**. Cancelamento pela clínica não cobra. Corrigir a situação da sessão não duplica a cobrança. Competência e vencimento seguem a data da sessão.
-- **Pagamento:** PIX, dinheiro, débito, crédito ou transferência. Quita as cobranças marcadas, na ordem do vencimento. O que sobra vira **crédito do paciente** e é abatido sozinho das próximas cobranças, o que atende pacotes e pagamentos adiantados.
-- **Estorno e cancelamento:** pedem motivo e ficam na auditoria. O estorno reabre as cobranças que o pagamento quitava. Ao cancelar uma cobrança, o que já foi pago volta a ser crédito.
-- **Repasse:**
-  - É o percentual da profissional sobre o valor **recebido** no mês pelas sessões dela.
-  - O fechamento só é possível em meses encerrados e congela a base, o percentual e o valor.
-- **Visão geral:**
-  - O faturado conta pela data da sessão (competência). O recebido, as despesas pagas e os repasses contam pela data do caixa.
-  - Resultado de caixa = recebido − despesas pagas − repasses.
-  - Cada indicador traz a comparação com o mês anterior e com o mesmo mês do ano passado.
-  - O gráfico de entradas e saídas mostra os 12 meses e pode ser visto também em tabela.
-- **Despesas:** cada uma tem categoria e centro de custo, e as duas listas podem ser editadas em **Despesas**. Os centros de custo iniciais são Administrativo, Atendimento clínico, Comercial e marketing.
-- **Fica para depois:** recibos e nota fiscal, importação do Yampa/Clinical Experts, conciliação bancária e PIX automático.
-
-## Tarefas
-
-**Quem faz o quê:**
-
-| Perfil | Acesso |
-|---|---|
-| Proprietário(a) e Gerente (`tasks.manage`) | Atribuem tarefas a qualquer pessoa ativa da equipe e acompanham todas em **Tarefas da equipe** |
-| Demais perfis | Criam tarefas só para si. Concluem, mudam a situação e comentam as que receberam |
-
-Só quem criou a tarefa (ou tem `tasks.manage`) edita ou cancela. Ninguém lê as tabelas diretamente: tudo passa por funções do banco, que gravam o histórico em `task_events`.
-
-- **Tarefa:** título, descrição, responsável, prazo (data e horário opcionais) e prioridade (baixa, normal, alta ou urgente). Pode ter um vínculo opcional com paciente, só administrativo: o nome do paciente aparece apenas para quem já vê aquele paciente. O formulário avisa para não escrever informação clínica.
-- **Situações:** a fazer, em andamento, concluída e cancelada. O check conclui e registra quem concluiu e quando. Concluídas e canceladas ficam visíveis por 60 dias em "Com concluídas".
-- **Recorrência:** diária, dias úteis, semanal, mensal, último dia do mês ou anual (página **Recorrentes**).
-  - Ao concluir ou cancelar uma ocorrência, a próxima é criada na **data fixa da regra**. Ex.: uma tarefa mensal do dia 5 concluída no dia 8 gera a próxima no dia 5 do mês seguinte. Em meses curtos, vale o último dia do mês.
-  - Se a data calculada já passou, a regra avança até hoje ou depois, para a tarefa não nascer atrasada.
-  - Só existe uma ocorrência em aberto por regra.
-  - Pausar uma regra mantém a tarefa em aberto. Retomar cria a próxima, se não houver uma em aberto.
-- **Avisos (sino no topo):**
-  - Avisam quando a tarefa é atribuída, concluída ou comentada, e mostram o resumo das próprias tarefas que vencem hoje ou estão atrasadas.
-  - "Vence hoje" e "atrasada" são calculados na hora, no fuso de São Paulo, sem rotina agendada no banco.
-  - Os avisos levam só o título e o link da tarefa.
-- **Painel inicial:**
-  - Para quem tem `tasks.manage`, "tarefas atrasadas na equipe"; para os demais, as próprias.
-  - Nas pendências, as tarefas para hoje e as atrasadas.
-- **Fica para depois:** avisos por e-mail, WhatsApp (Bloco 10) e push (Bloco 12). Também automações que criam tarefas sozinhas, como uma tarefa para a recepção quando a cobrança vence há 7 dias, ou para a gerência quando um paciente ativo fica 30 dias sem sessão.
-
-## Comercial (CRM)
-
-Substitui o Converte no controle de contatos, funil e campanhas. É usado por Proprietário(a), Gerente e Recepção (`crm.view` e `crm.manage`); profissionais não acessam. As alterações nos leads passam por funções do banco, que registram cada passo na linha do tempo do lead (`lead_activities`).
-
-- **Lead:**
-  - Dados: nome, telefone/WhatsApp, e-mail, origem, campanha, interesse (serviços do site), local (on-line ou unidade), profissional desejada, responsável e observações.
-  - Ao digitar telefone ou e-mail, o sistema avisa se já existe lead ou paciente com o mesmo contato (telefone comparado com e sem o 55).
-- **Funil** (página **Funil**):
-  - Quadro por etapa, em que arrastar o cartão muda a etapa, ou lista com filtros por responsável, origem e busca.
-  - Etapas: Novo contato → Em atendimento → Primeira consulta agendada → Convertido, ou Perdido. As etapas podem ser editadas.
-  - "Perdido" exige motivo (preço, horário, não respondeu, escolheu outro lugar, outro).
-  - "Convertido" só acontece pela **conversão em paciente**: ela cria o cadastro (ou liga a um paciente com o mesmo contato), com a profissional, a origem e a campanha.
-- **Contatos e retorno:**
-  - Cada ligação, mensagem, e-mail ou conversa é registrada no lead.
-  - "Agendar retorno" cria a tarefa "Retornar contato: …" no módulo de Tarefas, com link para o lead.
-- **Campanhas:**
-  - Nome, canal, período, investimento (lançado à mão) e código para o link do anúncio (`utm_campaign`).
-  - Resultados desde o início da campanha: leads, convertidos, compareceram à sessão, custo por lead, custo por paciente e faturamento.
-  - O faturamento só aparece para quem vê cobranças ou o financeiro.
-- **Painel comercial:**
-  - Os leads que entraram no mês, acompanhados até hoje: convertidos, taxa de conversão, compareceram, faturamento e tempo médio até o primeiro contato.
-  - Novos pacientes de todas as origens.
-  - Por origem, por etapa, motivos de perda e mês a mês, com comparação com o mês anterior e com o mesmo mês do ano anterior.
-  - O Início mostra os novos pacientes do mês e a conversão.
-- **Formulário do site** (Edge Function pública `lead-capture`):
-  - Os códigos ficam em **Configurações do comercial**: um rastreador para o cabeçalho (guarda por 30 dias as UTMs do anúncio) e o formulário, para um bloco "HTML personalizado" do WordPress.
-  - Proteções:
-    - aceita só as origens de `LEAD_ALLOWED_ORIGINS` (padrão: `renatadeazevedo.com.br`, com e sem www);
-    - campo-isca e tempo mínimo de preenchimento contra robôs;
-    - consentimento obrigatório (LGPD);
-    - no máximo 5 envios aceitos por IP por hora e 300 por dia (o IP é guardado só como hash).
-  - Um contato repetido vira registro no lead que já existe, sem duplicar.
-  - O responsável padrão recebe um aviso no sino.
-- **Importação de planilha** (ex.: exportação do Converte): arquivo CSV com vírgula ou ponto e vírgula.
-  - As colunas são reconhecidas pelo título e podem ser ajustadas antes de importar. Datas no formato dd/mm/aaaa são aceitas.
-  - Pula contatos que já existem e cria as campanhas citadas na planilha.
-  - Situações como "perdido" ou "convertido" são reconhecidas.
-- **LGPD:** uma rotina diária (`pg_cron`, 4h30) anonimiza leads perdidos sem nenhuma atividade há 12 meses e apaga o registro de envios com mais de 30 dias.
-- **Origem do paciente:** o cadastro do paciente ganhou "Como conheceu a clínica". Ela vem do lead na conversão ou é escolhida à mão.
-- **Fica para depois:**
-  - atendimento automático com IA e caixa de entrada do WhatsApp (Blocos 10 e 11, que exigem a conta oficial do WhatsApp Business Platform);
-  - investimento puxado automaticamente do Meta Ads e do Google Ads (Bloco 10);
-  - proteção extra contra robôs com Cloudflare Turnstile, se aparecer spam.
-
-## Relatórios
-
-O módulo **Relatórios** reúne o que já estava espalhado e acrescenta comparativos e exportação. As contas são feitas no banco (funções `report_*`), e cada função confere a permissão de quem pede.
-
-| Relatório | Quem vê |
-|---|---|
-| Operacional (sessões, pacientes, prontuários, tarefas) | Quem vê a agenda geral; a profissional vê **Meus números**, só os próprios |
-| Financeiro: DRE, por profissional, despesas, repasses | Proprietário(a) e Financeiro (`finance.view`) |
-| Financeiro: formas de pagamento e inadimplência | Quem vê cobranças (`billing.view`), inclusive Gerente e Recepção |
-| Comercial | Quem acessa o Comercial (`crm.view`) |
-| Comparativo anual | Todos os acima; cada indicador aparece só para quem pode vê-lo |
-
-- **Operacional:**
-  - **Sessões** por profissional, tipo ou modalidade: marcadas, realizadas, faltas, cancelamentos (do paciente, tardios, da clínica), remarcadas, sem presença registrada e horas atendidas.
-  - **Taxa de faltas** = faltas ÷ (realizadas + faltas). O cancelamento tardio usa a antecedência da política de cobrança.
-  - **Pacientes:** situação atual e cadastros no período.
-  - **Retenção:** dos pacientes cuja primeira sessão realizada caiu no período, quantos tiveram outra sessão realizada 4 e 12 semanas depois ou mais. Só entra na conta quem já teve esse tempo.
-  - **Prontuários:** percentual de evoluções finalizadas no prazo, sem conteúdo clínico.
-  - **Tarefas:** criadas, concluídas no prazo e atrasadas.
-- **Financeiro:**
-  - **DRE simplificada** mês a mês: competência (faturado, descontos, despesas por categoria e repasses fechados) e caixa (recebido, despesas pagas e repasses pagos).
-  - **Faturado e recebido** por profissional e tipo de sessão.
-  - **Recebimentos** por forma de pagamento.
-  - **Inadimplência** por paciente, por faixa de atraso (a vencer, até 30, de 31 a 60 e mais de 60 dias).
-  - **Despesas** por categoria e por centro de custo, com o peso de cada um no total.
-  - **Repasses** mês a mês.
-- **Comercial:** leads do período por origem e por campanha (investimento, custo por lead, custo por paciente, faturamento e retorno), etapas e motivos de perda.
-- **Comparativo anual:**
-  - Dois anos no acumulado até o mesmo mês: faturado, recebido, despesas pagas, resultado de caixa, sessões, taxa de faltas, novos pacientes, leads e conversão.
-  - Cada indicador traz a variação e o gráfico mês a mês, que também pode ser visto em tabela.
-  - **Não há histórico anterior ao sistema:** 2025 e os meses sem uso aparecem zerados.
-- **Em todos:** período (este mês, mês passado, trimestre, ano, ano passado ou outro), filtro por profissional quando cabe, **Exportar CSV** (ponto e vírgula e vírgula decimal, abre direto no Excel) e **Imprimir/PDF** (o layout de impressão esconde menus e filtros).
-- **Desempenho:** medido com cerca de 60 mil sessões e 30 mil cobranças. Os relatórios respondem em até cerca de 0,5 s; a inadimplência leva cerca de 1,4 s no pior caso (30 mil cobranças em aberto).
-- **Fica para depois:** ocupação da agenda (exige cadastrar o horário de trabalho de cada profissional) e exportação em .xlsx. O envio automático de relatórios por e-mail não será feito.
-
-## Google Agenda e Google Meet (Bloco 10.1)
-
-**Situação:** tudo pronto e testado com um Google simulado. A integração **liga quando as credenciais do Google forem cadastradas**. Até lá, a página Google Agenda e as funções avisam que a integração ainda não foi configurada.
-
-**Como funciona**
-
-- **Conexão:** cada profissional conecta a própria conta Google (OAuth) na página **Google Agenda**.
-  - O token de acesso contínuo fica **cifrado** (AES-256-GCM) em `google_accounts`, que a interface não lê.
-  - A profissional escolhe para qual calendário as sessões vão e quais calendários informam horário ocupado.
-- **Envio das sessões:** vão para o calendário de destino.
-  - Sessões **on-line** ganham link do **Google Meet**, que fica salvo na sessão ("Entrar no Google Meet" na agenda).
-  - Remarcar atualiza o evento; cancelar ou excluir remove o evento do Google.
-  - O título do evento segue **Configurações → Google Agenda**. O padrão é só as iniciais do paciente (LGPD); nada clínico vai para o Google.
-- **Ocupado:** os compromissos pessoais dos calendários marcados aparecem na agenda da clínica como "Compromisso no Google Agenda", sem título.
-  - Ao marcar uma sessão em cima de um deles, o sistema avisa, mas deixa agendar.
-  - Mudanças feitas no Google **não** alteram a agenda da clínica: ela é a fonte.
-- **Sincronização:** fila `calendar_sync_queue`, alimentada por gatilhos nas sessões.
-  - O `pg_cron` chama a função `google-sync` a cada 5 minutos, via `pg_net`, com o segredo guardado no Vault. Isso só acontece depois que alguma conta é conectada.
-  - Também há o botão "Sincronizar agora". Falhas são tentadas até 5 vezes e aparecem na página.
-- **Desconectar:** remove do Google os eventos criados pelo sistema, revoga a autorização e apaga a conta conectada.
-- **Funções:** `google-oauth-start`, `google-oauth-callback`, `google-sync` e `google-disconnect`.
-
-**O que já está configurado no Supabase:** os segredos internos `GOOGLE_TOKEN_KEY` (chave da cifra) e `GOOGLE_SYNC_SECRET`, gerados aleatoriamente, e as entradas `google_sync_url` e `google_sync_secret` no Vault. **Não troque a `GOOGLE_TOKEN_KEY`**: os tokens já gravados deixariam de abrir.
-
-**O que falta você configurar (uma vez)**
-
-1. No [Google Cloud Console](https://console.cloud.google.com/), crie um projeto (ex.: "Sistema Renata de Azevedo").
-2. Em **APIs e serviços → Biblioteca**, ative a **Google Calendar API**.
-3. Em **Tela de consentimento OAuth**, configure:
-   - tipo **Externo** (ou **Interno**, se a clínica usar Google Workspace e todas as profissionais tiverem conta do domínio);
-   - nome do app, e-mail de suporte e domínio do sistema;
-   - escopos: `openid`, `email`, `.../auth/calendar.events` e `.../auth/calendar.calendarlist.readonly`.
-   - No modo **Teste**, cadastre como usuários de teste os e-mails Google das profissionais (até 100). Para uso sem limite, publique o app; o Google pode pedir verificação por causa dos escopos de agenda.
-4. Em **Credenciais → Criar credenciais → ID do cliente OAuth**, escolha o tipo **Aplicativo da Web** e informe:
-   - URI de redirecionamento autorizado: `https://qnchebjrgnfgszrzlyue.supabase.co/functions/v1/google-oauth-callback`;
-   - origem JavaScript autorizada: o endereço do sistema na Cloudflare.
-5. Cadastre os segredos no Supabase (terminal, na pasta do projeto). Não cole os valores em chats ou e-mails:
-   ```
-   npx supabase secrets set --project-ref qnchebjrgnfgszrzlyue GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... APP_URL=https://endereco-do-sistema
-   ```
-   `APP_URL` é para onde a profissional volta depois de autorizar.
-6. Teste com uma profissional: Google Agenda → **Conectar minha conta Google** → autorizar. Depois crie uma sessão on-line e confira o evento com Meet no Google.
-
-## WhatsApp (Bloco 10.2)
-
-**Situação:** tudo pronto e testado com a API da Meta simulada. Nada é enviado enquanto as credenciais não forem cadastradas **e** alguém marcar **Configurações → WhatsApp → Ativar envios**. O número ainda não foi definido; ele só entra nas credenciais, não no código.
-
-**Como funciona** (API oficial: WhatsApp Business Platform/Cloud API; nada de automação do WhatsApp Web)
-
-- **Pacientes:**
-  - Só recebem mensagens os que **autorizaram** no cadastro ("Aceita receber confirmações e lembretes pelo WhatsApp"). Para isso, o celular precisa ter DDD.
-  - **Pedido de confirmação**, por padrão 48 h antes, com os botões "Confirmar" e "Preciso remarcar". A sessão passa a "aguardando confirmação".
-    - "Confirmar" confirma a sessão na agenda e envia uma resposta automática. Se a sessão já tiver sido cancelada, nada muda.
-    - "Preciso remarcar" cria uma tarefa urgente para o responsável padrão do Comercial e avisa a equipe.
-  - **Lembrete**, por padrão 2 h antes. Em sessão on-line, leva o link do Google Meet.
-  - Os horários de envio ficam em Configurações; 0 desliga.
-- **Equipe:** em "Avisos no WhatsApp" (menu da conta), cada pessoa liga o aviso de nova tarefa no próprio celular. A mensagem traz só um link para o sistema, nunca o conteúdo da tarefa.
-- **Mensagens recebidas:** aparecem em **Atendimento → WhatsApp** (Proprietário(a), Gerente e Recepção; permissão `messages.manage`).
-  - Número de paciente: a mensagem fica ligada ao cadastro.
-  - Número desconhecido: vira **lead "WhatsApp direto"** no Comercial (ou entra no lead em aberto do mesmo número).
-  - A equipe é avisada no sino, no máximo uma vez por hora por conversa.
-- **Respostas da equipe:** texto livre só até **24 h** depois da última mensagem da pessoa, que é a regra da Meta. Fora disso, só os modelos aprovados.
-- **Registro:** cada envio guarda a situação (na fila, enviada, entregue, lida, não enviada). Falhas são tentadas até 5 vezes.
-- **Funcionamento interno:**
-  - Funções `whatsapp-send` (envia a fila; chamada pelo `pg_cron` a cada 5 minutos, com segredo do Vault) e `whatsapp-webhook` (recebe da Meta).
-  - O webhook confere a assinatura `X-Hub-Signature-256` com o App Secret e trata os botões e as mensagens no banco (`whatsapp_inbound`).
-- **LGPD:** a autorização fica registrada com data e as mensagens não levam conteúdo clínico.
-
-**O que já está configurado no Supabase:** o segredo interno `WHATSAPP_SEND_SECRET` e as entradas `whatsapp_send_url` e `whatsapp_send_secret` no Vault.
-
-**O que falta você configurar (quando o número estiver definido)**
-
-1. **Número:**
-   - Use um número que **não** esteja em uso no aplicativo WhatsApp (comum ou Business) do celular. O número do site pode ser migrado, mas deixa de funcionar no aplicativo do celular.
-   - Também pode ser um número novo. As conversas passam a ser atendidas pela tela WhatsApp do sistema.
-2. **Meta:**
-   - No [Meta for Developers](https://developers.facebook.com/), crie um app do tipo **Business** ligado ao Gerenciador de Negócios da clínica e adicione o produto **WhatsApp**.
-   - Faça a verificação da empresa no Gerenciador de Negócios, se for pedida.
-3. Em **WhatsApp → Configuração da API**, adicione o número e anote o **ID do número de telefone**.
-4. **Token:** no Gerenciador de Negócios, em Usuários do sistema, crie um usuário do sistema com acesso ao app e gere um **token permanente**, com as permissões `whatsapp_business_messaging` e `whatsapp_business_management`.
-5. **Modelos:** em **Gerenciador do WhatsApp → Modelos de mensagem**, crie os 3 modelos na categoria **Utilidade**, idioma **Português (BR)**, exatamente como em Configurações → WhatsApp → "Modelos para cadastrar na Meta":
-   - `confirmacao_sessao`, com 2 botões de **resposta rápida**: "Confirmar" (1º) e "Preciso remarcar" (2º);
-   - `lembrete_sessao`;
-   - `aviso_tarefa`.
-6. **Segredos no Supabase:** escolha uma palavra secreta para o webhook (`WHATSAPP_VERIFY_TOKEN`) e copie o **App Secret** (Configurações do app → Básico). Depois rode:
-   ```
-   npx supabase secrets set --project-ref qnchebjrgnfgszrzlyue WHATSAPP_TOKEN=... WHATSAPP_PHONE_NUMBER_ID=... WHATSAPP_APP_SECRET=... WHATSAPP_VERIFY_TOKEN=...
-   ```
-7. **Webhook** (WhatsApp → Configuração):
-   - URL de retorno: `https://qnchebjrgnfgszrzlyue.supabase.co/functions/v1/whatsapp-webhook`;
-   - token de verificação: o mesmo `WHATSAPP_VERIFY_TOKEN`;
-   - assine o campo **messages**.
-8. **Ativar e testar:**
-   - Em Configurações → WhatsApp, informe o endereço do sistema (para os links) e marque **Ativar envios**.
-   - Teste com um paciente de teste autorizado e uma sessão marcada para daqui a 1 dia.
-
-## Assistente de IA (Bloco 11)
-
-**Situação:** pronto e testado com a API da Anthropic simulada. **Entregue desligado.** Pelo documento da clínica, a IA só entra depois da revisão jurídica e com o prontuário já em uso.
-
-**Como funciona** (aba **Assistente de IA** no prontuário de cada paciente)
-
-- **Três autorizações:** a IA só funciona com as três ao mesmo tempo.
-  1. A Proprietária liga a IA em Configurações, com **limite mensal de custo** obrigatório.
-  2. A profissional aceita o **termo de uso** (versão registrada).
-  3. O **paciente tem consentimento específico** registrado pela profissional responsável. O consentimento pode ser revogado; revogar apaga as transcrições e os rascunhos guardados.
-- **Entrada:** colar a transcrição ou enviar o arquivo exportado do tl;dv ou do Google Meet (.txt, .vtt ou .srt; numeração e horários são removidos).
-- **Ocultação antes do envio:** nome (e partes do nome, com e sem acento), nome social, responsável, CPF, telefones, e-mails, endereço, CEP e os **outros nomes** que a profissional informar (cônjuge, familiares) viram marcadores. Os testes conferem que nada disso chega ao fornecedor.
-- **Chamada à IA:**
-  - Edge Function `ai-draft`, com o SDK oficial (`@anthropic-ai/sdk`).
-  - Modelo `claude-opus-5-5` (troca pelo segredo `AI_MODEL`), esforço alto e resposta em **formato JSON fixo**.
-  - Fallback automático (`fallbacks: "default"`) se o modelo recusar o pedido.
-- **O que volta:** resumo, tópicos, rascunho de evolução (temas trabalhados, intervenções realizadas, observações relevantes, combinados e próximos passos), tarefas administrativas e o que falta completar.
-- **Regras conferidas pelo sistema** (além das instruções dadas à IA):
-  - cada item precisa de um **trecho literal da transcrição**, senão é descartado;
-  - itens com diagnóstico, CID, transtorno, prescrição, medicação ou dose são descartados;
-  - os itens descartados aparecem como avisos na revisão.
-- **Revisão:**
-  - A profissional vê o rascunho ao lado da transcrição (com o trecho de origem destacado), marca os itens que entram e edita o texto.
-  - "Usar como rascunho de evolução" cria um **rascunho** em Evoluções, com o selo "rascunho de IA". Ele só vale quando ela **finalizar**.
-  - As tarefas sugeridas viram tarefas reais só com um clique dela.
-- **Rastro:**
-  - A evolução guarda de qual rascunho de IA nasceu.
-  - Cada uso registra profissional, data, modelo, tokens e custo.
-  - Cada abertura entra no registro de acesso clínico.
-- **Guarda:**
-  - A transcrição e o rascunho são apagados **7 dias** (configurável) depois de a evolução ser finalizada ou o rascunho descartado, e no máximo 30 dias depois do envio.
-  - A limpeza é diária, pelo `pg_cron`. Ficam só os dados de uso e custo.
-
-**Custos**
-
-- O custo de cada uso é calculado com os tokens informados pela API e o preço de tabela: Claude Opus 5.5 custa US$ 4 por milhão de tokens de entrada e US$ 20 por milhão de saída (tabela de 06/10/2026, conferir em https://www.anthropic.com/pricing).
-- Uma sessão de 50 minutos tem algo como 8 a 12 mil palavras. Pela tabela, isso daria cerca de 15 a 20 mil tokens de entrada e 2 a 6 mil de saída, ou seja, centavos de dólar por uso. O valor exato aparece depois de cada uso.
-- O total do mês fica em Configurações → Assistente de IA. Ao atingir o limite, o assistente para até o mês seguinte.
-- A fatura oficial é a do fornecedor.
-
-**Para ligar (depois da revisão jurídica)**
-
-1. **Termo do paciente:** revisar com o jurídico o modelo de termo de consentimento (aba Assistente de IA → Registrar consentimento → Modelo de termo).
-2. **Contrato com a Anthropic:**
-   - Criar a conta comercial na Anthropic (console.anthropic.com).
-   - Formalizar o contrato de proteção de dados e as condições de retenção e de não uso para treinamento. Há transferência internacional de dados: LGPD, art. 33.
-3. **Chave da API:** gerar a chave e cadastrá-la sem colar em chats:
-   ```
-   npx supabase secrets set --project-ref qnchebjrgnfgszrzlyue ANTHROPIC_API_KEY=...
-   ```
-4. **Ativar:** em Configurações → Assistente de IA, definir o limite mensal (US$) e o prazo de guarda, e ligar.
-5. **Profissionais:** cada uma aceita o termo de uso na primeira vez e registra o consentimento de cada paciente antes de usar.
-
-**Fica para depois:** integração direta com o tl;dv. A API deles ainda está em versão "alpha" e o acesso exige plano pago.
-
-## Aplicativo da equipe (Bloco 12)
-
-**Situação:** pronto e testado na versão web do aplicativo (tela de celular, contra o Supabase real). Push, biometria e cofre do aparelho só podem ser conferidos num celular de verdade.
-
-- **Projeto:** pasta `mobile/`, com Expo SDK 58 e React Native. Nome "Renata de Azevedo, Equipe", identificador `br.com.renatadeazevedo.equipe`.
-- **Mesmas regras do sistema:** usa a mesma conta, o mesmo Supabase e as mesmas permissões (RLS). Não existe acesso a mais pelo aplicativo.
-- **Código compartilhado:** `shared/api.ts` (chamadas ao Supabase), `shared/format.ts` e `shared/types.ts` servem ao sistema web e ao aplicativo.
-
-**O que o aplicativo faz**
-
-- **Início:** sessões do dia, pendências de evolução (profissional), cobranças vencidas e tarefas abertas.
-- **Agenda:** dia e semana; abrir a sessão, confirmar, registrar presença ou falta; link do Meet.
-- **Pacientes:** busca e ficha resumida com Ligar e WhatsApp.
-- **Tarefas:** concluir, comentar e criar.
-- **Mais:** avisos, cobranças em aberto com registro de pagamento (quem tem permissão de financeiro) e "Meu repasse" (profissional).
-- **Prontuário no celular:** só as pendências e o **rascunho** da evolução. Finalizar e ver o histórico completo continua no computador.
-
-**Segurança**
-
-- A sessão fica no cofre do aparelho (Keychain/Keystore).
-- O aplicativo **trava depois de 5 minutos** em segundo plano e destrava com biometria ou senha.
-- Sem uso por **30 dias**, a pessoa precisa entrar de novo.
-- Notificação com o celular bloqueado mostra só um **texto genérico** ("Você recebeu uma tarefa."), sem nome de paciente ou de lead.
-
-**Para testar no celular (Expo Go)**
-
-1. Instale o **Expo Go** no celular (App Store ou Google Play).
-2. No computador, dentro de `mobile/`, copie `.env.example` para `.env` e preencha a URL e a chave **pública** do Supabase (as mesmas do sistema web).
-3. Rode `npm install` e depois `npx expo start`. Leia o QR code com a câmera (iPhone) ou com o Expo Go (Android). O celular precisa estar na mesma rede do computador.
-
-No Expo Go dá para testar tudo, menos o push (a Expo exige um build próprio para isso).
-
-**O que já está configurado no Supabase:** a função `push-send`, o segredo interno `PUSH_SEND_SECRET`, as entradas `push_send_url` e `push_send_secret` no Vault e o agendamento `push` (a cada minuto). O envio fica **desligado** até alguém ligar em Configurações → Aplicativo da equipe.
-
-**O que falta você configurar (para publicar e ter push)**
-
-1. **Conta na Expo:** crie a conta em expo.dev. Dentro de `mobile/`, rode `npx eas-cli login` e depois `npx eas-cli init`. O comando grava o `projectId` em `app.json` (`extra.eas.projectId`); sem ele, o aplicativo não registra o aparelho para push.
-2. **Lojas:**
-   - Apple Developer (US$ 99/ano) para iPhone.
-   - Google Play Console (US$ 25, uma vez) para Android.
-   - Para uso só da equipe, a distribuição pode ser interna: TestFlight e teste interno do Google Play.
-3. **Build:** `npx eas-cli build --platform ios` e `npx eas-cli build --platform android`. A EAS pede e guarda as credenciais de push da Apple e do Firebase.
-4. **Envio autenticado (opcional):** se ativar "Enhanced security for push" na Expo, gere um token de acesso e cadastre:
-   ```
-   npx supabase secrets set --project-ref qnchebjrgnfgszrzlyue EXPO_ACCESS_TOKEN=...
-   ```
-5. **Ligar:** em Configurações → Aplicativo da equipe, marque **Enviar avisos para o celular**. O painel mostra quantos aparelhos estão registrados e o último erro de envio.
-
-**Fica para o Bloco 14:** ícone e tela de abertura próprios (hoje são os padrões do modelo da Expo) e a publicação nas lojas.
-
-## Portal do paciente (Bloco 13)
-
-**Situação:** pronto e testado contra o Supabase real. **Entregue desligado.**
-
-- **Formato:** portal web separado do sistema da equipe, no mesmo projeto (`web/src/portal/`).
-  - Abre em `#/portal`, ou sozinho num endereço que comece com `portal.` (ex.: `portal.renatadeazevedo.com.br`).
-  - Funciona no navegador do celular; não precisa instalar nada.
-- **Por que não um app nas lojas:** o paciente usa poucas vezes por mês. Um app exigiria instalação e revisão da Apple e do Google, e misturá-lo ao app da equipe aumentaria o risco de vazamento.
-
-**Como funciona**
-
-- **Acesso só por convite:**
-  - Na ficha do paciente, aba **Portal**, quem gerencia pacientes libera o acesso para o e-mail do paciente ou do responsável.
-  - Paciente menor de 18 anos: o acesso é do responsável. Uma mesma pessoa pode acompanhar mais de um paciente (ex.: dois filhos).
-  - "Encerrar acesso" corta tudo na hora.
-- **Entrada sem senha:**
-  - A pessoa informa o e-mail e recebe um **código de 6 dígitos** (vale 10 minutos).
-  - A resposta é a mesma exista ou não a conta, para não revelar quem é paciente.
-- **Primeiro acesso:** a pessoa aceita os **termos de uso e o aviso de privacidade**, com a versão registrada. O texto é um **rascunho para revisão jurídica**, em `web/src/portal/terms.ts`.
-- **Telas do paciente:**
-  - **Início:** próxima sessão e quanto está em aberto.
-  - **Sessões:**
-    - próximas e do último ano;
-    - **Confirmar presença**, que grava na agenda;
-    - **Preciso remarcar ou cancelar**: não mexe na agenda, cria uma tarefa para a equipe entrar em contato;
-    - o link do Meet aparece 1 hora antes da sessão on-line.
-  - **Financeiro:**
-    - cobranças em aberto, com o saldo depois de pagamentos parciais;
-    - pagamentos recebidos, sem as observações internas;
-    - instruções de pagamento escritas pela clínica;
-    - botão **Já paguei**, que cria uma tarefa para o financeiro conferir. O pagamento continua sendo registrado pelo financeiro.
-  - **Documentos:** só os que a clínica compartilhou, abertos por link de 60 segundos. Cada download fica registrado.
-  - **Avisos:** sessão marcada, remarcada ou cancelada (uma série semanal vira um aviso só), nova cobrança e novo documento.
-- **Na ficha do paciente (equipe), aba Portal:**
-  - quem tem acesso, último acesso e aceite dos termos;
-  - documentos compartilhados e se o paciente já abriu;
-  - pedidos feitos pelo portal, com link para a tarefa.
-  - Compartilhar documentos: quem gerencia pacientes ou a profissional responsável.
-  - Os documentos do portal ficam num armazenamento **separado** do prontuário e dos documentos administrativos.
-- **Segurança:**
-  - O paciente não lê nenhuma tabela diretamente. Tudo passa pelas funções `portal_*`, que conferem o vínculo da conta com o paciente, o portal ligado e o aceite dos termos.
-  - O teste do banco (`npm run test:db`) entra como paciente, tenta ler **todas** as tabelas e chamar **todas** as funções da equipe, e falha se alguma devolver dados.
-  - O prontuário nunca aparece no portal.
-  - Contas de paciente não entram no sistema nem no aplicativo da equipe, e não aparecem em Usuários.
-
-**O que já está configurado no Supabase:**
-- funções `portal-invite`, `portal-document-url` e `portal-email-send`;
-- segredo interno `PORTAL_EMAIL_SECRET`;
-- entradas `portal_email_url` e `portal_email_secret` no Vault;
-- agendamento `portal-email` (a cada minuto).
-
-**O que falta você configurar**
-
-1. **E-mail de envio dos códigos (obrigatório antes de uso real):**
-   - O envio padrão do Supabase só entrega para os membros do projeto e poucas mensagens por hora.
-   - Crie uma conta num serviço de e-mail. A sugestão é o Resend (resend.com), que também serve para os avisos do item 5.
-   - Verifique o domínio `renatadeazevedo.com.br` nesse serviço, cadastrando os registros DNS indicados.
-   - No painel do Supabase, em **Authentication → Emails → SMTP Settings**, informe servidor, usuário, senha e o remetente (ex.: `portal@renatadeazevedo.com.br`).
-2. **Modelo do e-mail do código:**
-   - Em **Authentication → Emails → Templates → Magic Link**, use o assunto "Seu código de acesso ao portal" e cole o conteúdo de `supabase/templates/codigo-de-acesso.html`. Ele mostra o código, não um link.
-   - Em **Authentication → Providers → Email**, deixe o código com **6 dígitos** e validade de **600 segundos**.
-   - No ambiente local, isso já vem de `supabase/config.toml`.
-3. **Endereço:** crie o subdomínio `portal.renatadeazevedo.com.br` apontando para o mesmo projeto do sistema na Cloudflare (domínio personalizado). Sem ele, o portal funciona em `https://<endereço do sistema>/#/portal`.
-4. **Ligar:**
-   - Em **Configurações → Portal do paciente**, informe o endereço e as instruções de pagamento (ex.: chave PIX).
-   - Escolha quem recebe os pedidos e marque **Ligar o portal do paciente**.
-   - Teste primeiro com um paciente de teste.
-5. **Avisos por e-mail (opcional):** gere uma chave da API no Resend e cadastre, sem colar em chats:
-   ```
-   npx supabase secrets set --project-ref qnchebjrgnfgszrzlyue RESEND_API_KEY=... PORTAL_EMAIL_FROM="Clínica Renata de Azevedo <portal@renatadeazevedo.com.br>"
-   ```
-   Depois marque **Avisar por e-mail** em Configurações. O e-mail é genérico ("há uma novidade no portal") e vai no máximo um por hora por pessoa.
-6. **Revisão jurídica:** dos termos do portal e do caso de pacientes adolescentes (hoje, menor de 18 anos só tem acesso pelo responsável). Se o texto mudar, a versão em `private.portal_terms_version()` precisa mudar numa nova migração, e todos aceitam de novo.
-
-**Fica para depois:** agendamento pelo próprio paciente, envio de arquivos pelo paciente, pagamento por PIX automático, recibos e um aplicativo do paciente nas lojas.
-
-## Próximas etapas antes de uso real
-
-1. Confirmar os e-mails de Bárbara, Mari, Renata e das demais profissionais para criar suas contas.
-   Definir o número do WhatsApp e seguir o passo a passo da seção "WhatsApp".
-2. Configurar o Google Cloud e cadastrar as credenciais (passo a passo na seção "Google Agenda e Google Meet").
-3. Completar edição e encerramento dos cadastros, recuperação de acesso e cópias de segurança (plano Pro do Supabase).
-4. Revisar permissões e testar com a equipe antes de inserir dados de pacientes reais.
-5. Portal do paciente: configurar o e-mail de envio dos códigos (SMTP), o subdomínio e a revisão jurídica dos termos (seção "Portal do paciente").
-
-**Pendente por decisão da clínica:** importação do Clinical Experts (pacientes, profissionais responsáveis e histórico de sessões). Por enquanto, os pacientes são cadastrados no sistema. A importação de leads por planilha, no Comercial, já existe.
+- Cabeçalhos de segurança (CSP) em `web/public/_headers`: só liberam conexões com o projeto Supabase. Em domínio próprio, deixe desligados o *Rocket Loader* e a *Email Obfuscation* da Cloudflare.
+- Política de privacidade pública: `/privacidade.html` (rascunho para revisão jurídica).
+- Passo a passo completo, incluindo lojas: [docs/publicacao.md](docs/publicacao.md).

@@ -1,0 +1,21 @@
+{
+  "name": "testes-sistema-renata",
+  "private": true,
+  "type": "module",
+  "description": "Testes automáticos de ponta a ponta (navegador), integrações (Deno) e banco local. Ver tests/README.md.",
+  "scripts": {
+    "test": "node run.mjs",
+    "test:telas": "node run.mjs --sem-app --sem-integracao",
+    "test:banco-local": "node db-local/rodar.mjs"
+  },
+  "devDependencies": {
+    "deno": "^2.9.6",
+    "embedded-postgres": "^18.4.0-beta.17",
+    "pg": "^8.23.1",
+    "puppeteer-core": "^25.14.0"
+  },
+  "allowScripts": {
+    "@embedded-postgres/darwin-arm64@18.4.0-beta.17": true,
+    "deno@2.9.6": true
+  }
+}

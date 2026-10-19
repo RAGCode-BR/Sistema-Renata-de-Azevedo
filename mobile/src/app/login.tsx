@@ -1,11 +1,14 @@
 import { Redirect } from 'expo-router';
 import { useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, Text, View } from 'react-native';
+import Constants from 'expo-constants';
+import { Image, KeyboardAvoidingView, Linking, Platform, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Field } from '../components/ui';
 import { useAuth } from '../lib/auth';
 import { message } from '../lib/useLoad';
 import { useTheme } from '../lib/theme';
+
+const privacyUrl = Constants.expoConfig?.extra?.privacyUrl as string | undefined;
 
 export default function Login() {
   const theme = useTheme();
@@ -30,6 +33,10 @@ export default function Login() {
         }} />
         <View style={{ marginTop: 16 }}>
           <Text style={{ color: theme.muted, fontSize: 13, textAlign: 'center' }}>Use a mesma conta do sistema. Esqueceu a senha? Fale com a administração.</Text>
+          {privacyUrl ? (
+            <Text accessibilityRole="link" onPress={() => Linking.openURL(privacyUrl)}
+              style={{ color: theme.primary, fontSize: 13, textAlign: 'center', marginTop: 12, textDecorationLine: 'underline' }}>Política de privacidade</Text>
+          ) : null}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>

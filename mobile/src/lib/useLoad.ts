@@ -10,12 +10,16 @@ export function useLoad<T>(load: () => Promise<T>, deps: DependencyList) {
   const [version, setVersion] = useState(0);
   useEffect(() => {
     let current = true;
+    // Recarregar mostra o estado de carregamento de novo: intencional.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setError('');
     load().then((result) => { if (current) setData(result); }, (failure: unknown) => {
       if (current) setError(failure instanceof Error ? failure.message : 'Não foi possível carregar.');
     }).finally(() => { if (current) setLoading(false); });
     return () => { current = false; };
+    // As dependências vêm de quem chama (como em useEffect).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, version]);
   return { data, error, loading, reload: useCallback(() => setVersion((value) => value + 1), []) };
 }

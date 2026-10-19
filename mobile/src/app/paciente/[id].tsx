@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { View } from 'react-native';
 import { formatCpf, longDay, patientStatusLabel, statusLabel, time } from '../../../../shared/format.ts';
@@ -8,12 +9,13 @@ import { useLoad } from '../../lib/useLoad';
 
 // Ficha básica do paciente (as mesmas regras de quem vê o quê do sistema). Nada clínico aqui.
 export default function PatientScreen() {
+  const [now] = useState(() => Date.now());
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, error, loading, reload } = useLoad(() => Promise.all([api.patient(id), api.professionals(), api.patientAppointments(id)]), [id]);
   if (!data?.[0]) return <Screen><State error={error || (data ? 'Paciente não encontrado ou fora da sua carteira.' : '')} loading={loading} /></Screen>;
   const [patient, professionals, appointments] = data;
   const names = professionals.filter((item) => patient.professional_ids.includes(item.id)).map((item) => item.name).join(', ');
-  const upcoming = appointments.filter((item) => new Date(item.starts_at).getTime() > Date.now() && ['scheduled', 'awaiting_confirmation', 'confirmed'].includes(item.status))
+  const upcoming = appointments.filter((item) => new Date(item.starts_at).getTime() > now && ['scheduled', 'awaiting_confirmation', 'confirmed'].includes(item.status))
     .sort((a, b) => a.starts_at.localeCompare(b.starts_at)).slice(0, 5);
 
   return (

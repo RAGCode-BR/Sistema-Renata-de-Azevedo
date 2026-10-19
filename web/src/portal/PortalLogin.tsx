@@ -38,6 +38,7 @@ export function PortalLogin({ notice, onLogin }: { notice: string; onLogin: () =
           </label>
           <button type="submit" className="button" disabled={ask.busy}>{ask.busy ? 'Enviando…' : 'Receber código'}</button>
           {message && <p className="erro" role="alert">{message}</p>}
+          <p className="muted small login-legal"><a href="/privacidade.html" target="_blank" rel="noreferrer">Política de privacidade</a></p>
         </form>
       ) : (
         <form key="code" className="login-card" onSubmit={verify.onSubmit}>

@@ -1,5 +1,5 @@
 # Aplica no Supabase, a cada push na main que mexa em supabase/:
-# migrações do banco, Edge Functions e o teste de permissões (RLS).
+# migrações do banco, Edge Functions e os testes do banco (permissões, segurança e financeiro).
 # Segredos do repositório (Settings → Secrets and variables → Actions):
 #   SUPABASE_ACCESS_TOKEN  token pessoal (supabase.com → Account → Access Tokens)
 #   SUPABASE_DB_PASSWORD   senha do banco (Project Settings → Database)
@@ -41,3 +41,7 @@ jobs:
         run: supabase functions deploy --use-api --project-ref "$SUPABASE_PROJECT_ID"
       - name: Teste de permissões
         run: supabase db query --linked -f supabase/tests/permissions.sql
+      - name: Teste de segurança
+        run: supabase db query --linked -f supabase/tests/seguranca.sql
+      - name: Teste financeiro
+        run: supabase db query --linked -f supabase/tests/financeiro.sql

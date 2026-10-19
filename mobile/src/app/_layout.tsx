@@ -59,6 +59,7 @@ function Root() {
         <Stack.Screen name="cobrancas" options={{ title: 'Cobranças em aberto' }} />
         <Stack.Screen name="repasse" options={{ title: 'Meu repasse' }} />
       </Stack>
+      {user && !locked && user.mfa !== 'ok' && <MfaScreen />}
       {user && locked && <LockScreen />}
     </>
   );
@@ -71,6 +72,8 @@ function LockScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // Só ao abrir a tela de bloqueio: oferece a digital/rosto uma vez.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (canUseBiometrics) unlock(); }, []);
   return (
     <View accessibilityViewIsModal style={{ position: 'absolute', inset: 0, backgroundColor: theme.background, padding: 24, justifyContent: 'center' }}>
@@ -89,6 +92,38 @@ function LockScreen() {
         }} />
         <Button label="Sair da conta" variant="light" onPress={signOut} />
       </View>
+    </View>
+  );
+}
+
+// Verificação em duas etapas: o código do app autenticador. O cadastro do app é feito pelo computador
+// (o QR code precisa ser lido com o celular).
+function MfaScreen() {
+  const theme = useTheme();
+  const { user, verifyMfa, signOut } = useAuth();
+  const [code, setCode] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  return (
+    <View accessibilityViewIsModal style={{ position: 'absolute', inset: 0, backgroundColor: theme.background, padding: 24, justifyContent: 'center' }}>
+      <Image source={require('../../assets/logo.png')} style={{ width: 180, height: 70, alignSelf: 'center', marginBottom: 24 }} resizeMode="contain" accessibilityLabel="Renata de Azevedo" />
+      <Text accessibilityRole="header" style={{ color: theme.text, fontSize: 18, fontWeight: '600', textAlign: 'center', marginBottom: 6 }}>Verificação em duas etapas</Text>
+      {user?.mfa === 'verify' ? (
+        <>
+          <Text style={{ color: theme.muted, textAlign: 'center', marginBottom: 20 }}>Abra o app autenticador e digite o código da clínica.</Text>
+          <Field label="Código" value={code} onChangeText={setCode} keyboardType="number-pad" autoComplete="one-time-code" textContentType="oneTimeCode" maxLength={7} />
+          {error ? <Text accessibilityRole="alert" style={{ color: theme.danger, marginBottom: 8 }}>{error}</Text> : null}
+          <Button label="Confirmar" busy={busy} disabled={code.replace(/\D/g, '').length !== 6} onPress={async () => {
+            setBusy(true); setError('');
+            try { await verifyMfa(code); setCode(''); } catch (failure) { setError(failure instanceof Error ? failure.message : 'Código inválido.'); } finally { setBusy(false); }
+          }} />
+        </>
+      ) : (
+        <Text style={{ color: theme.muted, textAlign: 'center', marginBottom: 20 }}>
+          A clínica exige um código do celular para o seu perfil. Ative a verificação em duas etapas pelo computador (sistema → menu da conta) e depois entre aqui de novo.
+        </Text>
+      )}
+      <View style={{ marginTop: 8 }}><Button label="Sair da conta" variant="light" onPress={signOut} /></View>
     </View>
   );
 }

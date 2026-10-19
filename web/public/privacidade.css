@@ -1,0 +1,15 @@
+/* Página pública da política de privacidade (sem JavaScript; a CSP só permite estilos de arquivo). */
+:root { --vinho: #53102f; --texto: #2c2326; --suave: #6d6266; --creme: #f5efe7; --branco: #fff; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--creme); color: var(--texto); font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { margin: 8px 0 4px; color: var(--vinho); font-size: 30px; font-weight: 600; }
+h2 { margin: 32px 0 8px; font-size: 19px; font-weight: 600; }
+.lead { color: var(--suave); }
+ul { padding-left: 22px; }
+li { margin: 6px 0; }
+.draft { padding: 10px 14px; border-radius: 10px; background: #f8ecd8; color: #8f6229; font-size: 14px; }
+@media (prefers-color-scheme: dark) {
+  :root { --texto: #efe6e9; --suave: #c4b7bc; --creme: #1d1619; --vinho: #e3a8c2; }
+  .draft { background: #3a2c17; color: #f0c98c; }
+}

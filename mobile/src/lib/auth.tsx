@@ -22,6 +22,8 @@ interface AuthState {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   unlock: (password?: string) => Promise<boolean>;
+  // Código do app autenticador (verificação em duas etapas).
+  verifyMfa: (code: string) => Promise<void>;
   canUseBiometrics: boolean;
 }
 const AuthContext = createContext<AuthState | null>(null);
@@ -94,12 +96,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (password && user) {
         const { error } = await supabase.auth.signInWithPassword({ email: user.email, password });
         if (error) return false;
+        // Entrar de novo com a senha cria uma sessão só de senha: quem usa o código digita de novo.
+        await load();
       } else {
         const result = await LocalAuthentication.authenticateAsync({ promptMessage: 'Desbloquear o app da clínica', cancelLabel: 'Usar senha' });
         if (!result.success) return false;
       }
       setLocked(false);
       return true;
+    },
+    verifyMfa: async (code) => {
+      await api.mfaVerify(code);
+      await load();
     }
   };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

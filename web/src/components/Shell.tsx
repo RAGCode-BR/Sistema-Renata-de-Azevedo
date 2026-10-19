@@ -22,6 +22,7 @@ import { PayoutsPage } from '../pages/finance/Payouts.tsx';
 import { PricesPage } from '../pages/finance/Prices.tsx';
 import { NotificationBell } from './Notifications.tsx';
 import { PasswordDialog } from './PasswordDialog.tsx';
+import { TwoFactorDialog } from './TwoFactor.tsx';
 import { WhatsappNoticeDialog } from './WhatsappNotice.tsx';
 import { ConversationsPage } from '../pages/Conversations.tsx';
 import { RecurrencesPage, TasksPage, TeamTasksPage } from '../pages/tasks/Tasks.tsx';
@@ -148,6 +149,7 @@ function readSubmenu(): boolean {
 export function Shell({ user, onLogout }: { user: SessionUser; onLogout: () => void }) {
   const { path, params } = useHashRoute();
   const [changingPassword, setChangingPassword] = useState(false);
+  const [twoFactor, setTwoFactor] = useState(false);
   const [whatsappNotice, setWhatsappNotice] = useState(false);
   const [submenuOpen, setSubmenuOpen] = useState(readSubmenu);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -213,6 +215,9 @@ export function Shell({ user, onLogout }: { user: SessionUser; onLogout: () => v
             <button type="button" className="pop-item" onClick={() => { setAccountOpen(false); setChangingPassword(true); }}>
               <Icon name="key" />Trocar senha
             </button>
+            <button type="button" className="pop-item" onClick={() => { setAccountOpen(false); setTwoFactor(true); }}>
+              <Icon name="key" />Verificação em duas etapas
+            </button>
             <button type="button" className="pop-item" onClick={() => { setAccountOpen(false); setWhatsappNotice(true); }}>
               <Icon name="bell" />Avisos no WhatsApp
             </button>
@@ -254,6 +259,7 @@ export function Shell({ user, onLogout }: { user: SessionUser; onLogout: () => v
       </div>
 
       {changingPassword && <PasswordDialog onClose={() => setChangingPassword(false)} />}
+      {twoFactor && <TwoFactorDialog onClose={() => setTwoFactor(false)} />}
       {whatsappNotice && <WhatsappNoticeDialog onClose={() => setWhatsappNotice(false)} />}
     </div>
   );

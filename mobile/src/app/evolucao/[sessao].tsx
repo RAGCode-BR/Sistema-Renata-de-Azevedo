@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Alert } from 'react-native';
 import { Button, Field, Muted, Screen, State, Title } from '../../components/ui';
 import { api } from '../../lib/supabase';
@@ -14,9 +14,10 @@ export default function EvolutionDraft() {
     const finished = record.notes.some((note) => note.kind === 'evolution' && note.status === 'final' && note.appointment_id === sessao);
     return { draft, finished, appointment };
   }, [sessao, paciente]);
-  const [body, setBody] = useState('');
+  // null: ainda não editado (mostra o rascunho salvo).
+  const [edited, setBody] = useState<string | null>(null);
+  const body = edited ?? data?.draft?.body ?? '';
   const [busy, setBusy] = useState(false);
-  useEffect(() => { if (data?.draft) setBody(data.draft.body); }, [data]);
 
   if (!data) return <Screen><State error={error} loading={loading} /></Screen>;
   if (data.finished) return <Screen><Muted>A evolução desta sessão já foi finalizada. Correções são feitas por retificação, no computador.</Muted></Screen>;

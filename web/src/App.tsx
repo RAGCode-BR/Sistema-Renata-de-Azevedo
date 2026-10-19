@@ -4,6 +4,7 @@ import { api, setUnauthorizedHandler } from './api.ts';
 import { Shell } from './components/Shell.tsx';
 import { errorMessage } from './hooks.ts';
 import { LoginPage } from './pages/Login.tsx';
+import { MfaGate } from './components/TwoFactor.tsx';
 
 // Portal do paciente: carregado à parte, em #/portal ou num endereço que comece com "portal.".
 const PortalApp = lazy(() => import('./portal/PortalApp.tsx').then((module) => ({ default: module.PortalApp })));
@@ -38,5 +39,9 @@ function StaffApp() {
 
   if (user === undefined) return null;
   if (!user) return <LoginPage notice={notice} onLogin={(next) => { setNotice(''); setUser(next); }} />;
+  if (user.mfa !== 'ok') {
+    return <MfaGate mode={user.mfa} onLogout={async () => { await api.logout(); setUser(null); }}
+      onDone={() => api.session().then(setUser, (failure: unknown) => { setUser(null); setNotice(errorMessage(failure)); })} />;
+  }
   return <Shell key={user.id} user={user} onLogout={() => setUser(null)} />;
 }

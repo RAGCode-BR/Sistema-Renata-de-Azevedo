@@ -25,6 +25,7 @@ export function PortalTerms({ version, onAccepted, onLogout }: { version: string
             </section>
           ))}
         </div>
+        <p className="muted small"><a href="/privacidade.html" target="_blank" rel="noreferrer">Ler a política de privacidade completa</a></p>
         <label className="check">
           <input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} />
           <span>Li e aceito os termos de uso e o aviso de privacidade.</span>
