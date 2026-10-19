@@ -132,7 +132,7 @@ button.number { text-align: left; cursor: pointer; }
 .print-footer { margin-top: 28px; }
 
 @media print {
-  .topbar, .rail, .subnav, .env-banner, .no-print, .toast { display: none !important; }
+  .topbar, .rail, .subnav, .no-print, .toast { display: none !important; }
   .app, .workspace, main { display: block !important; padding: 0 !important; margin: 0 !important; background: #fff !important; }
   body { background: #fff !important; }
   .print-record { max-width: none; padding: 0; border-radius: 0; }

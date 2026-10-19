@@ -316,7 +316,7 @@ h2 { font-size: 18px; line-height: 1.3; }
 
 .workspace { grid-area: area; min-width: 0; }
 
-.demo-banner, .env-banner {
+.demo-banner {
   margin: 0;
   padding: 9px 40px;
   background: var(--creme-fundo);
@@ -985,7 +985,7 @@ a.number:active { transform: scale(.98); }
 @media (max-width: 1180px) {
   :root { --submenu: 212px; }
   main { padding: 28px 28px 104px; }
-  .demo-banner, .env-banner { padding-inline: 28px; }
+  .demo-banner { padding-inline: 28px; }
   .content { grid-template-columns: minmax(0, 1fr); }
   .side { grid-template-columns: 1fr 1fr; }
 }
@@ -1041,7 +1041,7 @@ a.number:active { transform: scale(.98); }
   .subnav-list { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
   .sub-link { flex-shrink: 0; min-height: 38px; padding: 6px 14px; border-radius: 999px; white-space: nowrap; }
 
-  .demo-banner, .env-banner { padding: 8px 16px; font-size: 12px; }
+  .demo-banner { padding: 8px 16px; font-size: 12px; }
   main { padding: 22px 16px calc(150px + env(safe-area-inset-bottom)); }
   h1 { font-size: 26px; }
   .heading { align-items: flex-start; flex-direction: column; gap: 14px; }

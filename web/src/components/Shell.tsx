@@ -254,7 +254,6 @@ export function Shell({ user, onLogout }: { user: SessionUser; onLogout: () => v
       </aside>
 
       <div className="workspace">
-        {import.meta.env.DEV && <p className="env-banner">Ambiente local de desenvolvimento</p>}
         <main key={`${current.path}?${params}`}>{current.render(user, params)}</main>
       </div>
 
