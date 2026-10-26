@@ -4,7 +4,9 @@ const browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH
 const page = await browser.newPage();
 await page.setViewport({ width: 1366, height: 860 });
 const problems = [];
+const networkFailures = [];
 page.on('pageerror', (e) => problems.push(e.message));
+page.on('requestfailed', (request) => networkFailures.push(`${request.method()} ${request.url()}: ${request.failure()?.errorText}`));
 let n = 0;
 const ok = (m) => console.log(`✔ ${++n}. ${m}`);
 const waitText = (t) => page.waitForFunction((x) => document.body.innerText.includes(x), { timeout: 10000, polling: 200 }, t);
@@ -125,6 +127,12 @@ try {
   await typeIn('guardian_relationship', 'mãe');
   await typeIn('phone', '(11) 98888-7777');
   await typeIn('email', 'ficha@example.test');
+  await typeIn('rg', '12345678');
+  await typeIn('occupation', 'Professora');
+  await page.select('dialog[open] select[name=sex]', 'female');
+  await page.type('dialog[open] input[aria-label="Nova etiqueta"]', 'atendimento online');
+  await clickText('dialog[open] button', 'Adicionar');
+  await (await page.$('dialog[open] .patient-photo-picker input[type=file]')).uploadFile(`${FILES}/foto-teste.png`);
   await typeIn('cpf', '111.111.111-11');
   await (await page.waitForFunction(() => [...document.querySelectorAll('dialog[open] label.check')].find((l) => l.textContent.trim() === 'Teste Ficha')?.querySelector('input'))).asElement().click();
   await clickText('dialog[open] button', 'Cadastrar paciente');
@@ -137,7 +145,10 @@ try {
   const lead = await page.$eval('.lead', (e) => e.textContent);
   if (!lead.includes('Em acompanhamento') || !lead.includes('12 anos') || !lead.includes('Teste Ficha')) throw new Error(`lead: ${lead}`);
   const overview = await factsText();
-  if (!overview.includes('529.982.247-25') || !overview.includes('Mãe Ficha (mãe)')) throw new Error('visão geral sem CPF ou responsável');
+  await page.waitForSelector('img.patient-overview-photo');
+  if (!overview.includes('529.982.247-25') || !overview.includes('Mãe Ficha (mãe)')
+    || !overview.includes('12345678') || !overview.includes('Professora') || !overview.includes('atendimento online'))
+    throw new Error('visão geral sem dados do cadastro ampliado');
   ok('CPF inválido recusado; cadastro salvo abre a página do paciente com idade, CPF e responsável');
   // Agenda antes de pausar: só pacientes em acompanhamento aparecem para nova sessão.
   await go('Agenda');
@@ -153,7 +164,7 @@ try {
   await page.waitForSelector('dialog[open] select[name=status]');
   await page.select('dialog[open] select[name=status]', 'paused');
   await page.type('dialog[open] textarea[name=admin_notes]', 'Prefere contato por WhatsApp.');
-  await clickText('dialog[open] button', 'Salvar');
+  await clickText('dialog[open] button', 'Salvar cadastro');
   await toast('Cadastro atualizado.');
   await page.waitForFunction(() => document.querySelector('.lead')?.textContent.includes('Pausado') && document.querySelector('main').innerText.includes('Prefere contato por WhatsApp.'), { timeout: 10000 });
   ok('Edição: situação "Pausado" e observação administrativa salvas');
@@ -236,8 +247,19 @@ try {
   if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) throw new Error('rolagem horizontal no celular');
   await page.screenshot({ path: `${process.env.SHOT_DIR}/paciente-celular.png`, fullPage: true });
   ok('Página do paciente no celular sem rolagem horizontal');
+  await clickText('button', 'Editar cadastro');
+  await page.waitForSelector('dialog[open] .patient-form-section');
+  const formFits = await page.evaluate(() => {
+    const dialog = document.querySelector('dialog[open]');
+    return dialog.getBoundingClientRect().width <= innerWidth && dialog.scrollWidth <= dialog.clientWidth + 1;
+  });
+  if (!formFits) throw new Error('cadastro com rolagem horizontal no celular');
+  await new Promise((resolve) => setTimeout(resolve, 350));
+  await page.screenshot({ path: `${process.env.SHOT_DIR}/cadastro-paciente-celular.png` });
+  ok('Formulário completo cabe no celular sem rolagem horizontal');
 } catch (error) {
   console.log(`✖ FALHA após o passo ${n}: ${error.message}`);
+  if (networkFailures.length) console.log(`Falhas de rede: ${networkFailures.join(' | ')}`);
   await page.screenshot({ path: `${process.env.SHOT_DIR}/paciente-falha.png`, fullPage: true }).catch(() => {});
   process.exitCode = 1;
 } finally {

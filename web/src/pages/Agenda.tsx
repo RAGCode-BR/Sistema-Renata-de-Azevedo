@@ -14,27 +14,27 @@ import {
 import { useLoad } from '../hooks.ts';
 import { AppointmentDetails, AppointmentForm, BlockDetails, BlockForm } from './agenda/dialogs.tsx';
 
-type View = 'day' | 'week' | 'month';
+type View = 'day' | 'week' | 'month' | 'availability';
 
-const VIEW_LABEL: Record<View, string> = { day: 'Dia', week: 'Semana', month: 'Mês' };
+const VIEW_LABEL: Record<View, string> = { day: 'Dia', week: 'Semana', month: 'Mês', availability: 'Disponibilidade' };
 const VIEW_KEY = 'rda-agenda-visao';
 
 function readView(): View {
   try {
     const saved = localStorage.getItem(VIEW_KEY);
-    return saved === 'day' || saved === 'week' || saved === 'month' ? saved : 'week';
+    return saved === 'day' || saved === 'week' || saved === 'month' || saved === 'availability' ? saved : 'week';
   } catch { return 'week'; }
 }
 
 function rangeOf(view: View, anchor: Date): { from: Date; to: Date } {
-  if (view === 'day') return { from: anchor, to: addDays(anchor, 1) };
+  if (view === 'day' || view === 'availability') return { from: anchor, to: addDays(anchor, 1) };
   if (view === 'week') { const from = startOfWeek(anchor); return { from, to: addDays(from, 7) }; }
   const from = startOfWeek(startOfMonth(anchor));
   return { from, to: addDays(from, 42) };
 }
 
 function titleOf(view: View, anchor: Date): string {
-  if (view === 'day') return anchor.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  if (view === 'day' || view === 'availability') return anchor.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   if (view === 'week') {
     const from = startOfWeek(anchor);
     const to = addDays(from, 6);
@@ -47,7 +47,7 @@ function titleOf(view: View, anchor: Date): string {
 }
 
 function step(view: View, anchor: Date, direction: number): Date {
-  if (view === 'day') return addDays(anchor, direction);
+  if (view === 'day' || view === 'availability') return addDays(anchor, direction);
   if (view === 'week') return addDays(anchor, 7 * direction);
   return new Date(anchor.getFullYear(), anchor.getMonth() + direction, 1);
 }
@@ -71,6 +71,8 @@ export function AgendaPage({ user, date, session }: { user: SessionUser; date: s
   const [professionalFilter, setProfessionalFilter] = useState('');
   const [specialtyFilter, setSpecialtyFilter] = useState('');
   const [showCancelled, setShowCancelled] = useState(false);
+  const [availabilityTime, setAvailabilityTime] = useState('10:00');
+  const [availabilityDuration, setAvailabilityDuration] = useState(50);
   const [dialog, setDialog] = useState<Dialog>(null);
 
   const range = useMemo(() => rangeOf(view, anchor), [view, anchor]);
@@ -110,6 +112,12 @@ export function AgendaPage({ user, date, session }: { user: SessionUser; date: s
   const awaiting = active.filter((item) => item.status === 'scheduled' || item.status === 'awaiting_confirmation').length;
   const canBlock = manager || Boolean(ownProfessional);
   const blockable = manager ? professionals : professionals.filter((item) => item.id === ownProfessional);
+  const validTime = /^\d{2}:\d{2}$/.test(availabilityTime) && availabilityTime >= '07:00' && availabilityTime <= '20:00';
+  const [hour, minute] = (validTime ? availabilityTime : '10:00').split(':').map(Number);
+  const availabilityStart = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate(), hour, minute);
+  const availabilityEnd = new Date(availabilityStart.getTime() + availabilityDuration * 60_000);
+  const overlaps = (item: { starts_at: string; ends_at: string }) =>
+    new Date(item.starts_at) < availabilityEnd && new Date(item.ends_at) > availabilityStart;
 
   const onDay = <T extends { starts_at: string }>(items: T[], day: Date) => items.filter((item) => sameDay(new Date(item.starts_at), day));
   const columns: GridColumn[] = view === 'day'
@@ -166,6 +174,10 @@ export function AgendaPage({ user, date, session }: { user: SessionUser; date: s
           <button type="button" className="link-btn" aria-label="Próximo período" onClick={() => setAnchor(step(view, anchor, 1))}>›</button>
         </div>
         <h2 className="agenda-period">{titleOf(view, anchor)}</h2>
+        <label className="agenda-date-pick">Ir para data
+          <input className="input" type="date" aria-label="Ir para data" value={dateKey(anchor)}
+            onChange={(event) => { const next = parseDateKey(event.target.value); if (next) setAnchor(next); }} />
+        </label>
         <div className="tools">
           {overview && (
             <Select className="input compact" aria-label="Profissional" value={professionalFilter} onChange={(event) => setProfessionalFilter(event.target.value)}>
@@ -179,7 +191,7 @@ export function AgendaPage({ user, date, session }: { user: SessionUser; date: s
               {specialties.map((item) => <option key={item} value={item}>{item}</option>)}
             </Select>
           )}
-          <label className="check small"><input type="checkbox" checked={showCancelled} onChange={(event) => setShowCancelled(event.target.checked)} />Mostrar canceladas e remarcadas</label>
+          {view !== 'availability' && <label className="check small"><input type="checkbox" checked={showCancelled} onChange={(event) => setShowCancelled(event.target.checked)} />Mostrar canceladas e remarcadas</label>}
         </div>
       </section>
 
@@ -188,7 +200,34 @@ export function AgendaPage({ user, date, session }: { user: SessionUser; date: s
         <p className="notice">Cadastre uma profissional e um paciente antes de agendar a primeira sessão.</p>
       )}
 
-      {!data ? <PanelState error={error} loading={!data} empty="" /> : view === 'month' ? (
+      {!data ? <PanelState error={error} loading={!data} empty="" /> : view === 'availability' ? (
+        <section className="availability" aria-label="Disponibilidade das profissionais">
+          <div className="availability-controls">
+            <label className="field">Horário<input className="input" type="time" aria-label="Horário para consulta"
+              min="07:00" max="20:00" value={availabilityTime} onChange={(event) => setAvailabilityTime(event.target.value)} /></label>
+            <label className="field">Duração<Select className="input" aria-label="Duração para consulta"
+              value={String(availabilityDuration)} onChange={(event) => setAvailabilityDuration(Number(event.target.value))}>
+              {[30, 50, 60, 90, 120].map((minutes) => <option value={minutes} key={minutes}>{minutes} minutos</option>)}
+            </Select></label>
+            <p className="muted small">Mostra horários sem sessão ou bloqueio registrado. Confirme o horário de trabalho da profissional antes de agendar.</p>
+          </div>
+          {visibleProfessionals.length ? <div className="availability-list">
+            {visibleProfessionals.map((professional) => {
+              const hasSession = appointments.some((item) => item.professional_id === professional.id && occupiesSlot(item.status) && overlaps(item));
+              const hasBlock = blocks.some((item) => item.professional_id === professional.id && overlaps(item));
+              const free = validTime && !hasSession && !hasBlock;
+              return <div className={`availability-person ${free ? 'is-free' : 'is-busy'}`} key={professional.id}>
+                <div><strong>{professional.name}</strong><span>{professional.specialty || 'Profissional'}</span></div>
+                <span className="availability-state">{!validTime ? 'Escolha um horário entre 7h e 20h' : free ? 'Sem conflito' : hasSession ? 'Sessão marcada' : 'Horário bloqueado'}</span>
+                {free && canBlock && <button type="button" className="button light" onClick={() => {
+                  if (manager) setDialog({ kind: 'new', professionalId: professional.id, start: availabilityStart });
+                  else setDialog({ kind: 'block', professionalId: professional.id, start: availabilityStart });
+                }}>{manager ? 'Agendar sessão' : 'Bloquear horário'}</button>}
+              </div>;
+            })}
+          </div> : <p className="notice">Nenhuma profissional com esses filtros.</p>}
+        </section>
+      ) : view === 'month' ? (
         <MonthView from={range.from} anchor={anchor} appointments={shownAppointments} blocks={shownBlocks}
           onPickDay={(day) => { setAnchor(day); changeView('day'); }} />
       ) : columns.length ? (

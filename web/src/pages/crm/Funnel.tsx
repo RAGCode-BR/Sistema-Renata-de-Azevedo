@@ -7,7 +7,7 @@ import { Heading, Panel, PanelState } from '../../components/Page.tsx';
 import { useToast } from '../../components/Toast.tsx';
 import { dateKey, daysSince, dayLabel, plural, startOfToday, addDays } from '../../format.ts';
 import { errorMessage, useLoad } from '../../hooks.ts';
-import { LeadDetail, LeadForm, nameOf, useCrmLists } from './shared.tsx';
+import { LeadDetail, LeadForm, followupLabel, nameOf, useCrmLists } from './shared.tsx';
 
 const normalize = (value: string) => value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -18,7 +18,7 @@ export function FunnelPage({ user, leadId }: { user: SessionUser; leadId: string
   const manage = can(user, 'crm.manage');
   const lists = useCrmLists();
   const { data, error, reload } = useLoad(() => api.leads(), []);
-  const [view, setView] = useState<'quadro' | 'lista'>('quadro');
+  const [view, setView] = useState<'quadro' | 'lista' | 'retornos'>('quadro');
   const [search, setSearch] = useState('');
   const [owner, setOwner] = useState('');
   const [source, setSource] = useState('');
@@ -34,10 +34,13 @@ export function FunnelPage({ user, leadId }: { user: SessionUser; leadId: string
   const leads = (data ?? []).filter((lead) => !lead.anonymized_at
     && (!term || normalize(lead.name).includes(term) || (digits.length >= 4 && (lead.phone ?? '').replace(/\D/g, '').includes(digits))
       || (lead.email ?? '').includes(term))
-    && (!owner || lead.owner_id === owner) && (!source || lead.source_id === source));
+    && (!owner || (view === 'retornos' ? lead.next_contact_owner_id ?? lead.owner_id : lead.owner_id) === owner)
+    && (!source || lead.source_id === source));
   const kindOf = (lead: Lead) => stages.find((stage) => stage.id === lead.stage_id)?.kind ?? 'open';
   const columns = stages.filter((stage) => stage.active || leads.some((lead) => lead.stage_id === stage.id));
   const openCount = leads.filter((lead) => kindOf(lead) === 'open').length;
+  const followups = leads.filter((lead) => kindOf(lead) === 'open' && lead.next_contact_at)
+    .sort((a, b) => `${a.next_contact_at} ${a.next_contact_time ?? ''}`.localeCompare(`${b.next_contact_at} ${b.next_contact_time ?? ''}`));
 
   async function drop(lead: Lead, stageId: string) {
     setDragging(null);
@@ -62,6 +65,7 @@ export function FunnelPage({ user, leadId }: { user: SessionUser; leadId: string
         <div className="tabs" role="tablist" aria-label="Visualização">
           <button type="button" role="tab" aria-selected={view === 'quadro'} className={view === 'quadro' ? 'tab on' : 'tab'} onClick={() => setView('quadro')}>Quadro</button>
           <button type="button" role="tab" aria-selected={view === 'lista'} className={view === 'lista' ? 'tab on' : 'tab'} onClick={() => setView('lista')}>Lista</button>
+          <button type="button" role="tab" aria-selected={view === 'retornos'} className={view === 'retornos' ? 'tab on' : 'tab'} onClick={() => setView('retornos')}>Retornos <span className="lead-return-count">{followups.length}</span></button>
         </div>
         <label className="field-inline">Responsável
           <Select className="input compact" value={owner} onChange={(event) => setOwner(event.target.value)}>
@@ -99,7 +103,7 @@ export function FunnelPage({ user, leadId }: { user: SessionUser; leadId: string
                     <span>{[nameOf(lists.data!.sources, lead.source_id), lead.interest].filter((item) => item && item !== '—').join(' · ') || 'Sem origem'}</span>
                     <span className="lead-card-foot">
                       {lead.next_contact_at
-                        ? <span className={lead.next_contact_at < dateKey(new Date()) ? 'text-danger' : undefined}>Retorno {dayLabel(lead.next_contact_at)}</span>
+                        ? <span className={lead.next_contact_at < dateKey(new Date()) ? 'text-danger' : undefined}>Retorno {followupLabel(lead)}</span>
                         : <span>{daysSince(lead.last_activity_at) === 0 ? 'Hoje' : `Há ${plural(daysSince(lead.last_activity_at), 'dia', 'dias')}`}</span>}
                       <span>{nameOf(lists.data!.owners, lead.owner_id).split(' ')[0]}</span>
                     </span>
@@ -109,6 +113,19 @@ export function FunnelPage({ user, leadId }: { user: SessionUser; leadId: string
             );
           })}
         </div>
+      ) : view === 'retornos' ? (
+        <Panel title="Retornos comerciais" tools={<span className="muted small">{plural(followups.length, 'retorno pendente', 'retornos pendentes')}</span>}>
+          {followups.length ? <div className="table-wrap"><table className="table">
+            <thead><tr><th>Quando</th><th>Contato</th><th>Responsável pelo retorno</th><th>Etapa</th><th>Contato mais recente</th></tr></thead>
+            <tbody>{followups.map((lead) => <tr key={lead.id}>
+              <td><span className={lead.next_contact_at! < dateKey(new Date()) ? 'text-danger' : undefined}>{followupLabel(lead)}</span></td>
+              <td><button type="button" className="link-btn plain" onClick={() => setOpen(lead.id)}>{lead.name}</button><span className="sub">{lead.phone ?? lead.email}</span></td>
+              <td>{nameOf(lists.data!.owners, lead.next_contact_owner_id ?? lead.owner_id)}</td>
+              <td>{nameOf(stages, lead.stage_id)}</td>
+              <td>{dayLabel(lead.last_activity_at)}</td>
+            </tr>)}</tbody>
+          </table></div> : <PanelState error="" loading={false} empty="Nenhum retorno pendente." />}
+        </Panel>
       ) : (
         <Panel title="Leads" tools={<span className="muted small">{plural(leads.length, 'lead', 'leads')}</span>}>
           {leads.length ? (

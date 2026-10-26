@@ -3,6 +3,7 @@ import { api } from '../api.ts';
 import { PanelState } from '../components/Page.tsx';
 import { dateOnly, dateTime, longDay, time } from '../format.ts';
 import { useLoad } from '../hooks.ts';
+import { ClinicalText } from './record/ClinicalText.tsx';
 
 // Prontuário formal para imprimir ou salvar em PDF (pelo próprio navegador): evoluções finalizadas,
 // retificações e conceitualização. Rascunhos e anotações pessoais ficam de fora.
@@ -51,7 +52,7 @@ export function PrintRecordPage({ patientId }: { patientId: string | null }) {
               Finalizada em {dateTime(note.finalized_at)} por {data.professional}
               {note.rectifies_id && ` · motivo da retificação: ${note.rectification_reason}`}
             </p>
-            <p>{note.body}</p>
+            <ClinicalText body={note.body} />
           </div>
         )) : <p className="muted">Nenhuma evolução finalizada.</p>}
       </section>

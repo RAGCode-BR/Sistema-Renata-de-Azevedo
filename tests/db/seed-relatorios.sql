@@ -21,5 +21,8 @@ SELECT '00000000-0000-4000-8000-00000000e931', id, 250 FROM public.charges WHERE
 INSERT INTO public.expenses (description, category_id, cost_center_id, amount, competence_date, due_date, paid_at)
 SELECT 'Relatório E2E despesa', (SELECT id FROM public.finance_categories WHERE name = 'Sistemas'), (SELECT id FROM public.cost_centers WHERE name = 'Administrativo'),
   120, d, d, d FROM (SELECT (date_trunc('month', now() AT TIME ZONE 'America/Sao_Paulo') - interval '1 month' + interval '9 days')::date AS d) x;
+INSERT INTO public.expenses (description, category_id, cost_center_id, amount, competence_date, due_date, paid_at)
+SELECT 'Relatório E2E despesa', (SELECT id FROM public.finance_categories WHERE name = 'Sistemas'), (SELECT id FROM public.cost_centers WHERE name = 'Administrativo'),
+  60, d, d, d FROM (SELECT (date_trunc('month', now() AT TIME ZONE 'America/Sao_Paulo') - interval '13 months' + interval '9 days')::date AS d) x;
 SELECT (SELECT count(*) FROM public.appointments WHERE patient_id = '00000000-0000-4000-8000-00000000e902') AS sessoes,
   (SELECT count(*) FROM public.charges WHERE patient_id = '00000000-0000-4000-8000-00000000e902') AS cobrancas;

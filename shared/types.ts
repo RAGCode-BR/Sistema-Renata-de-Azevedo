@@ -65,6 +65,25 @@ export interface Patient {
   campaign_id: string | null;
   // Autorização (LGPD) para confirmações e lembretes pelo WhatsApp.
   whatsapp_opt_in: boolean;
+  email_opt_in: boolean;
+  sms_opt_in: boolean;
+  sex: 'female' | 'male' | 'other' | 'undisclosed' | null;
+  rg: string | null;
+  occupation: string | null;
+  marital_status: 'single' | 'married' | 'stable_union' | 'divorced' | 'widowed' | 'other' | null;
+  tags: string[];
+  additional_contacts: { type: string; number: string }[];
+  emergency_contacts: { relationship: string; name: string; phone: string }[];
+  identification_documents: { type: string; number: string }[];
+  address_country: string | null;
+  address_postal_code: string | null;
+  address_state: string | null;
+  address_city: string | null;
+  address_district: string | null;
+  address_street: string | null;
+  address_number: string | null;
+  address_complement: string | null;
+  photo_path: string | null;
   professional_ids: string[];
 }
 
@@ -330,6 +349,13 @@ export interface FinanceMonth {
 
 export interface Receivables { open_amount: number; overdue_amount: number; overdue_count: number }
 
+export interface FinanceForecastRow {
+  month: string | null; // null = vencidos antes de hoje
+  expected_in: number;
+  planned_out: number;
+  net: number;
+}
+
 // Tarefas -------------------------------------------------------------------------------------
 // Lidas e gravadas só por funções do banco. Nome do paciente vem nulo para quem não o vê.
 
@@ -458,6 +484,8 @@ export interface Lead {
   patient_id: string | null;
   converted_at: string | null;
   next_contact_at: string | null;
+  next_contact_time: string | null;
+  next_contact_owner_id: string | null;
   first_contact_at: string | null;
   last_activity_at: string;
   utm_source: string | null;
@@ -475,7 +503,7 @@ export interface LeadInput {
 }
 
 export type LeadActivityKind = 'created' | 'edited' | 'assigned' | 'stage' | 'converted' | 'call' | 'message' | 'email'
-  | 'meeting' | 'note' | 'followup' | 'site';
+  | 'meeting' | 'note' | 'followup' | 'followup_done' | 'followup_cancelled' | 'site';
 export interface LeadActivity {
   id: number; lead_id: string; actor_id: string | null; kind: LeadActivityKind; body: string | null;
   from_value: string | null; to_value: string | null; created_at: string;
@@ -602,8 +630,11 @@ export interface UserAccessUpdate {
 // Campos do cadastro enviados a save_patient (texto vazio apaga o campo).
 export type PatientInput = {
   [K in 'name' | 'social_name' | 'phone' | 'email' | 'birth_date' | 'cpf' | 'address' | 'admin_notes'
-    | 'guardian_name' | 'guardian_relationship' | 'guardian_phone' | 'guardian_email']: string;
-} & { status: PatientStatus; professionalIds: string[] };
+    | 'guardian_name' | 'guardian_relationship' | 'guardian_phone' | 'guardian_email' | 'rg' | 'occupation'
+    | 'address_country' | 'address_postal_code' | 'address_state' | 'address_city' | 'address_district'
+    | 'address_street' | 'address_number' | 'address_complement']: string;
+} & Pick<Patient, 'tags' | 'additional_contacts' | 'emergency_contacts' | 'identification_documents'
+  | 'email_opt_in' | 'sms_opt_in' | 'sex' | 'marital_status'> & { status: PatientStatus; professionalIds: string[] };
 
 export interface NewAppointment {
   patientId: string;

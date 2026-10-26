@@ -8,7 +8,7 @@ import { useLoad } from '../hooks.ts';
 
 const STATUS_LABEL: Record<NoteFillStatus, string> = {
   pending: 'Pendente',
-  draft: 'Rascunho',
+  draft: 'Incompleto (rascunho)',
   final: 'Finalizado',
   final_late: 'Finalizado fora do prazo'
 };

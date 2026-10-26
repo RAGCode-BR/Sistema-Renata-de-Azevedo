@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { can } from '../../../../shared/permissions.ts';
-import type { DreRow, SessionUser } from '../../../../shared/types.ts';
+import type { DreRow, ExpenseReportRow, SessionUser } from '../../../../shared/types.ts';
 import { api } from '../../api.ts';
 import { Heading, PanelState } from '../../components/Page.tsx';
 import { dayLabel, monthLabel, paymentMethodLabel, sessionTypeLabel } from '../../format.ts';
@@ -8,9 +8,9 @@ import { useLoad } from '../../hooks.ts';
 import { PrintButton, ReportTable, Stat, formatValue, ratio, usePeriod } from './shared.tsx';
 import type { Column } from './shared.tsx';
 
-type Tab = 'dre' | 'faturamento' | 'despesas' | 'repasses' | 'formas' | 'inadimplencia';
+type Tab = 'dre' | 'previsao' | 'faturamento' | 'despesas' | 'repasses' | 'formas' | 'inadimplencia';
 const TABS: [Tab, string, 'finance' | 'billing'][] = [
-  ['dre', 'DRE', 'finance'], ['faturamento', 'Por profissional', 'finance'], ['despesas', 'Despesas', 'finance'],
+  ['dre', 'DRE', 'finance'], ['previsao', 'Previsão', 'finance'], ['faturamento', 'Por profissional', 'finance'], ['despesas', 'Despesas', 'finance'],
   ['repasses', 'Repasses', 'finance'], ['formas', 'Formas de pagamento', 'billing'], ['inadimplencia', 'Inadimplência', 'billing']
 ];
 
@@ -24,17 +24,44 @@ export function FinancialReportPage({ user }: { user: SessionUser }) {
 
   return (
     <>
-      <Heading title="Relatório financeiro" lead={tab === 'inadimplencia' ? 'Situação de hoje' : period.label}><PrintButton /></Heading>
+      <Heading title="Relatório financeiro" lead={tab === 'inadimplencia' ? 'Situação de hoje' : tab === 'previsao' ? 'Saldos já lançados, organizados por vencimento' : period.label}><PrintButton /></Heading>
       <div className="tabs spaced-tabs no-print" role="tablist" aria-label="Relatórios financeiros">
         {tabs.map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={tab === key} className={tab === key ? 'tab on' : 'tab'} onClick={() => setTab(key)}>{label}</button>)}
       </div>
-      {tab !== 'inadimplencia' && control}
+      {tab !== 'inadimplencia' && tab !== 'previsao' && control}
       {tab === 'dre' && <Dre from={period.from} to={period.to} />}
+      {tab === 'previsao' && <Forecast />}
       {tab === 'faturamento' && <Revenue from={period.from} to={period.to} />}
       {tab === 'despesas' && <Expenses from={period.from} to={period.to} />}
       {tab === 'repasses' && <Payouts from={period.from} to={period.to} />}
       {tab === 'formas' && <Methods from={period.from} to={period.to} />}
       {tab === 'inadimplencia' && <Aging />}
+    </>
+  );
+}
+
+function Forecast() {
+  const { data, error } = useLoad(() => api.financeForecast(12), []);
+  if (!data) return <PanelState error={error} loading={!error} empty="" />;
+  const overdue = data.find((row) => row.month === null);
+  const upcoming = data.filter((row) => row.month !== null);
+  const sum = (key: 'expected_in' | 'planned_out' | 'net') => upcoming.reduce((total, row) => total + row[key], 0);
+  return (
+    <>
+      <section className="numbers" aria-label="Resumo da previsão">
+        <Stat value={formatValue(sum('expected_in'), 'money')} label="a receber nos próximos 12 meses" />
+        <Stat value={formatValue(sum('planned_out'), 'money')} label="a pagar nos próximos 12 meses" />
+        <Stat value={formatValue(sum('net'), 'money')} label="saldo programado" danger={sum('net') < 0} />
+        <Stat value={formatValue((overdue?.expected_in ?? 0) - (overdue?.planned_out ?? 0), 'money')} label="saldo vencido" />
+      </section>
+      <ReportTable title="Previsão por vencimento" rows={data} fileName="previsao-financeira" empty="Sem lançamentos previstos."
+        note="Considera somente cobranças com saldo em aberto e despesas ainda não pagas. Valores vencidos aparecem separados. Sessões ainda não cobradas, pagamentos futuros não lançados e repasses futuros não entram nesta previsão."
+        columns={[
+          { label: 'Período', value: (row) => row.month ? monthLabel(row.month) : 'Vencidos até hoje' },
+          { label: 'Entradas previstas', value: (row) => row.expected_in, format: 'money' },
+          { label: 'Saídas previstas', value: (row) => row.planned_out, format: 'money' },
+          { label: 'Saldo', value: (row) => row.net, format: 'money' }
+        ]} />
     </>
   );
 }
@@ -91,17 +118,38 @@ function Revenue({ from, to }: { from: string; to: string }) {
 }
 
 function Expenses({ from, to }: { from: string; to: string }) {
-  const { data, error } = useLoad(() => api.reportExpenses(from, to), [from, to]);
+  const previousYear = (date: string) => {
+    const year = Number(date.slice(0, 4)) - 1;
+    return date.slice(5) === '02-29' ? `${year}-02-28` : `${year}${date.slice(4)}`;
+  };
+  const { data, error } = useLoad(() => Promise.all([
+    api.reportExpenses(from, to), api.reportExpenses(previousYear(from), previousYear(to))
+  ]), [from, to]);
   if (!data) return <PanelState error={error} loading={!error} empty="" />;
+  const [current, previous] = data;
   const part = (dimension: 'category' | 'cost_center', title: string) => {
-    const rows = data.filter((row) => row.dimension === dimension);
+    type ComparedExpense = ExpenseReportRow & { previous: number };
+    const rowsByName = new Map<string, ComparedExpense>();
+    for (const row of previous.filter((item) => item.dimension === dimension)) {
+      rowsByName.set(row.name, { ...row, competence: 0, paid: 0, previous: row.competence });
+    }
+    for (const row of current.filter((item) => item.dimension === dimension)) {
+      const prior = rowsByName.get(row.name);
+      rowsByName.set(row.name, { ...row, previous: prior?.previous ?? 0 });
+    }
+    const rows = [...rowsByName.values()].sort((a, b) => b.competence - a.competence || a.name.localeCompare(b.name));
     const sum = rows.reduce((total, row) => total + row.competence, 0);
     return (
       <ReportTable title={title} rows={rows} fileName={`despesas-${dimension === 'category' ? 'categorias' : 'centros'}-${from}-${to}`} empty="Sem despesas no período."
+        note="Participação: parte do total atual. Variação: comparação com o mesmo período do ano anterior; sem percentual quando a base anterior é zero."
         columns={[
           { label: 'Nome', value: (row) => row.name },
           { label: 'Competência', value: (row) => row.competence, format: 'money', total: true },
           { label: 'Participação', value: (row) => ratio(row.competence, sum), format: 'pct' },
+          { label: 'Ano anterior', value: (row) => row.previous, format: 'money', total: true },
+          { label: 'Variação', value: (row) => ratio(row.competence - row.previous, row.previous), format: 'pct',
+            total: (items) => ratio(items.reduce((total, row) => total + row.competence - row.previous, 0),
+              items.reduce((total, row) => total + row.previous, 0)) },
           { label: 'Pagas no período', value: (row) => row.paid, format: 'money', total: true }
         ]} />
     );

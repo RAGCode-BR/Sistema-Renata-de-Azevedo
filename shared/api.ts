@@ -42,6 +42,7 @@ import type {
   DocumentCategory,
   Expense,
   FinanceMonth,
+  FinanceForecastRow,
   FormulationSection,
   FormulationTemplate,
   GoogleCalendar,
@@ -124,7 +125,10 @@ const DOCUMENTS_BUCKET = 'patient-documents';
 const PORTAL_BUCKET = 'portal-documents';
 
 const PATIENT_COLUMNS = 'id, name, social_name, phone, email, birth_date, cpf, address, admin_notes, guardian_name, '
-  + 'guardian_relationship, guardian_phone, guardian_email, status, created_at, source_id, campaign_id, whatsapp_opt_in, patient_professionals(professional_id)';
+  + 'guardian_relationship, guardian_phone, guardian_email, status, created_at, source_id, campaign_id, whatsapp_opt_in, '
+  + 'email_opt_in, sms_opt_in, sex, rg, occupation, marital_status, tags, additional_contacts, emergency_contacts, '
+  + 'identification_documents, address_country, address_postal_code, address_state, address_city, address_district, '
+  + 'address_street, address_number, address_complement, photo_path, patient_professionals(professional_id)';
 type PatientRow = Omit<Patient, 'professional_ids'> & { patient_professionals: { professional_id: string }[] };
 const toPatient = ({ patient_professionals, ...row }: PatientRow): Patient =>
   ({ ...row, professional_ids: patient_professionals.map((link) => link.professional_id) });
@@ -272,6 +276,21 @@ export function createApi(supabase: SupabaseClient) {
     // Cria (id nulo) ou edita o cadastro e os vínculos com profissionais numa só transação.
     savePatient: (id: string | null, { professionalIds, ...data }: PatientInput) =>
       run<string>(supabase.rpc('save_patient', { p_id: id, p_data: data, p_professional_ids: professionalIds })),
+    patientPhotoUrl: async (path: string) => {
+      const { data, error } = await supabase.storage.from(DOCUMENTS_BUCKET).createSignedUrl(path, 60);
+      if (error || !data) throw new Error('Não foi possível abrir a foto.');
+      return data.signedUrl;
+    },
+    uploadPatientPhoto: async (patientId: string, file: File) => {
+      if (!['image/jpeg', 'image/png'].includes(file.type) || file.size > 2 * 1024 * 1024)
+        throw new Error('A foto deve ser JPG ou PNG e ter até 2 MB.');
+      const path = `patients/${patientId}/photo/${crypto.randomUUID()}.${file.type === 'image/png' ? 'png' : 'jpg'}`;
+      const { error } = await supabase.storage.from(DOCUMENTS_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
+      if (error) throw new Error(`Não foi possível enviar a foto: ${error.message}`);
+      try { await run(supabase.rpc('set_patient_photo', { p_patient_id: patientId, p_path: path })); }
+      catch (failure) { await supabase.storage.from(DOCUMENTS_BUCKET).remove([path]); throw failure; }
+      return path;
+    },
     // Todas as sessões do paciente que quem está conectado pode ver (a profissional, só as suas).
     patientAppointments: async (patientId: string) => (await run<AppointmentRow[]>(supabase.from('appointments')
       .select(APPOINTMENT_COLUMNS).eq('patient_id', patientId).order('starts_at', { ascending: false }))).map(toAppointment),
@@ -456,6 +475,7 @@ export function createApi(supabase: SupabaseClient) {
     closePayout: (professionalId: string, month: string, paidAt: string) =>
       run<string>(supabase.rpc('close_payout', { p_professional_id: professionalId, p_month: month, p_paid_at: paidAt })),
     financeSummary: (year: number) => run<FinanceMonth[]>(supabase.rpc('finance_summary', { p_year: year })),
+    financeForecast: (months = 12) => run<FinanceForecastRow[]>(supabase.rpc('finance_forecast', { p_months: months })),
     expenseBreakdown: (year: number) => run<{ dimension: 'cost_center' | 'category'; name: string; amount: number }[]>(
       supabase.rpc('expense_breakdown', { p_year: year })),
     updateSettings: (input: Partial<Omit<ClinicSettings, 'portal_enabled' | 'portal_url' | 'require_mfa'>>) => run<unknown>(supabase.from('clinic_settings')
@@ -503,6 +523,8 @@ export function createApi(supabase: SupabaseClient) {
       return run<Lead[]>(since ? query.gte('last_activity_at', since) : query);
     },
     lead: async (id: string) => (await run<Lead[]>(supabase.from('leads').select('*').eq('id', id)))[0] ?? null,
+    patientLeads: (patientId: string) => run<Lead[]>(supabase.from('leads').select('*')
+      .eq('patient_id', patientId).order('converted_at', { ascending: false })),
     leadActivities: (id: string) => run<LeadActivity[]>(supabase.from('lead_activities').select('*').eq('lead_id', id).order('created_at').order('id')),
     saveLead: (id: string | null, input: LeadInput) => run<string>(supabase.rpc('save_lead', { p_id: id, p_data: input })),
     moveLead: (id: string, stageId: string, lossReasonId: string | null, note: string) =>
@@ -510,6 +532,8 @@ export function createApi(supabase: SupabaseClient) {
     addLeadActivity: (id: string, kind: string, body: string) => run<unknown>(supabase.rpc('add_lead_activity', { p_id: id, p_kind: kind, p_body: body })),
     scheduleFollowup: (id: string, date: string, time: string | null, assigneeId: string) =>
       run<string>(supabase.rpc('schedule_lead_followup', { p_id: id, p_due_date: date, p_due_time: time, p_assignee_id: assigneeId })),
+    cancelLeadFollowup: (id: string, reason: string) =>
+      run<unknown>(supabase.rpc('cancel_lead_followup', { p_id: id, p_reason: reason })),
     convertLead: (id: string, patientId: string | null, professionalIds: string[]) =>
       run<string>(supabase.rpc('convert_lead', { p_id: id, p_patient_id: patientId, p_professional_ids: professionalIds })),
     leadDuplicates: (phone: string, email: string, exclude: string | null) =>

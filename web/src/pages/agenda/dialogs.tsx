@@ -19,7 +19,7 @@ interface AppointmentFormProps {
   professionals: Professional[];
   patients: Patient[];
   initial: { professionalId?: string; start?: Date };
-  // Compromissos no Google Agenda: só avisam, não impedem o agendamento.
+  // Compromissos pessoais sincronizados do Google ocupam o horário.
   busy: ScheduleBlock[];
   onClose: () => void;
   onSaved: (message: string) => void;
@@ -42,6 +42,9 @@ export function AppointmentForm({ professionals, patients, initial, busy, onClos
       const start = new Date(text(data, 'startsAt'));
       if (Number.isNaN(start.getTime())) throw new Error('Informe o início da sessão.');
       const end = new Date(start.getTime() + Number(text(data, 'duration')) * 60_000);
+      if (busy.some((item) => item.professional_id === professionalId
+        && new Date(item.starts_at) < end && new Date(item.ends_at) > start))
+        throw new Error('Compromisso no Google Agenda neste horário. Escolha outro horário.');
       const count = Number(text(data, 'count'));
       await api.createAppointment({
         professionalId,
@@ -96,7 +99,7 @@ export function AppointmentForm({ professionals, patients, initial, busy, onClos
       )}
       {clash && (
         <p className="notice full" role="status">
-          Atenção: a profissional tem um compromisso no Google Agenda das {time(clash.starts_at)} às {time(clash.ends_at)}. O agendamento continua permitido.
+          Horário indisponível: a profissional tem um compromisso no Google Agenda das {time(clash.starts_at)} às {time(clash.ends_at)}. Escolha outro horário.
         </p>
       )}
       {frequency && (

@@ -156,11 +156,35 @@ try {
   await toast('Lead em "Em atendimento".');
   await waitDialogText('mudou a etapa de Novo contato para Em atendimento');
   await clickText('dialog[open] button', 'Agendar retorno');
+  await typeIn('time', '14:30');
   await clickText('dialog[open] button', 'Agendar');
   await toast('Retorno agendado');
   await waitDialogText('agendou retorno');
   await clickText('dialog[open] button', 'Fechar');
-  ok('Contato registrado, etapa "Em atendimento" e retorno agendado (linha do tempo)');
+  await clickText('.tab', 'Retornos 1');
+  await waitMain(SITE_LEAD, '14:30');
+  await clickText('main button', SITE_LEAD);
+  await waitDialogText('Linha do tempo');
+  await page.select('dialog[open] select[name=kind]', 'call');
+  await page.type('dialog[open] input[name=body]', 'Retornei a ligação.');
+  await clickText('dialog[open] button', 'Registrar');
+  await waitDialogText('concluiu o retorno');
+  await clickText('dialog[open] button', 'Fechar');
+  await waitMain('Nenhum retorno pendente.');
+  ok('Retorno com horário aparece no Comercial e é concluído ao registrar contato');
+  await clickText('.tab', 'Quadro');
+  await openCardOf(SITE_LEAD);
+  await clickText('dialog[open] button', 'Agendar retorno');
+  await clickText('dialog[open] button', 'Agendar');
+  await waitDialogText('agendou retorno');
+  await clickText('dialog[open] button', 'Cancelar retorno');
+  await typeIn('reason', 'Paciente pediu outro canal.');
+  await clickText('dialog[open] button', 'Cancelar retorno');
+  await waitDialogText('cancelou o retorno');
+  await clickText('dialog[open] button', 'Fechar');
+  await clickText('.tab', 'Retornos 0');
+  await waitMain('Nenhum retorno pendente.');
+  ok('Retorno cancelado sai da lista e permanece na linha do tempo');
 
   await clickText('button', 'Novo lead');
   await typeIn('name', MANUAL_LEAD);
@@ -181,6 +205,7 @@ try {
   await clickText('dialog[open] button', 'Fechar');
   ok('Lead manual: aviso de duplicidade pelo telefone; marcado como perdido com motivo');
 
+  await clickText('.tab', 'Quadro');
   await openCardOf(SITE_LEAD);
   await clickText('dialog[open] button', 'Converter em paciente');
   await page.evaluate((p) => [...document.querySelectorAll('dialog[open] label.check')].find((l) => l.textContent.trim() === p).querySelector('input').click(), PROF);
@@ -193,6 +218,10 @@ try {
   if (origin !== 'Instagram') throw new Error('Origem do paciente: ' + origin);
   await clickText('dialog[open] button', 'Cancelar');
   ok('Conversão: cadastro do paciente criado com a profissional e a origem Instagram');
+  await clickText('.patient-tabs .tab', 'Histórico');
+  await waitMain('Enviei os valores pelo WhatsApp.', 'Retornei a ligação.', 'Paciente cadastrado');
+  if (!(await mainText()).includes('Novo contato')) throw new Error('Histórico comercial não chegou à ficha do paciente');
+  ok('Histórico do paciente reúne contato comercial, conversão e cadastro');
 
   await go('Painel comercial');
   await waitMain('leads', 'taxa de conversão');

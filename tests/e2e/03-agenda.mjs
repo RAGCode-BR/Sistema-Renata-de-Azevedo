@@ -178,6 +178,30 @@ try {
   ok('Sessão sobre o bloqueio é recusada com mensagem clara');
   await page.screenshot({ path: `${process.env.SHOT_DIR}/agenda-semana.png`, fullPage: true });
 
+  await clickText('.tab', 'Disponibilidade');
+  await page.waitForSelector('.availability-list');
+  const setAvailabilityTime = async (value) => page.$eval('input[aria-label="Horário para consulta"]', (el, v) => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    setter.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));
+  }, value);
+  await setAvailabilityTime('14:00');
+  await page.waitForFunction(() => [...document.querySelectorAll('.availability-person')].find((item) => item.querySelector('strong')?.textContent === 'Teste Agenda')?.innerText.includes('Sessão marcada'));
+  await setAvailabilityTime('11:00');
+  await page.waitForFunction(() => [...document.querySelectorAll('.availability-person')].find((item) => item.querySelector('strong')?.textContent === 'Teste Agenda')?.innerText.includes('Sem conflito'));
+  await page.evaluate(() => [...document.querySelectorAll('.availability-person')].find((item) => item.querySelector('strong')?.textContent === 'Teste Agenda')?.querySelector('button')?.click());
+  await page.waitForSelector('dialog[open] select[name=professionalId]');
+  const selectedAvailabilityProfessional = await page.$eval('dialog[open] select[name=professionalId]', (el) => el.options[el.selectedIndex].textContent);
+  if (selectedAvailabilityProfessional !== 'Teste Agenda') throw new Error('Disponibilidade não selecionou a profissional');
+  await clickText('dialog[open] button', 'Cancelar');
+  await page.$eval('input[aria-label="Ir para data"]', (el, v) => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    setter.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));
+  }, `${at(monday, 1, 8).getFullYear()}-${String(at(monday, 1, 8).getMonth() + 1).padStart(2, '0')}-${String(at(monday, 1, 8).getDate()).padStart(2, '0')}`);
+  await setAvailabilityTime('08:30');
+  await page.waitForFunction(() => [...document.querySelectorAll('.availability-person')].find((item) => item.querySelector('strong')?.textContent === 'Teste Agenda')?.innerText.includes('Horário bloqueado'));
+  await page.screenshot({ path: `${process.env.SHOT_DIR}/agenda-disponibilidade.png` });
+  ok('Disponibilidade diferencia sessão, horário sem conflito e bloqueio; abre agendamento na profissional escolhida');
+
   await clickText('.tab', 'Mês');
   await page.waitForSelector('.month');
   await page.evaluate((day) => [...document.querySelectorAll('.month-day:not(.outside)')].find((b) => b.querySelector('b').textContent === String(day)).click(), monday.getDate());
@@ -225,6 +249,11 @@ try {
   if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) throw new Error('rolagem horizontal no celular');
   await page.screenshot({ path: `${process.env.SHOT_DIR}/agenda-celular.png`, fullPage: true });
   ok('Visão Mês no celular sem rolagem horizontal');
+  await clickText('.tab', 'Disponibilidade');
+  await page.waitForSelector('.availability-list');
+  if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) throw new Error('disponibilidade com rolagem horizontal no celular');
+  await page.screenshot({ path: `${process.env.SHOT_DIR}/agenda-disponibilidade-celular.png` });
+  ok('Disponibilidade no celular sem rolagem horizontal');
 } catch (error) {
   console.log(`✖ FALHA após o passo ${n}: ${error.message}`);
   await page.screenshot({ path: `${process.env.SHOT_DIR}/agenda-falha.png`, fullPage: true }).catch(() => {});

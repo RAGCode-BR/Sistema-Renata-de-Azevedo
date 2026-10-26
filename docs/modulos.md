@@ -27,7 +27,7 @@ A página **Início** é a primeira depois do login e mostra só dados reais, fi
 
 ## Agenda
 
-Visões de **Dia** (uma coluna por profissional), **Semana** e **Mês**, com filtros por profissional e especialidade. Clicar num horário livre abre uma sessão nova (ou um bloqueio, para a profissional); clicar numa sessão abre os detalhes, as ações e o histórico.
+Visões de **Dia** (uma coluna por profissional), **Semana**, **Mês** e **Disponibilidade**, com filtros por profissional e especialidade e acesso direto por data. Disponibilidade compara data, horário e duração com sessões, bloqueios da clínica e compromissos sincronizados do Google; mostra quem está sem conflito sem expor detalhes dos bloqueios. Ainda não há cadastro de horário de trabalho de cada profissional, portanto “sem conflito” precisa ser confirmado com a escala. Clicar num horário livre abre uma sessão nova (ou um bloqueio, para a profissional); clicar numa sessão abre os detalhes, as ações e o histórico.
 
 - **Situações:** Agendada, Aguardando confirmação, Confirmada, Realizada, Paciente faltou, Cancelada pelo paciente, Cancelada pela clínica e Remarcada. Cancelamento, falta e remarcação são coisas diferentes.
 - **Ações** (funções do banco; a interface não altera `appointments` diretamente):
@@ -66,6 +66,7 @@ Visões de **Dia** (uma coluna por profissional), **Semana** e **Mês**, com fil
 
 - **Evolução:**
   - Rascunho editável: cada alteração guarda a versão anterior em `clinical_note_revisions`.
+  - Editor com negrito, itálico, listas e prévia; o mesmo formato aparece no histórico e na exportação. O conteúdo é guardado como texto, sem HTML executável.
   - Finalizada: imutável, travada por gatilho no banco.
   - Correção: só por **retificação**, que é um novo registro finalizado, ligado ao original e com motivo. O original continua visível.
 - **Anotações pessoais:** da profissional, editáveis, fora do prontuário formal e da exportação.
@@ -80,7 +81,7 @@ Visões de **Dia** (uma coluna por profissional), **Semana** e **Mês**, com fil
   - Não são excluídos: seguem a guarda do prontuário.
 - **Exportação** (`#/prontuario-impressao?paciente=…`): evoluções finalizadas, retificações e conceitualização, para imprimir ou salvar em PDF pelo navegador. Fica registrada.
 - **Controle de preenchimento** (página **Controle de prontuários**, para quem vê a agenda geral):
-  - Cada sessão realizada aparece como Pendente, Rascunho, Finalizado ou Finalizado fora do prazo, e "atrasada" quando o prazo venceu sem finalização.
+  - Cada sessão realizada aparece como Pendente, Incompleto (rascunho), Finalizado ou Finalizado fora do prazo, e "atrasada" quando o prazo venceu sem finalização.
   - O prazo fica em **Configurações** (padrão de 48 h após a sessão).
 - **Assinatura:** a finalização registra quem finalizou e quando. Assinatura digital com certificado (ICP-Brasil), se exigida, é uma etapa posterior.
 
@@ -116,6 +117,8 @@ Cobranças, pagamentos, alocações e repasses não têm acesso direto às tabel
   - Cada indicador traz a comparação com o mês anterior e com o mesmo mês do ano passado.
   - O gráfico de entradas e saídas mostra os 12 meses e pode ser visto também em tabela.
 - **Despesas:** cada uma tem categoria e centro de custo, e as duas listas podem ser editadas em **Despesas**. Os centros de custo iniciais são Administrativo, Atendimento clínico, Comercial e marketing.
+- **Previsão:** em **Relatório financeiro → Previsão**, os saldos das cobranças em aberto e as despesas não pagas aparecem por mês de vencimento nos próximos 12 meses. Valores vencidos ficam separados. A previsão usa somente lançamentos existentes; sessões ainda não cobradas e repasses futuros não entram.
+- **Comparação das despesas:** o relatório por categoria e centro de custo mostra a participação no período escolhido e a variação percentual em relação ao mesmo período do ano anterior, inclusive categorias que deixaram de ter lançamentos.
 - **Fica para depois:** recibos e nota fiscal, importação do Yampa/Clinical Experts, conciliação bancária e PIX automático.
 
 ## Tarefas dos pacientes
@@ -138,7 +141,9 @@ Substitui o Converte no controle de contatos, funil e campanhas. É usado por Pr
   - "Convertido" só acontece pela **conversão em paciente**: ela cria o cadastro (ou liga a um paciente com o mesmo contato), com a profissional, a origem e a campanha.
 - **Contatos e retorno:**
   - Cada ligação, mensagem, e-mail ou conversa é registrada no lead.
-  - "Agendar retorno" cria a tarefa "Retornar contato: …" no módulo de Tarefas, com link para o lead.
+  - **Retornos** no Funil mostra os contatos pendentes em ordem de data e horário, com responsável e atraso destacado.
+  - O retorno pode ser reagendado ou cancelado; ao registrar uma ligação, mensagem, e-mail ou reunião, ele é concluído automaticamente. O histórico guarda agendamento, conclusão e cancelamento.
+  - Após a conversão, a aba **Histórico** da ficha do paciente reúne os contatos comerciais, cadastro, documentos, sessões e pagamentos. Cada tipo de dado segue sua permissão; o conteúdo clínico continua no prontuário.
 - **Campanhas:**
   - Nome, canal, período, investimento (lançado à mão) e código para o link do anúncio (`utm_campaign`).
   - Resultados desde o início da campanha: leads, convertidos, compareceram à sessão, custo por lead, custo por paciente e faturamento.
@@ -217,8 +222,8 @@ O módulo **Relatórios** reúne o que já estava espalhado e acrescenta compara
   - Remarcar atualiza o evento; cancelar ou excluir remove o evento do Google.
   - O título do evento segue **Configurações → Google Agenda**. O padrão é só as iniciais do paciente (LGPD); nada clínico vai para o Google.
 - **Ocupado:** os compromissos pessoais dos calendários marcados aparecem na agenda da clínica como "Compromisso no Google Agenda", sem título.
-  - Ao marcar uma sessão em cima de um deles, o sistema avisa, mas deixa agendar.
-  - Mudanças feitas no Google **não** alteram a agenda da clínica: ela é a fonte.
+  - Novas sessões e remarcações sobre um compromisso sincronizado são recusadas. Sessões marcadas antes de um compromisso pessoal aparecer no Google podem continuar sendo confirmadas ou finalizadas.
+  - Mudanças feitas no Google atualizam os horários ocupados na próxima sincronização; não alteram as sessões já marcadas na clínica.
 - **Sincronização:** fila `calendar_sync_queue`, alimentada por gatilhos nas sessões.
   - O `pg_cron` chama a função `google-sync` a cada 5 minutos, via `pg_net`, com o segredo guardado no Vault. Isso só acontece depois que alguma conta é conectada.
   - Também há o botão "Sincronizar agora". Falhas são tentadas até 5 vezes e aparecem na página.

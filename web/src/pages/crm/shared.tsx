@@ -122,7 +122,9 @@ export function LeadForm({ user, lead, lists, onClose, onSaved }: {
   );
 }
 
-type Dialog = 'edit' | 'lost' | 'convert' | 'followup' | null;
+type Dialog = 'edit' | 'lost' | 'convert' | 'followup' | 'cancel_followup' | null;
+export const followupLabel = (lead: Lead) => lead.next_contact_at
+  ? `${dayLabel(lead.next_contact_at)}${lead.next_contact_time ? ` às ${lead.next_contact_time.slice(0, 5)}` : ''}` : '—';
 
 // Detalhe do lead: dados, etapa, contatos (linha do tempo), retorno, perda e conversão em paciente.
 export function LeadDetail({ user, leadId, lists, onClose, onChanged }: {
@@ -181,16 +183,27 @@ export function LeadDetail({ user, leadId, lists, onClose, onChanged }: {
   if (dialog === 'followup' && lead) {
     return (
       <FormModal title="Agendar retorno" submitLabel="Agendar" onClose={() => setDialog(null)} onSubmit={async (form) => {
-        await api.scheduleFollowup(leadId, text(form, 'date'), text(form, 'time') || null, user.id);
+        await api.scheduleFollowup(leadId, text(form, 'date'), text(form, 'time') || null, text(form, 'assignee'));
         notify('Retorno agendado no Comercial.');
         refresh();
       }}>
-        <Field label="Data"><input className="input" name="date" type="date" required min={todayKey()} defaultValue={todayKey()} /></Field>
-        <Field label="Horário (opcional)"><input className="input" name="time" type="time" /></Field>
-        <p className="muted small full">O retorno de {lead.name} aparecerá na ficha do contato.</p>
+        <Field label="Data"><input className="input" name="date" type="date" required min={todayKey()} defaultValue={lead.next_contact_at ?? todayKey()} /></Field>
+        <Field label="Horário (opcional)"><input className="input" name="time" type="time" defaultValue={lead.next_contact_time?.slice(0, 5) ?? ''} /></Field>
+        <Field label="Responsável pelo retorno" full><Select className="input" name="assignee" required defaultValue={lead.next_contact_owner_id ?? lead.owner_id ?? user.id}>
+          {lists.owners.map((item) => <option key={item.id} value={item.id}>{item.name}{item.id === user.id ? ' (eu)' : ''}</option>)}
+        </Select></Field>
+        <p className="muted small full">O retorno de {lead.name} aparecerá no Comercial até que um novo contato seja registrado ou o retorno seja cancelado.</p>
       </FormModal>
     );
   }
+  if (dialog === 'cancel_followup' && lead) return <FormModal title="Cancelar retorno" submitLabel="Cancelar retorno"
+    onClose={() => setDialog(null)} onSubmit={async (form) => {
+      await api.cancelLeadFollowup(leadId, text(form, 'reason'));
+      notify('Retorno cancelado.'); refresh();
+    }}>
+    <p className="modal-text full">O cancelamento ficará no histórico do contato.</p>
+    <Field label="Motivo (opcional)" full><input className="input" name="reason" maxLength={4000} /></Field>
+  </FormModal>;
 
   return (
     <Modal title={lead?.name ?? 'Lead'} onClose={onClose}>
@@ -215,7 +228,8 @@ export function LeadDetail({ user, leadId, lists, onClose, onChanged }: {
             {lead.preferred_professional_id && <><dt>Profissional</dt><dd>{nameOf(lists.professionals, lead.preferred_professional_id)}</dd></>}
             <dt>Responsável</dt><dd>{nameOf(lists.owners, lead.owner_id)}</dd>
             <dt>Entrou em</dt><dd>{dateTime(lead.created_at)}{lead.consent_at && ' · autorizou contato'}</dd>
-            {lead.next_contact_at && <><dt>Retorno</dt><dd>{dayLabel(lead.next_contact_at)}</dd></>}
+            {lead.next_contact_at && <><dt>Retorno</dt><dd><strong className={lead.next_contact_at < todayKey() ? 'text-danger' : undefined}>{followupLabel(lead)}</strong>
+              {lead.next_contact_owner_id && ` · ${nameOf(lists.owners, lead.next_contact_owner_id)}`}</dd></>}
             {lead.utm_campaign && <><dt>Link</dt><dd>{[lead.utm_source, lead.utm_medium, lead.utm_campaign].filter(Boolean).join(' / ')}</dd></>}
             {lead.patient_id && <><dt>Paciente</dt><dd><a href={`#/pacientes?id=${lead.patient_id}`}>Abrir cadastro</a> · <a href="#/agenda">Agendar sessão</a></dd></>}
           </dl>
@@ -224,14 +238,15 @@ export function LeadDetail({ user, leadId, lists, onClose, onChanged }: {
           {manage && (
             <div className="task-actions">
               {!lead.patient_id && <button type="button" className="button" onClick={() => setDialog('convert')}>Converter em paciente</button>}
-              {!lead.patient_id && <button type="button" className="button light" onClick={() => setDialog('followup')}>Agendar retorno</button>}
+              {!lead.patient_id && stage.kind === 'open' && <button type="button" className="button light" onClick={() => setDialog('followup')}>{lead.next_contact_at ? 'Reagendar retorno' : 'Agendar retorno'}</button>}
+              {lead.next_contact_at && <button type="button" className="link-btn danger" onClick={() => setDialog('cancel_followup')}>Cancelar retorno</button>}
               <button type="button" className="link-btn" onClick={() => setDialog('edit')}>Editar</button>
               {!lead.patient_id && stage.kind !== 'lost' && <button type="button" className="link-btn danger" onClick={() => setDialog('lost')}>Marcar como perdido</button>}
             </div>
           )}
 
           {manage && (
-            <form className="lead-contact" onSubmit={contact.onSubmit}>
+            <form key={activities.length} className="lead-contact" onSubmit={contact.onSubmit}>
               <Select className="input compact" name="kind" aria-label="Tipo de contato" defaultValue="message">
                 {contactKinds.map((kind) => <option key={kind} value={kind}>{leadActivityLabel[kind].charAt(0).toUpperCase() + leadActivityLabel[kind].slice(1)}</option>)}
               </Select>
@@ -257,10 +272,12 @@ export function LeadDetail({ user, leadId, lists, onClose, onChanged }: {
   );
 }
 
-function activityText(kind: string, from: string | null, to: string | null): string {
+export function activityText(kind: string, from: string | null, to: string | null): string {
   if (kind === 'stage') return `mudou a etapa de ${from ?? '—'} para ${to ?? '—'}`;
   if (kind === 'assigned') return `passou de ${from ?? 'ninguém'} para ${to ?? 'ninguém'}`;
-  if (kind === 'followup') return `agendou retorno para ${dayLabel(to)}`;
+  if (kind === 'followup') return `agendou retorno para ${dayLabel(to?.slice(0, 10) ?? null)}${to && to.length > 10 ? ` às ${to.slice(11, 16)}` : ''}`;
+  if (kind === 'followup_done') return `concluiu o retorno de ${dayLabel(from?.slice(0, 10) ?? null)}`;
+  if (kind === 'followup_cancelled') return `cancelou o retorno de ${dayLabel(from?.slice(0, 10) ?? null)}`;
   if (['call', 'message', 'email', 'meeting', 'note'].includes(kind)) return `registrou ${leadActivityLabel[kind]}`;
   return leadActivityLabel[kind] ?? kind;
 }

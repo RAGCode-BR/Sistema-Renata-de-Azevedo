@@ -7,6 +7,7 @@ import { Panel } from '../../components/Page.tsx';
 import { useToast } from '../../components/Toast.tsx';
 import { dateTime, longDay, relativeDay, time } from '../../format.ts';
 import { errorMessage, text, useLoad } from '../../hooks.ts';
+import { ClinicalEditor, ClinicalText } from './ClinicalText.tsx';
 
 interface EvolutionsProps {
   patientId: string;
@@ -77,10 +78,10 @@ export function Evolutions({ patientId, notes, pending, appointmentId, aiNotes, 
               ))}
             </Select>
           </label>
-          <label className="field">
+          <div className="field">
             <span>Evolução</span>
-            <textarea className="input" name="body" rows={8} value={draft.body} onChange={(event) => setDraft({ ...draft, body: event.target.value })} />
-          </label>
+            <ClinicalEditor value={draft.body} onChange={(body) => setDraft((current) => ({ ...current, body }))} />
+          </div>
           {error && <p className="erro" role="alert">{error}</p>}
           <div className="record-actions">
             <button type="button" className="button light" disabled={busy} onClick={async () => {
@@ -165,7 +166,7 @@ function NoteEntry({ note, notes, fromAi, onEdit, onDiscard, onRectify, onVersio
       {note.rectifies_id && (
         <p className="muted small">Retifica o registro {original?.finalized_at ? `finalizado em ${dateTime(original.finalized_at)}` : 'anterior'}. Motivo: {note.rectification_reason}</p>
       )}
-      <p>{note.body}</p>
+      <ClinicalText body={note.body} />
       {note.rectified_by && <p className="muted small">Este registro foi retificado; a correção aparece no histórico.</p>}
       <div className="entry-actions">
         {note.status === 'draft' ? (
@@ -190,7 +191,7 @@ function Versions({ note, onClose }: { note: ClinicalNote; onClose: () => void }
         {data?.map((version, index) => (
           <article key={index} className="entry">
             <div className="entry-head"><strong>Salva em {dateTime(version.saved_at)}</strong></div>
-            <p>{version.body}</p>
+            <ClinicalText body={version.body} />
           </article>
         ))}
       </div>

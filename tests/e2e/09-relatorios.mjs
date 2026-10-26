@@ -134,6 +134,19 @@ try {
   await page.waitForFunction(() => [...document.querySelectorAll('main .panel tbody tr')].length === 1, { timeout: 15000 });
   const dre = await panelRow('DRE', lastLabel);
   if (!dre.includes('R$ 500,00') || !dre.includes('-R$ 120,00') || !dre.includes('R$ 250,00')) throw new Error('DRE: ' + dre);
+  await clickText('.tab', 'Previsão');
+  await waitMain('Previsão por vencimento');
+  const forecast = await panelRow('Previsão por vencimento', 'Vencidos até hoje');
+  const forecastMonths = await page.$$eval('main .panel tbody tr', (rows) => rows.length);
+  if (!forecast || forecastMonths !== 13) throw new Error(`Previsão: ${forecast} / ${forecastMonths} linhas`);
+  ok('Previsão financeira: vencidos separados de 12 meses futuros');
+  await clickText('.tab', 'Despesas');
+  await waitMain('Por categoria');
+  const systems = await panelRow('Por categoria', 'Sistemas');
+  if (!systems || !systems.includes('R$ 120,00') || !systems.includes('R$ 60,00') || !systems.includes('100%')) {
+    throw new Error('Comparação de despesas: ' + systems);
+  }
+  ok('Despesas: participação e variação de 100% contra o mesmo mês do ano anterior');
   await clickText('.tab', 'Por profissional');
   await waitMain('Faturado e recebido');
   const revenue = await panelRow('Faturado e recebido', PROF);

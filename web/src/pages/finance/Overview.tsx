@@ -48,7 +48,9 @@ export function FinanceOverviewPage() {
 
   return (
     <>
-      <Heading title="Visão geral" lead={`${monthLabel(month.month)}. Faturado pela data da sessão; recebido e pago pela data do caixa.`}>{tools}</Heading>
+      <Heading title="Visão geral" lead={`${monthLabel(month.month)}. Faturado pela data da sessão; recebido e pago pela data do caixa.`}>
+        {tools}<a className="button light" href="#/relatorios-financeiro">Relatórios e previsão</a>
+      </Heading>
 
       <section className="numbers finance-numbers" aria-label={`Indicadores de ${monthLabel(month.month)}`}>
         <Kpi label="faturado" value={month.billed} previous={previous.billed} lastYear={sameLastYear.billed} />

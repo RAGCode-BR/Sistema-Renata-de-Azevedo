@@ -164,8 +164,15 @@ try {
   ok('Profissional: pendência "fora do prazo" no Início abre o prontuário já na sessão');
 
   await page.type('textarea[name=body]', 'Primeira versão da evolução.');
+  await page.$eval('textarea[name=body]', (el) => el.setSelectionRange(0, 'Primeira'.length));
+  await page.click('button[aria-label="Negrito"]');
+  await clickText('button', 'Visualizar formatação');
+  await page.waitForFunction(() => document.querySelector('.clinical-preview strong')?.textContent === 'Primeira', { timeout: 5000 });
+  await clickText('button', 'Voltar ao texto');
   await clickText('button', 'Salvar rascunho');
   await toast('Rascunho salvo.');
+  await page.waitForFunction(() => [...document.querySelectorAll('.entry .clinical-text strong')].some((el) => el.textContent === 'Primeira'), { timeout: 5000 });
+  ok('Editor: negrito e prévia aparecem no rascunho salvo');
   await page.$eval('textarea[name=body]', (el) => {
     const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
     setter.call(el, 'Evolução revisada da sessão.'); el.dispatchEvent(new Event('input', { bubbles: true }));

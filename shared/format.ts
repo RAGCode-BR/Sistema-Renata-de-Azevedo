@@ -159,7 +159,8 @@ export const frequencyTaskLabel: Record<string, string> = {
 export const leadActivityLabel: Record<string, string> = {
   created: 'cadastrou o lead', edited: 'editou os dados', assigned: 'mudou o responsável', stage: 'mudou a etapa',
   converted: 'converteu em paciente', call: 'ligação', message: 'mensagem', email: 'e-mail', meeting: 'conversa presencial',
-  note: 'anotação', followup: 'agendou retorno', site: 'formulário do site'
+  note: 'anotação', followup: 'agendou retorno', followup_done: 'concluiu retorno',
+  followup_cancelled: 'cancelou retorno', site: 'formulário do site'
 };
 export const contactKinds = ['call', 'message', 'email', 'meeting', 'note'] as const;
 // Serviços e locais do site (renatadeazevedo.com.br); a lista aceita outros valores.
