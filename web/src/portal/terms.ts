@@ -5,8 +5,8 @@ export const TERMS: { title: string; paragraphs: string[] }[] = [
   {
     title: 'O que é o portal',
     paragraphs: [
-      'O portal do paciente da clínica Renata de Azevedo mostra suas sessões, cobranças, pagamentos e os documentos que a clínica compartilhar com você. O prontuário e as anotações das profissionais não aparecem no portal.',
-      'Pelo portal você pode confirmar sessões, pedir remarcação ou cancelamento e avisar que fez um pagamento. Esses pedidos são analisados pela equipe, que entra em contato com você. Remarcações e cancelamentos seguem a política da clínica, inclusive quanto a cobranças por cancelamento com pouca antecedência.'
+      'O portal do paciente da clínica Renata de Azevedo mostra suas sessões, atividades propostas pela profissional, cobranças, pagamentos e os documentos que a clínica compartilhar com você. O prontuário e as anotações das profissionais não aparecem no portal.',
+      'Pelo portal você pode responder e concluir atividades, confirmar sessões, pedir remarcação ou cancelamento e avisar que fez um pagamento. As respostas das atividades são vistas pela profissional responsável. Os pedidos administrativos são analisados pela equipe, que entra em contato com você. Remarcações e cancelamentos seguem a política da clínica, inclusive quanto a cobranças por cancelamento com pouca antecedência.'
     ]
   },
   {
@@ -19,7 +19,7 @@ export const TERMS: { title: string; paragraphs: string[] }[] = [
   {
     title: 'Seus dados (LGPD)',
     paragraphs: [
-      'Os dados exibidos no portal são os que a clínica já trata para prestar o atendimento e fazer a cobrança (Lei nº 13.709/2018). O portal registra seus acessos, confirmações, pedidos e os documentos que você baixa, para segurança e para o histórico do atendimento.',
+      'Os dados exibidos no portal são os que a clínica trata para prestar o atendimento e fazer a cobrança (Lei nº 13.709/2018). O portal registra seus acessos, confirmações, pedidos, atividades e respostas e os documentos que você baixa, para segurança e para o histórico do atendimento.',
       'Os dados ficam em servidores contratados pela clínica, com acesso restrito. Você pode pedir informações, correção ou cópia dos seus dados diretamente à clínica.'
     ]
   },

@@ -1,3 +1,4 @@
+import { Select } from '../components/Select.tsx';
 import { useState } from 'react';
 import type { SessionUser } from '../../../shared/types.ts';
 import { api } from '../api.ts';
@@ -39,14 +40,14 @@ export function ClinicalNotesPage({ user, patientId: initialPatient, appointment
           {error ? <p className="erro" role="alert">{error}</p> : (
             <label className="field">
               <span>Selecionar paciente</span>
-              <select className="input" value={patientId} onChange={(event) => setPatientId(event.target.value)}>
+              <Select className="input" value={patientId} onChange={(event) => setPatientId(event.target.value)}>
                 <option value="">{patients ? 'Escolha' : 'Carregando…'}</option>
                 {(patients ?? []).map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.name}{item.status !== 'active' ? ` (${patientStatusLabel[item.status].toLowerCase()})` : ''}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           )}
         </div>

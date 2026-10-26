@@ -884,8 +884,8 @@ BEGIN
   PERFORM public.add_lead_activity(lead, 'call', 'Primeiro contato');
   IF (SELECT first_contact_at FROM public.leads WHERE id = lead) IS NULL THEN RAISE EXCEPTION 'FALHA: primeiro contato não registrado'; END IF;
   task := public.schedule_lead_followup(lead, private.local_today() + 1, NULL, auth.uid());
-  IF (SELECT lead_name FROM public.task_list('mine', true, task)) <> 'Teste Lead Casal' THEN
-    RAISE EXCEPTION 'FALHA: tarefa de retorno deveria estar ligada ao lead';
+  IF task <> lead OR (SELECT next_contact_at FROM public.leads WHERE id = lead) <> private.local_today() + 1 THEN
+    RAISE EXCEPTION 'FALHA: retorno deveria ficar registrado no lead';
   END IF;
   patient := public.convert_lead(lead, NULL, ARRAY['00000000-0000-4000-8000-00000000000a']::uuid[]);
   IF (SELECT stage_id FROM public.leads WHERE id = lead) <> won
@@ -1362,7 +1362,7 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- Pedido de remarcação: tarefa para o responsável padrão.
+-- Pedido de remarcação: aviso com atalho para a agenda.
 DO $$ BEGIN
   UPDATE public.appointments SET status = 'scheduled' WHERE id = '00000000-0000-4000-8000-000000000402';
   INSERT INTO public.whatsapp_messages (direction, phone, kind, template, body, patient_id, appointment_id, status, wamid)
@@ -1376,8 +1376,10 @@ DO $$ BEGIN
 END $$;
 RESET ROLE;
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.tasks WHERE assignee_id = '00000000-0000-4000-8000-0000000000f2' AND title LIKE 'Remarcar sessão de Teste%') THEN
-    RAISE EXCEPTION 'FALHA: pedido de remarcação deveria virar tarefa do responsável padrão';
+  IF NOT EXISTS (SELECT 1 FROM public.notifications WHERE kind = 'message_new'
+      AND title LIKE 'Pedido de remarcação pelo WhatsApp:%' AND link LIKE '#/agenda?data=%'
+      AND user_id = '00000000-0000-4000-8000-0000000000f2') THEN
+    RAISE EXCEPTION 'FALHA: pedido de remarcação deveria avisar a agenda';
   END IF;
 END $$;
 
@@ -1839,14 +1841,14 @@ END $$;
 RESET ROLE;
 
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.tasks t JOIN public.portal_requests q ON q.task_id = t.id
-      WHERE q.kind = 'reschedule' AND t.title = 'Remarcar sessão de Teste (portal)' AND t.description LIKE '%Posso só à tarde.%')
-    OR NOT EXISTS (SELECT 1 FROM public.tasks t JOIN public.portal_requests q ON q.task_id = t.id WHERE q.kind = 'paid')
-    OR NOT EXISTS (SELECT 1 FROM public.notifications WHERE kind = 'task_assigned' AND title LIKE 'Nova tarefa: Remarcar sessão de Teste%'
+  IF NOT EXISTS (SELECT 1 FROM public.portal_requests q WHERE q.kind = 'reschedule'
+      AND q.message = 'Posso só à tarde.' AND q.task_id IS NULL)
+    OR NOT EXISTS (SELECT 1 FROM public.portal_requests q WHERE q.kind = 'paid' AND q.task_id IS NULL)
+    OR NOT EXISTS (SELECT 1 FROM public.notifications WHERE kind = 'portal' AND title LIKE 'Remarcar sessão de Teste%'
       AND user_id = '00000000-0000-4000-8000-0000000000f2')
-    OR NOT EXISTS (SELECT 1 FROM public.notifications WHERE kind = 'task_assigned' AND title LIKE 'Nova tarefa: Conferir pagamento%'
+    OR NOT EXISTS (SELECT 1 FROM public.notifications WHERE kind = 'portal' AND title LIKE 'Conferir pagamento%'
       AND user_id = '00000000-0000-4000-8000-0000000000f3') THEN
-    RAISE EXCEPTION 'FALHA: pedidos do portal viram tarefa e aviso para a recepção e o financeiro';
+    RAISE EXCEPTION 'FALHA: pedidos do portal devem gerar aviso sem pendência interna';
   END IF;
   IF (SELECT status FROM public.appointments WHERE id = '00000000-0000-4000-8000-0000000013a3') <> 'confirmed'
     OR NOT EXISTS (SELECT 1 FROM public.appointment_events WHERE appointment_id = '00000000-0000-4000-8000-0000000013a3'

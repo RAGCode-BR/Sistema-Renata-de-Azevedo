@@ -23,9 +23,8 @@ export async function registerForPush(): Promise<string | null> {
   return token;
 }
 
-// Link do sistema web (#/tarefas?tarefa=...) para a tela do app.
+// Avisos antigos de pendências ficam na lista de avisos.
 export function routeForLink(link: string | null | undefined): string {
-  const task = link?.match(/tarefa=([0-9a-f-]{36})/)?.[1];
-  if (task) return `/tarefa/${task}`;
+  if (link === '#/tarefas') return '/(tabs)/tarefas';
   return '/avisos';
 }

@@ -1,3 +1,4 @@
+import { Select } from '../../components/Select.tsx';
 import { useState } from 'react';
 import type { CaseFormulation, FormulationSection, FormulationTemplate } from '../../../../shared/types.ts';
 import { api } from '../../api.ts';
@@ -57,10 +58,10 @@ export function Formulation({ patientId, professionalId, formulation, onChanged 
       <Panel title="Conceitualização de caso" tools={
         <div className="tools">
           {list.length > 0 && (
-            <select className="input compact" aria-label="Aplicar modelo" value="" onChange={(event) => apply(event.target.value)}>
+            <Select className="input compact" aria-label="Aplicar modelo" value="" onChange={(event) => apply(event.target.value)}>
               <option value="" disabled>{working ? 'Trocar de modelo…' : 'Escolher modelo…'}</option>
               {list.map((item) => <option key={item.id} value={item.id}>{item.name}{item.professional_id ? '' : ' (clínica)'}</option>)}
-            </select>
+            </Select>
           )}
           <button type="button" className="link-btn" onClick={() => setManaging(true)}>Meus modelos</button>
         </div>

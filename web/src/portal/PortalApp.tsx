@@ -1,3 +1,4 @@
+import { Select } from '../components/Select.tsx';
 import { useEffect, useState } from 'react';
 import type { PortalMe } from '../../../shared/types.ts';
 import logo from '../../../assets/logo.png';
@@ -7,8 +8,9 @@ import { errorMessage, useHashRoute } from '../hooks.ts';
 import { PortalLogin } from './PortalLogin.tsx';
 import { PortalTerms } from './PortalTerms.tsx';
 import { Appointments, Documents, Finance, Home, Notices } from './pages.tsx';
+import { PatientActivities } from './PatientActivities.tsx';
 
-const PAGES = [['inicio', 'Início'], ['consultas', 'Sessões'], ['financeiro', 'Financeiro'], ['documentos', 'Documentos'], ['avisos', 'Avisos']] as const;
+const PAGES = [['inicio', 'Início'], ['consultas', 'Sessões'], ['atividades', 'Minhas tarefas'], ['financeiro', 'Financeiro'], ['documentos', 'Documentos'], ['avisos', 'Avisos']] as const;
 type Page = typeof PAGES[number][0];
 const PATIENT_KEY = 'portal-paciente';
 
@@ -107,13 +109,14 @@ function PortalShell({ me, onLogout }: { me: PortalMe; onLogout: () => void }) {
         {me.patients.length > 1 && (
           <label className="field portal-patient">
             <span>Paciente</span>
-            <select className="input" value={patientId} onChange={(event) => { setPatientId(event.target.value); savePatient(event.target.value); }}>
+            <Select className="input" value={patientId} onChange={(event) => { setPatientId(event.target.value); savePatient(event.target.value); }}>
               {me.patients.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
+            </Select>
           </label>
         )}
         {page === 'inicio' && <Home key={patientId} me={me} patient={patient} />}
         {page === 'consultas' && <Appointments key={patientId} patientId={patientId} />}
+        {page === 'atividades' && <PatientActivities key={patientId} patientId={patientId} />}
         {page === 'financeiro' && <Finance key={patientId} patientId={patientId} instructions={me.payment_instructions} />}
         {page === 'documentos' && <Documents key={patientId} patientId={patientId} />}
         {page === 'avisos' && <Notices />}

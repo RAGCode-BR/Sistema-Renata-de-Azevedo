@@ -1,3 +1,4 @@
+import { Select } from '../components/Select.tsx';
 import { useEffect, useMemo, useState } from 'react';
 import { can } from '../../../shared/permissions.ts';
 import { occupiesSlot } from '../../../shared/types.ts';
@@ -167,16 +168,16 @@ export function AgendaPage({ user, date, session }: { user: SessionUser; date: s
         <h2 className="agenda-period">{titleOf(view, anchor)}</h2>
         <div className="tools">
           {overview && (
-            <select className="input compact" aria-label="Profissional" value={professionalFilter} onChange={(event) => setProfessionalFilter(event.target.value)}>
+            <Select className="input compact" aria-label="Profissional" value={professionalFilter} onChange={(event) => setProfessionalFilter(event.target.value)}>
               <option value="">Todas as profissionais</option>
               {professionals.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
+            </Select>
           )}
           {overview && specialties.length > 0 && (
-            <select className="input compact" aria-label="Especialidade" value={specialtyFilter} onChange={(event) => setSpecialtyFilter(event.target.value)}>
+            <Select className="input compact" aria-label="Especialidade" value={specialtyFilter} onChange={(event) => setSpecialtyFilter(event.target.value)}>
               <option value="">Todas as especialidades</option>
               {specialties.map((item) => <option key={item} value={item}>{item}</option>)}
-            </select>
+            </Select>
           )}
           <label className="check small"><input type="checkbox" checked={showCancelled} onChange={(event) => setShowCancelled(event.target.checked)} />Mostrar canceladas e remarcadas</label>
         </div>

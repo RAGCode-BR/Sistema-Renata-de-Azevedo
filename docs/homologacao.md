@@ -43,6 +43,7 @@ Cada item: faça, confira o resultado e anote qualquer coisa estranha, confusa o
 - [ ] Prontuário: escrever e finalizar uma evolução de sessão realizada; tentar alterar a finalizada (só retificação); exportar em PDF.
 - [ ] Conceitualização de caso e documentos clínicos de um paciente fictício.
 - [ ] No celular: ver o dia, confirmar sessão, salvar rascunho de evolução.
+- [ ] Criar uma atividade para paciente fictício, acessar o portal com a conta dele, responder e concluir; conferir a resposta no sistema e no app da profissional.
 - [ ] Conferir "Meu repasse" e "Meus números".
 
 ### Proprietária

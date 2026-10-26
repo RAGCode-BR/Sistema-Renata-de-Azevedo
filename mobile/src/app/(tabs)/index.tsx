@@ -9,7 +9,7 @@ import { useAuth } from '../../lib/auth';
 import { api } from '../../lib/supabase';
 import { useLoad, useReloadOnFocus } from '../../lib/useLoad';
 
-// Início: sessões de hoje, próxima sessão e pendências (presença, evolução, tarefas, cobranças).
+// Início: sessões de hoje, próxima sessão e pendências de atendimento e cobrança.
 export default function Home() {
   const [now] = useState(() => Date.now());
   const { user } = useAuth();
@@ -21,19 +21,17 @@ export default function Home() {
       api.appointments(today, addDays(today, 7)),
       api.pendingNotes(),
       api.unrecordedAttendance(addDays(today, -60)),
-      api.tasks('mine', true),
       can(user!, 'billing.view') ? api.receivables() : Promise.resolve(null)
     ]);
   }, [user]);
   useReloadOnFocus(reload);
-  const [appointments = [], pending = [], unrecorded = [], tasks = [], receivables = null] = data ?? [];
+  const [appointments = [], pending = [], unrecorded = [], receivables = null] = data ?? [];
   const tomorrow = addDays(startOfToday(), 1);
   const scheduled = appointments.filter((item) => occupiesSlot(item.status) && (overview || item.professional_id === own));
   const today = scheduled.filter((item) => new Date(item.starts_at) < tomorrow);
   const next = scheduled.find((item) => new Date(item.ends_at).getTime() > now);
   const myPending = pending.filter((item) => !own || item.professional_id === own);
   const myUnrecorded = unrecorded.filter((item) => overview || item.professional_id === own);
-  const urgent = tasks.filter((task) => task.overdue || task.due_date === new Date().toISOString().slice(0, 10));
 
   return (
     <Screen refreshing={loading} onRefresh={reload}>
@@ -42,7 +40,6 @@ export default function Home() {
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
         <Stat value={data ? String(today.length) : '–'} label={overview ? 'sessões hoje na clínica' : 'sessões suas hoje'} />
         <Stat value={data ? String(myPending.length) : '–'} label="evoluções pendentes" />
-        <Stat value={data ? String(tasks.length) : '–'} label="tarefas em aberto" />
         {receivables && <Stat value={money(receivables.overdue_amount)} label={`vencido em ${plural(receivables.overdue_count, 'cobrança', 'cobranças')}`} tone={receivables.overdue_count ? 'danger' : undefined} />}
       </View>
       {next && (
@@ -52,7 +49,7 @@ export default function Home() {
         </Card>
       )}
       <Card title="Pendências">
-        {data && !myUnrecorded.length && !myPending.length && !urgent.length && <Muted>Nada pendente. Tudo em dia.</Muted>}
+        {data && !myUnrecorded.length && !myPending.length && !receivables?.overdue_count && <Muted>Nada pendente. Tudo em dia.</Muted>}
         {myUnrecorded.slice(0, 5).map((item) => (
           <Row key={item.id} title={`Registrar presença: ${item.patient_name}`} detail={`Sessão de ${relativeDay(item.starts_at)} às ${time(item.starts_at)}`}
             tone="warning" onPress={() => router.push(`/sessao/${item.id}`)} />
@@ -61,10 +58,6 @@ export default function Home() {
           <Row key={item.appointment_id} title={`${item.note_status === 'draft' ? 'Continuar' : 'Escrever'} evolução: ${item.patient_name}`}
             detail={`Sessão de ${relativeDay(item.starts_at)}${item.overdue ? ' · fora do prazo' : ''}`} tone={item.overdue ? 'danger' : undefined}
             onPress={() => router.push(`/evolucao/${item.appointment_id}?paciente=${item.patient_id}`)} />
-        ))}
-        {urgent.slice(0, 5).map((task) => (
-          <Row key={task.id} title={task.title} detail={task.overdue ? 'Tarefa atrasada' : 'Tarefa para hoje'} tone={task.overdue ? 'danger' : undefined}
-            onPress={() => router.push(`/tarefa/${task.id}`)} />
         ))}
         {receivables && receivables.overdue_count > 0 && (
           <Row title={`${plural(receivables.overdue_count, 'cobrança vencida', 'cobranças vencidas')}`} detail={money(receivables.overdue_amount)} tone="danger"

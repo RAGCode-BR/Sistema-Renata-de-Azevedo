@@ -135,7 +135,6 @@ const SUITES = [
   web('pacientes', '04-pacientes.mjs'),
   web('prontuario', '05-prontuario.mjs'),
   web('financeiro', '06-financeiro.mjs'),
-  web('tarefas', '07-tarefas.mjs'),
   web('comercial', '08-comercial.mjs'),
   web('relatorios', '09-relatorios.mjs', { seed: 'db/seed-relatorios.sql' }),
   { name: 'app', kind: 'app', file: 'e2e/12-app-equipe.mjs' },
@@ -179,7 +178,7 @@ try {
     process.stdout.write(`• ${suite.name}… `);
     let outcome;
     if (suite.kind === 'banco') {
-      const parts = ['permissions.sql', 'seguranca.sql', 'financeiro.sql'].map((file) => {
+      const parts = ['permissions.sql', 'seguranca.sql', 'financeiro.sql', 'atividades_pacientes.sql'].map((file) => {
         try { return rows(sql(path.join('supabase', 'tests', file)))[0]?.resultado ?? 'sem resultado'; } catch (error) { return 'FALHA: ' + String(error.stderr ?? error.message).match(/FALHA[^"\n]*|ERROR[^"\n]*/)?.[0]; }
       });
       outcome = { passed: parts.filter((p) => p.includes('passaram')).length, failed: parts.filter((p) => !p.includes('passaram')), detail: parts };

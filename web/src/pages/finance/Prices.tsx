@@ -1,3 +1,4 @@
+import { Select } from '../../components/Select.tsx';
 import { useState } from 'react';
 import { can } from '../../../../shared/permissions.ts';
 import type { SessionPrice, SessionType, SessionUser } from '../../../../shared/types.ts';
@@ -68,16 +69,16 @@ export function PricesPage({ user }: { user: SessionUser }) {
         }}>
           {editing === 'new' ? <>
             <Field label="Profissional">
-              <select className="input" name="professional" defaultValue="">
+              <Select className="input" name="professional" defaultValue="">
                 <option value="">Todas (padrão da clínica)</option>
                 {professionals.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select>
+              </Select>
             </Field>
             <Field label="Tipo de sessão">
-              <select className="input" name="type" defaultValue="">
+              <Select className="input" name="type" defaultValue="">
                 <option value="">Qualquer tipo</option>
                 {(Object.keys(sessionTypeLabel) as SessionType[]).map((type) => <option key={type} value={type}>{sessionTypeLabel[type]}</option>)}
-              </select>
+              </Select>
             </Field>
           </> : <p className="modal-text full">{scope(editing)} · {editing.session_type ? sessionTypeLabel[editing.session_type] : 'Qualquer tipo'}</p>}
           <Field label="Valor da sessão">

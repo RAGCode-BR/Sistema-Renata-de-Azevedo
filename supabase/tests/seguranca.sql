@@ -65,7 +65,7 @@ BEGIN
   WITH expected(x) AS (SELECT unnest(ARRAY[
       'owner:appointments.manage', 'owner:appointments.view_all', 'owner:billing.manage', 'owner:billing.view', 'owner:calendars.view_all',
       'owner:crm.manage', 'owner:crm.view', 'owner:finance.manage', 'owner:finance.view', 'owner:messages.manage',
-      'owner:patients.manage', 'owner:patients.view_all', 'owner:professionals.manage', 'owner:settings.manage', 'owner:tasks.manage',
+      'owner:patients.manage', 'owner:patients.view_all', 'owner:professionals.manage', 'owner:settings.manage', 'owner:tasks.manage', 'owner:patient_activities.manage_all',
       'owner:users.manage',
       'manager:appointments.manage', 'manager:appointments.view_all', 'manager:billing.manage', 'manager:billing.view', 'manager:calendars.view_all',
       'manager:crm.manage', 'manager:crm.view', 'manager:messages.manage', 'manager:patients.manage', 'manager:patients.view_all',

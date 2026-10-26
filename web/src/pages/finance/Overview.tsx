@@ -1,3 +1,4 @@
+import { Select } from '../../components/Select.tsx';
 import { useState } from 'react';
 import { api } from '../../api.ts';
 import { Heading, Panel, PanelState } from '../../components/Page.tsx';
@@ -19,16 +20,16 @@ export function FinanceOverviewPage() {
   const tools = (
     <>
       <label className="field-inline">Mês
-        <select className="input compact" value={monthIndex} onChange={(event) => setMonthIndex(Number(event.target.value))}>
+        <Select className="input compact" value={monthIndex} onChange={(event) => setMonthIndex(Number(event.target.value))}>
           {Array.from({ length: 12 }, (_, index) => (
             <option key={index} value={index}>{monthLabel(`${year}-${String(index + 1).padStart(2, '0')}-01`).split(' ')[0]}</option>
           ))}
-        </select>
+        </Select>
       </label>
       <label className="field-inline">Ano
-        <select className="input compact" value={year} onChange={(event) => setYear(Number(event.target.value))}>
+        <Select className="input compact" value={year} onChange={(event) => setYear(Number(event.target.value))}>
           {years.map((item) => <option key={item} value={item}>{item}</option>)}
-        </select>
+        </Select>
       </label>
     </>
   );

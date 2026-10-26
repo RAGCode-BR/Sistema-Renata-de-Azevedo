@@ -1,3 +1,4 @@
+import { Select } from '../../components/Select.tsx';
 import { useState } from 'react';
 import { can } from '../../../../shared/permissions.ts';
 import type { Appointment, DocumentCategory, Patient, PatientDocument, SessionUser } from '../../../../shared/types.ts';
@@ -213,9 +214,9 @@ function Documents({ patientId, canManage }: { patientId: string; canManage: boo
             </Field>
             <Field label="Título"><input className="input" name="title" maxLength={150} placeholder="Ex.: Contrato de atendimento" /></Field>
             <Field label="Tipo">
-              <select className="input" name="category" defaultValue="contract">
+              <Select className="input" name="category" defaultValue="contract">
                 {Object.entries(documentCategoryLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </select>
+              </Select>
             </Field>
             {uploadError && <p className="erro full" role="alert">{uploadError}</p>}
             <div className="full"><button type="submit" className="button" disabled={busy}>{busy ? 'Enviando…' : 'Enviar documento'}</button></div>

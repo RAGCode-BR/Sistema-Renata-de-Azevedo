@@ -222,11 +222,9 @@ try {
   await page.waitForFunction(() => [...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('Lead Planilha E2E') && tr.innerText.includes('Perdido')), { timeout: 10000 });
   ok('Lead importado aparece na lista como Perdido');
 
-  await go('Minhas tarefas');
-  await page.waitForFunction((n) => [...document.querySelectorAll('.task-row')].some((e) => e.innerText.includes('Retornar contato: ' + n)), { timeout: 10000 }, SITE_LEAD);
   await go('Início');
   await page.waitForFunction(() => document.querySelector('.numbers')?.innerText.includes('novos pacientes no mês'), { timeout: 10000 });
-  ok('Tarefa de retorno em Minhas tarefas; Início mostra novos pacientes e conversão');
+  ok('Início mostra novos pacientes e conversão');
 
   await page.setViewport({ width: 390, height: 844 });
   await go('Funil');

@@ -23,7 +23,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="index" options={{ title: 'Início', tabBarIcon: icon('home-outline') }} />
       <Tabs.Screen name="agenda" options={{ title: 'Agenda', tabBarIcon: icon('calendar-outline') }} />
       <Tabs.Screen name="pacientes" options={{ title: 'Pacientes', tabBarIcon: icon('people-outline') }} />
-      <Tabs.Screen name="tarefas" options={{ title: 'Tarefas', tabBarIcon: icon('checkbox-outline') }} />
+      <Tabs.Screen name="tarefas" options={{ title: 'Tarefas', href: user.roles.includes('professional') || user.roles.includes('owner') ? undefined : null, tabBarIcon: icon('checkbox-outline') }} />
       <Tabs.Screen name="mais" options={{ title: 'Mais', tabBarIcon: icon('ellipsis-horizontal-circle-outline') }} />
     </Tabs>
   );

@@ -1,3 +1,4 @@
+import { Select } from '../components/Select.tsx';
 import { useMemo, useState } from 'react';
 import type { NoteFillStatus } from '../../../shared/types.ts';
 import { api } from '../api.ts';
@@ -42,15 +43,15 @@ export function RecordControlPage() {
     <>
       <Heading title="Controle de prontuários"
         lead={`Preenchimento das sessões realizadas, sem acesso ao conteúdo.${settings ? ` Prazo: ${plural(settings.note_deadline_hours, 'hora', 'horas')} após a sessão.` : ''}`}>
-        <select className="input compact" aria-label="Período" value={period} onChange={(event) => setPeriod(event.target.value as Period)}>
+        <Select className="input compact" aria-label="Período" value={period} onChange={(event) => setPeriod(event.target.value as Period)}>
           <option value="30">Últimos 30 dias</option>
           <option value="month">Este mês</option>
           <option value="previous">Mês anterior</option>
-        </select>
-        <select className="input compact" aria-label="Profissional" value={professional} onChange={(event) => setProfessional(event.target.value)}>
+        </Select>
+        <Select className="input compact" aria-label="Profissional" value={professional} onChange={(event) => setProfessional(event.target.value)}>
           <option value="">Todas as profissionais</option>
           {professionals.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-        </select>
+        </Select>
       </Heading>
 
       <section className="numbers" aria-label="Resumo">

@@ -1,3 +1,4 @@
+import { Select } from '../../components/Select.tsx';
 import { useState } from 'react';
 import { can } from '../../../../shared/permissions.ts';
 import type { Lead, SessionUser } from '../../../../shared/types.ts';
@@ -63,16 +64,16 @@ export function FunnelPage({ user, leadId }: { user: SessionUser; leadId: string
           <button type="button" role="tab" aria-selected={view === 'lista'} className={view === 'lista' ? 'tab on' : 'tab'} onClick={() => setView('lista')}>Lista</button>
         </div>
         <label className="field-inline">Responsável
-          <select className="input compact" value={owner} onChange={(event) => setOwner(event.target.value)}>
+          <Select className="input compact" value={owner} onChange={(event) => setOwner(event.target.value)}>
             <option value="">Todos</option>
             {lists.data.owners.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
+          </Select>
         </label>
         <label className="field-inline">Origem
-          <select className="input compact" value={source} onChange={(event) => setSource(event.target.value)}>
+          <Select className="input compact" value={source} onChange={(event) => setSource(event.target.value)}>
             <option value="">Todas</option>
             {lists.data.sources.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
+          </Select>
         </label>
         <label className="search">
           <input type="search" placeholder="Buscar nome, telefone ou e-mail" aria-label="Buscar lead" value={search} onChange={(event) => setSearch(event.target.value)} />

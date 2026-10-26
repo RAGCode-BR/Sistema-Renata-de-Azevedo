@@ -1,3 +1,4 @@
+import { Select } from '../../components/Select.tsx';
 import { useState } from 'react';
 import type {
   Appointment, AppointmentStatus, Frequency, Modality, Patient, Professional, ScheduleBlock, SessionType
@@ -54,39 +55,39 @@ export function AppointmentForm({ professionals, patients, initial, busy, onClos
       onSaved(frequency ? `${plural(count, 'sessão agendada', 'sessões agendadas')}.` : 'Sessão agendada.');
     }}>
       <Field label="Profissional">
-        <select className="input" name="professionalId" value={professionalId} onChange={(event) => setProfessionalId(event.target.value)}>
+        <Select className="input" name="professionalId" value={professionalId} onChange={(event) => setProfessionalId(event.target.value)}>
           {active.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label="Paciente">
-        <select className="input" name="patientId" key={professionalId} required>
+        <Select className="input" name="patientId" key={professionalId} required>
           {options.length ? options.map((item) => <option key={item.id} value={item.id}>{item.name}</option>) :
             <option value="">Nenhum paciente vinculado</option>}
-        </select>
+        </Select>
       </Field>
       <Field label="Início">
         <input className="input" name="startsAt" type="datetime-local" required defaultValue={startText} onChange={(event) => setStartText(event.target.value)} />
       </Field>
       <Field label="Duração">
-        <select className="input" name="duration" defaultValue={duration} onChange={(event) => setDuration(Number(event.target.value))}>
+        <Select className="input" name="duration" defaultValue={duration} onChange={(event) => setDuration(Number(event.target.value))}>
           {DURATIONS.map((minutes) => <option key={minutes} value={minutes}>{minutes} minutos</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label="Tipo de atendimento">
-        <select className="input" name="sessionType" defaultValue="individual">
+        <Select className="input" name="sessionType" defaultValue="individual">
           {Object.entries(sessionTypeLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label="Modalidade">
-        <select className="input" name="modality" defaultValue="presencial">
+        <Select className="input" name="modality" defaultValue="presencial">
           {Object.entries(modalityLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label="Repetir">
-        <select className="input" name="frequency" value={frequency} onChange={(event) => setFrequency(event.target.value as Frequency | '')}>
+        <Select className="input" name="frequency" value={frequency} onChange={(event) => setFrequency(event.target.value as Frequency | '')}>
           <option value="">Não repete</option>
           {Object.entries(frequencyLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
+        </Select>
       </Field>
       {frequency && (
         <Field label="Quantidade de sessões">
@@ -188,9 +189,9 @@ export function AppointmentDetails({ appointment, canManage, ownProfessional, on
           <input className="input" name="startsAt" type="datetime-local" required defaultValue={toLocalInput(new Date(appointment.starts_at))} />
         </Field>
         <Field label="Duração">
-          <select className="input" name="duration" defaultValue={String(DURATIONS.includes(duration) ? duration : 50)}>
+          <Select className="input" name="duration" defaultValue={String(DURATIONS.includes(duration) ? duration : 50)}>
             {DURATIONS.map((minutes) => <option key={minutes} value={minutes}>{minutes} minutos</option>)}
-          </select>
+          </Select>
         </Field>
       </FormModal>
     );
@@ -240,7 +241,7 @@ export function AppointmentDetails({ appointment, canManage, ownProfessional, on
           <div className="status-actions" role="group" aria-label="Corrigir situação">
             <label className="field">
               <span>Corrigir situação</span>
-              <select className="input" disabled={busy} value="" onChange={(event) => {
+              <Select className="input" disabled={busy} value="" onChange={(event) => {
                 const status = event.target.value as AppointmentStatus;
                 if (status) void setStatus(status, 'Situação corrigida.');
               }}>
@@ -248,7 +249,7 @@ export function AppointmentDetails({ appointment, canManage, ownProfessional, on
                 {(['confirmed', 'completed', 'missed', 'cancelled_by_patient', 'cancelled_by_clinic'] as AppointmentStatus[])
                   .filter((status) => status !== appointment.status && (started || !['completed', 'missed'].includes(status)))
                   .map((status) => <option key={status} value={status}>{statusLabel[status]}</option>)}
-              </select>
+              </Select>
             </label>
           </div>
         )}
@@ -313,9 +314,9 @@ export function BlockForm({ professionals, initial, onClose, onSaved }: BlockFor
       onSaved('Horário bloqueado.');
     }}>
       <Field label="Profissional" full>
-        <select className="input" name="professionalId" defaultValue={initial.professionalId ?? active[0]?.id}>
+        <Select className="input" name="professionalId" defaultValue={initial.professionalId ?? active[0]?.id}>
           {active.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label="Início"><input className="input" name="startsAt" type="datetime-local" required defaultValue={start ? toLocalInput(start) : undefined} /></Field>
       <Field label="Fim"><input className="input" name="endsAt" type="datetime-local" required defaultValue={end ? toLocalInput(end) : undefined} /></Field>

@@ -333,6 +333,28 @@ export interface Receivables { open_amount: number; overdue_amount: number; over
 // Tarefas -------------------------------------------------------------------------------------
 // Lidas e gravadas só por funções do banco. Nome do paciente vem nulo para quem não o vê.
 
+export interface PatientActivity {
+  id: string;
+  patient_id: string;
+  patient_name: string;
+  professional_id: string;
+  professional_name: string;
+  title: string;
+  instructions: string;
+  due_date: string | null;
+  status: 'assigned' | 'completed' | 'cancelled';
+  patient_response: string | null;
+  completed_at: string | null;
+  created_at: string;
+  checklist: PatientActivityChecklistItem[];
+}
+
+export interface PatientActivityChecklistItem {
+  id: string;
+  text: string;
+  completed_at: string | null;
+}
+
 export type TaskStatus = 'todo' | 'doing' | 'done' | 'cancelled';
 export type TaskPriority = 'low' | 'normal' | 'high' | 'urgent';
 export type TaskFrequency = 'daily' | 'weekdays' | 'weekly' | 'monthly' | 'monthly_last' | 'yearly';

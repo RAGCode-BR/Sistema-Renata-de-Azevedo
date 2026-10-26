@@ -1,3 +1,4 @@
+import { Select } from '../components/Select.tsx';
 import { useState } from 'react';
 import { roleDescription, roleLabel, STAFF_ROLES } from '../../../shared/permissions.ts';
 import { MIN_PASSWORD_LENGTH } from '../../../shared/rules.ts';
@@ -137,10 +138,10 @@ function UserForm({ account, users, professionals, self, onClose, onSaved }: Use
 
       {professional && (
         <Field label="Profissional vinculada" full>
-          <select className="input" name="professionalId" required defaultValue={account?.professional_id ?? ''}>
+          <Select className="input" name="professionalId" required defaultValue={account?.professional_id ?? ''}>
             <option value="" disabled>{available.length ? 'Selecione' : 'Nenhuma profissional sem conta'}</option>
             {available.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
+          </Select>
         </Field>
       )}
 

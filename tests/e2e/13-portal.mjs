@@ -93,6 +93,13 @@ try {
   const { data: payment } = await must(admin.from('payments').insert({ patient_id: ids.patient, amount: 150, method: 'pix', received_at: today, notes: 'Nota interna E2E' }).select('id').single(), 'pagamento');
   await must(admin.from('payment_allocations').insert({ payment_id: payment.id, charge_id: charge.id, amount: 150 }), 'alocação');
   await must(admin.from('clinic_settings').update({ portal_enabled: true, portal_payment_instructions: 'PIX (CNPJ): 00.000.000/0001-00\nDepois de pagar, toque em Já paguei.' }).eq('id', true), 'ligar portal');
+  const { data: activity } = await must(admin.from('patient_activities').insert({
+    patient_id: ids.patient, professional_id: prof.id, title: 'Exercício de respiração E2E',
+    instructions: 'Pratique cinco minutos por dia.', checklist: [
+      { id: '33333333-0000-4000-8000-000000000001', text: 'Praticar a respiração', completed_at: null },
+      { id: '33333333-0000-4000-8000-000000000002', text: 'Registrar como me senti', completed_at: null }
+    ]
+  }).select('id').single(), 'atividade');
 
   // 1. Equipe: convite e documento pela aba Portal da ficha.
   const staff = await browser.newPage();
@@ -153,6 +160,25 @@ try {
   await phone.screenshot({ path: `${SHOTS}/portal-inicio.png` });
   ok('Paciente: entra só com código (código errado recusado), aceita os termos (botão só libera com o aceite) e vê a próxima sessão e R$ 150,00 em aberto');
 
+  await phone.goto(`${base}/#/portal/atividades`, { waitUntil: 'networkidle0' });
+  await waitText(phone, 'Exercício de respiração E2E');
+  if (await phone.$$eval('button', (buttons) => buttons.some((button) => button.textContent.trim() === 'Marcar como concluída' && !button.disabled))) {
+    fail('tarefa com checklist pode ser concluída antes dos itens');
+  }
+  await phone.click('.portal-activity-checklist input[type=checkbox]:not(:checked)');
+  await phone.waitForFunction(() => document.querySelectorAll('.portal-activity-checklist input:checked').length === 1);
+  await phone.click('.portal-activity-checklist input[type=checkbox]:not(:checked)');
+  await phone.waitForFunction(() => document.querySelectorAll('.portal-activity-checklist input:checked').length === 2);
+  await phone.type('textarea', 'Consegui praticar três dias.');
+  await clickText(phone, 'button', 'Marcar como concluída');
+  await waitText(phone, 'Concluída em');
+  const { data: completedActivity } = await admin.from('patient_activities').select('status, patient_response, checklist').eq('id', activity.id).single();
+  if (completedActivity.status !== 'completed' || completedActivity.patient_response !== 'Consegui praticar três dias.'
+    || completedActivity.checklist.some((entry) => !entry.completed_at)) {
+    fail('atividade concluída: ' + JSON.stringify(completedActivity));
+  }
+  ok('Atividades: paciente vê as orientações, responde e conclui; resposta fica disponível para a profissional');
+
   // 3. Sessões: link do Meet perto do horário, confirmar e pedir remarcação.
   await phone.goto(`${base}/#/portal/consultas`, { waitUntil: 'networkidle0' });
   await waitText(phone, 'Entrar na sessão on-line');
@@ -160,8 +186,8 @@ try {
   await clickText(phone, 'button', 'Confirmar presença');
   await waitText(phone, 'Sessão confirmada. Obrigado!');
   const buttons = await phone.$$eval('button', (els) => els.filter((b) => b.textContent.trim() === 'Preciso remarcar ou cancelar').length);
-  await (await phone.$$('xpath/.//button[normalize-space()="Preciso remarcar ou cancelar"]')).at(-1).click();
-  await waitText(phone, 'Remarcar ou cancelar');
+  await clickText(phone, 'button', 'Preciso remarcar ou cancelar');
+  await phone.waitForSelector('dialog[open] textarea[name=message]');
   await phone.type('dialog[open] textarea[name=message]', 'Prefiro horários à tarde.');
   await clickText(phone, 'dialog[open] button', 'Enviar pedido');
   await waitText(phone, 'pedido de alteração enviado');
@@ -207,7 +233,7 @@ try {
   await phone.goto(`${base}/#/portal/avisos`, { waitUntil: 'networkidle0' });
   await waitText(phone, 'Novo documento: Declaração de comparecimento E2E');
   const wide = [];
-  for (const path of ['inicio', 'consultas', 'financeiro', 'documentos', 'avisos']) {
+  for (const path of ['inicio', 'consultas', 'atividades', 'financeiro', 'documentos', 'avisos']) {
     await phone.goto(`${base}/#/portal/${path}`, { waitUntil: 'networkidle0' });
     await sleep(300);
     if (!(await noSideScroll(phone))) wide.push(path);
@@ -215,14 +241,15 @@ try {
   if (wide.length) fail('rolagem lateral em: ' + wide.join(', '));
   ok('Avisos mostram o documento novo; nenhuma tela do portal tem rolagem lateral a 390 px');
 
-  // 7. Equipe vê pedidos, tarefas e o download; encerra o acesso.
+  // 7. Equipe vê pedidos do portal e o download; encerra o acesso.
   await staff.reload({ waitUntil: 'networkidle0' });
   await waitText(staff, 'Pedidos feitos pelo portal');
   const panel = await text(staff);
-  const { data: tasks } = await admin.from('tasks').select('title').eq('patient_id', ids.patient);
+  const { data: requests } = await admin.from('portal_requests').select('kind, task_id').eq('patient_id', ids.patient);
   if (!panel.includes('Remarcar sessão') || !panel.includes('Avisou pagamento') || !panel.includes('aceitou os termos')
-    || !panel.includes('"Prefiro horários à tarde."') || panel.includes('Ainda não') || tasks.length !== 2) {
-    fail('visão da equipe: ' + JSON.stringify(tasks));
+    || !panel.includes('"Prefiro horários à tarde."') || panel.includes('Ainda não') || requests.length !== 2
+    || requests.some((request) => request.task_id)) {
+    fail('visão da equipe: ' + JSON.stringify(requests));
   }
   await staff.screenshot({ path: `${SHOTS}/portal-equipe.png`, fullPage: true });
   await clickText(staff, 'button', 'Encerrar acesso');
@@ -231,7 +258,7 @@ try {
   await phone.goto(`${base}/#/portal/inicio`, { waitUntil: 'networkidle0' });
   await phone.reload({ waitUntil: 'networkidle0' });
   await waitText(phone, 'Sem acesso no momento');
-  ok('Equipe: pedidos (remarcar com a mensagem, aviso de pagamento) viraram 2 tarefas, termos aceitos e download registrados; acesso encerrado e o paciente perde o portal na hora');
+  ok('Equipe: pedidos e avisos do portal, termos aceitos e download registrados; acesso encerrado e o paciente perde o portal na hora');
 
   // 8. Conta do portal não entra no sistema da equipe; Configurações mostram o painel do portal.
   const { data: users } = await admin.auth.admin.listUsers({ perPage: 1000 });

@@ -1,3 +1,4 @@
+import { Select } from '../../components/Select.tsx';
 import { useState } from 'react';
 import type { ImportRow, LeadStage, NamedItem } from '../../../../shared/types.ts';
 import { api } from '../../api.ts';
@@ -36,10 +37,10 @@ export function CrmSettingsPage() {
       <Panel title="Responsável pelos leads novos">
         <form className="panel-body form-grid" onSubmit={owner.onSubmit} key={settings.default_owner_id ?? 'nenhum'}>
           <Field label="Leads do site e da importação vão para">
-            <select className="input" name="owner" defaultValue={settings.default_owner_id ?? ''}>
+            <Select className="input" name="owner" defaultValue={settings.default_owner_id ?? ''}>
               <option value="">Ninguém (ficam sem responsável)</option>
               {owners.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
+            </Select>
           </Field>
           <p className="muted small full">Essa pessoa recebe um aviso no sino a cada lead novo do site e pode repassá-lo.</p>
           {owner.error && <p className="erro full" role="alert">{owner.error}</p>}
@@ -219,21 +220,21 @@ function ImportPanel({ sources, onImported }: { sources: NamedItem[]; onImported
           <div className="form-grid">
             {IMPORT_FIELDS.map(([key, label]) => (
               <Field key={key} label={label}>
-                <select className="input" value={mapping[key] ?? ''} onChange={(event) => {
+                <Select className="input" value={mapping[key] ?? ''} onChange={(event) => {
                   const next = { ...mapping };
                   if (event.target.value === '') delete next[key]; else next[key] = Number(event.target.value);
                   setMapping(next);
                 }}>
                   <option value="">Não importar</option>
                   {rows[0].map((cell, index) => <option key={index} value={index}>{cell || `Coluna ${index + 1}`}</option>)}
-                </select>
+                </Select>
               </Field>
             ))}
             <Field label="Origem quando a planilha não informar">
-              <select className="input" value={defaultSource} onChange={(event) => setDefaultSource(event.target.value)}>
+              <Select className="input" value={defaultSource} onChange={(event) => setDefaultSource(event.target.value)}>
                 <option value="">Sem origem</option>
                 {sources.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select>
+              </Select>
             </Field>
           </div>
           <div className="table-wrap">

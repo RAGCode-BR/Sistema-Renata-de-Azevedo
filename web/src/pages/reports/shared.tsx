@@ -1,3 +1,4 @@
+import { Select } from '../../components/Select.tsx';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Professional } from '../../../../shared/types.ts';
@@ -36,13 +37,13 @@ export function usePeriod(initial: Preset = 'mes') {
   const control = (
     <div className="report-filters no-print">
       <label className="field-inline">Período
-        <select className="input compact" value={preset} onChange={(event) => {
+        <Select className="input compact" value={preset} onChange={(event) => {
           const next = event.target.value as Preset;
           if (next === 'personalizado') setCustom(value);
           setPreset(next);
         }}>
           {PRESETS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-        </select>
+        </Select>
       </label>
       {preset === 'personalizado' && <>
         <label className="field-inline">De
@@ -62,10 +63,10 @@ export function usePeriod(initial: Preset = 'mes') {
 export function ProfessionalFilter({ professionals, value, onChange }: { professionals: Professional[]; value: string; onChange: (id: string) => void }) {
   return (
     <label className="field-inline no-print">Profissional
-      <select className="input compact" value={value} onChange={(event) => onChange(event.target.value)}>
+      <Select className="input compact" value={value} onChange={(event) => onChange(event.target.value)}>
         <option value="">Todas</option>
         {professionals.map((item) => <option key={item.id} value={item.id}>{item.name}{item.active ? '' : ' (inativa)'}</option>)}
-      </select>
+      </Select>
     </label>
   );
 }

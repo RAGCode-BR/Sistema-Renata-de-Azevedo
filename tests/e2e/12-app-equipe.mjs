@@ -86,9 +86,9 @@ try {
 
   // Proprietária: início, agenda, sessão (confirmar e presença), pacientes, cobrança.
   await login(ownerEmail, ownerPassword);
-  for (const tab of ['Início', 'Agenda', 'Pacientes', 'Tarefas', 'Mais']) if (!(await text()).includes(tab)) throw new Error('Aba ausente: ' + tab);
+  for (const tab of ['Início', 'Agenda', 'Pacientes', 'Pendências', 'Mais']) if (!(await text()).includes(tab)) throw new Error('Aba ausente: ' + tab);
   await page.screenshot({ path: `${out}/app-inicio.png` });
-  ok('Login com a conta do sistema; abas Início, Agenda, Pacientes, Tarefas e Mais');
+  ok('Login com a conta do sistema; abas Início, Agenda, Pacientes, Pendências e Mais');
 
   await tap('Agenda');
   await waitText('Paciente App Exemplo');
@@ -127,11 +127,10 @@ try {
   await tap('Sair da conta');
   await page.waitForFunction(() => document.body.innerText.includes('Entrar no app da equipe'), { timeout: 15000 });
 
-  // Profissional: pendências, tarefa, rascunho de evolução; sem cobranças.
+  // Profissional: evolução, tarefa para paciente e rascunho; sem cobranças.
   await login(PRO_EMAIL, PRO_PASSWORD);
   await waitText('Escrever evolução: Paciente App Exemplo');
-  await page.waitForFunction(() => /1\s*tarefas em aberto/.test(document.body.innerText), { timeout: 15000 });
-  ok('Profissional: pendências mostram a evolução a escrever; contador de tarefas em aberto');
+  ok('Profissional: evolução a escrever, sem módulo de pendências internas');
 
   await tap('Escrever evolução: Paciente App Exemplo', { exact: false });
   await type('Evolução (rascunho)', 'Paciente relatou melhora do sono. (rascunho pelo app)');
@@ -142,15 +141,16 @@ try {
   ok('Rascunho de evolução salvo pelo app (fica como rascunho; finalizar só no computador)');
 
   await page.goto(`${base}/tarefas`, { waitUntil: 'networkidle0' });
-  await tap('Concluir: Ligar para o laboratório (app E2E)');
-  await page.waitForFunction(() => document.querySelector('[role=checkbox][aria-checked=true]') || !document.body.innerText.includes('Ligar para o laboratório'), { timeout: 15000 });
-  const { data: task } = await admin.from('tasks').select('status').like('title', 'Ligar para o laboratório (app E2E)').single();
-  if (task.status !== 'done') throw new Error('Tarefa: ' + task.status);
-  await tap('Nova tarefa');
-  await type('Título', 'Enviar relatório (app E2E)');
-  await tap('Criar tarefa');
-  await page.waitForFunction(() => document.body.innerText.includes('Enviar relatório (app E2E)'), { timeout: 15000 });
-  ok('Tarefa concluída pelo check e nova tarefa criada');
+  await waitText('Tarefas');
+  await tap('Nova tarefa para paciente');
+  await tap('Paciente App Exemplo');
+  await type('Título', 'Exercício de respiração (app E2E)');
+  await type('Orientações para o paciente', 'Pratique por cinco minutos.');
+  await tap('Enviar tarefa');
+  await waitText('Exercício de respiração (app E2E)');
+  const { data: activity } = await admin.from('patient_activities').select('patient_id, status').eq('title', 'Exercício de respiração (app E2E)').single();
+  if (activity.patient_id !== ids.patient || activity.status !== 'assigned') throw new Error('Atividade: ' + JSON.stringify(activity));
+  ok('Profissional criou atividade para o paciente no app');
 
   await page.goto(`${base}/mais`, { waitUntil: 'networkidle0' });
   await waitText('Meu repasse');

@@ -1,3 +1,4 @@
+import { Select } from '../../components/Select.tsx';
 import { useState } from 'react';
 import type { Patient, PatientStatus, Professional } from '../../../../shared/types.ts';
 import { api } from '../../api.ts';
@@ -100,16 +101,16 @@ export function PatientForm({ patient, professionals, onClose, onSaved }: Patien
         <legend>Acompanhamento</legend>
         <div className="form-grid">
           <Field label="Situação">
-            <select className="input" name="status" defaultValue={patient?.status ?? 'active'}>
+            <Select className="input" name="status" defaultValue={patient?.status ?? 'active'}>
               {Object.entries(patientStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
+            </Select>
           </Field>
           {sources.length > 0 && (
             <Field label="Como conheceu a clínica">
-              <select className="input" name="source" defaultValue={patient?.source_id ?? ''} key={sources.length}>
+              <Select className="input" name="source" defaultValue={patient?.source_id ?? ''} key={sources.length}>
                 <option value="">Não informado</option>
                 {sources.filter((item) => item.active || item.id === patient?.source_id).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select>
+              </Select>
             </Field>
           )}
         </div>

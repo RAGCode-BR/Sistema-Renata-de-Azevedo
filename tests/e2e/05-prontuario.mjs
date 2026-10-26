@@ -148,6 +148,15 @@ try {
   await logout();
   await login('teste-prontuario@example.test', 'Senha-Bloco1-ok');
   await waitText('Olá, Teste');
+  await page.goto(`${base}/#/tarefas`, { waitUntil: 'networkidle0' });
+  await waitText('Tarefas');
+  if (!await page.$('main button')) throw new Error('Profissional sem botão para criar tarefa para paciente');
+  const taskPage = await page.$eval('main', (element) => element.innerText);
+  if (!taskPage.includes('Nova tarefa para paciente') || taskPage.includes('Nova pendência') || taskPage.includes('Para mim')) {
+    throw new Error('Profissional recebeu o fluxo antigo de tarefas');
+  }
+  ok('Profissional: Tarefas abre o envio para pacientes, sem criar tarefa para si');
+  await page.goto(`${base}/#/inicio`, { waitUntil: 'networkidle0' });
   await page.waitForFunction(() => document.querySelector('.todo')?.innerText.includes('Registrar evolução de Paciente Prontuario'), { timeout: 10000 });
   if (!(await page.$eval('.todo', (e) => e.innerText)).includes('fora do prazo')) throw new Error('pendência sem "fora do prazo"');
   await page.evaluate(() => [...document.querySelectorAll('.todo a.task')].find((a) => a.innerText.includes('Paciente Prontuario')).click());

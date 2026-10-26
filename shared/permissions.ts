@@ -21,6 +21,7 @@ export type Permission =
   | 'finance.manage'
   | 'settings.manage'
   | 'tasks.manage'
+  | 'patient_activities.manage_all'
   | 'crm.view'
   | 'crm.manage'
   | 'messages.manage';

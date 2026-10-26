@@ -10,8 +10,8 @@ Quem vê e faz o quê. **A regra vale no banco** (RLS e funções em `supabase/m
 
 | Perfil | Em uma frase |
 | --- | --- |
-| Proprietária | Tudo o que é administrativo, inclusive usuários, configurações e resultado financeiro. |
-| Gerência | Operação da clínica (agenda, pacientes, cobranças, comercial, tarefas da equipe), sem usuários, configurações e resultado financeiro. |
+| Proprietária | Administração completa e tarefas reais dos pacientes, inclusive criação, edição e respostas. |
+| Gerência | Operação da clínica (agenda, pacientes, cobranças e comercial), sem usuários, configurações e resultado financeiro. |
 | Recepção | Agenda, pacientes, cobranças, comercial e WhatsApp. |
 | Financeiro | Cobranças, despesas, resultado e repasses. |
 | Profissional | Os próprios pacientes, a própria agenda, o próprio prontuário e o próprio repasse. |
@@ -33,7 +33,8 @@ Quem vê e faz o quê. **A regra vale no banco** (RLS e funções em `supabase/m
 | `billing.manage` | Lançar cobranças e registrar pagamentos | ✔ | ✔ | ✔ | ✔ |
 | `finance.view` | Visão geral financeira, despesas, repasses, DRE | ✔ | | | ✔ |
 | `finance.manage` | Lançar despesas, preços e repasses | ✔ | | | ✔ |
-| `tasks.manage` | Tarefas da equipe (ver e atribuir a outras pessoas) | ✔ | ✔ | | |
+| `tasks.manage` | Permissão legada de registros internos; módulo retirado da interface | ✔ | ✔ | | |
+| `patient_activities.manage_all` | Ver e gerir tarefas e respostas de todos os pacientes; escolher uma profissional vinculada | ✔ | | | |
 | `crm.view` | Comercial (funil, campanhas, painel) | ✔ | ✔ | ✔ | |
 | `crm.manage` | Configurar o comercial | ✔ | ✔ | ✔ | |
 | `messages.manage` | Conversas do WhatsApp | ✔ | ✔ | ✔ | |
@@ -63,8 +64,7 @@ Quem vê e faz o quê. **A regra vale no banco** (RLS e funções em `supabase/m
 | Relatórios → Operacional | ✔ | ✔ | ✔ | | Meus números |
 | Relatórios → Financeiro | ✔ | ✔ | ✔ | ✔ | |
 | Relatórios → Comercial | ✔ | ✔ | ✔ | | |
-| Tarefas → Minhas tarefas / Recorrentes | ✔ | ✔ | ✔ | ✔ | ✔ |
-| Tarefas → Tarefas da equipe | ✔ | ✔ | | | |
+| Tarefas → Tarefas enviadas aos pacientes | ✔ (todos) | | | | ✔ (própria carteira) |
 | Financeiro → Visão geral, Despesas, Repasses | ✔ | | | ✔ | Meu repasse |
 | Financeiro → Cobranças | ✔ | ✔ | ✔ | ✔ | ✔ (dos seus pacientes) |
 | Financeiro → Preços | ✔ | ✔ | ✔ | ✔ | |

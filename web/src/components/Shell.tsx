@@ -25,7 +25,7 @@ import { PasswordDialog } from './PasswordDialog.tsx';
 import { TwoFactorDialog } from './TwoFactor.tsx';
 import { WhatsappNoticeDialog } from './WhatsappNotice.tsx';
 import { ConversationsPage } from '../pages/Conversations.tsx';
-import { RecurrencesPage, TasksPage, TeamTasksPage } from '../pages/tasks/Tasks.tsx';
+import { PatientActivitiesPage } from '../pages/PatientActivities.tsx';
 import { CampaignsPage } from '../pages/crm/Campaigns.tsx';
 import { CrmDashboardPage } from '../pages/crm/Dashboard.tsx';
 import { CrmSettingsPage } from '../pages/crm/CrmSettings.tsx';
@@ -71,9 +71,10 @@ const settings: Route = { path: 'configuracoes', label: 'Configurações', rende
 const printRecord: Route = { path: 'prontuario-impressao', label: 'Exportar prontuário', render: (_user, params) => <PrintRecordPage patientId={params.get('paciente')} /> };
 const professionals: Route = { path: 'profissionais', label: 'Profissionais', render: () => <ProfessionalsPage /> };
 const users: Route = { path: 'usuarios', label: 'Usuários', render: (user) => <UsersPage user={user} /> };
-const tasks: Route = { path: 'tarefas', label: 'Minhas tarefas', render: (user, params) => <TasksPage user={user} taskId={params.get('tarefa')} /> };
-const teamTasks: Route = { path: 'tarefas-equipe', label: 'Tarefas da equipe', render: (user) => <TeamTasksPage user={user} /> };
-const recurrences: Route = { path: 'tarefas-recorrentes', label: 'Recorrentes', render: (user) => <RecurrencesPage user={user} /> };
+const patientTasks: Route = { path: 'tarefas', label: 'Tarefas', render: (user) =>
+  <PatientActivitiesPage isOwner={user.roles.includes('owner')} /> };
+const patientActivities: Route = { path: 'atividades-pacientes', label: 'Tarefas', render: (user) =>
+  <PatientActivitiesPage isOwner={user.roles.includes('owner')} /> };
 const funnel: Route = { path: 'comercial', label: 'Funil', render: (user, params) => <FunnelPage user={user} leadId={params.get('lead')} /> };
 const campaigns: Route = { path: 'comercial-campanhas', label: 'Campanhas', render: (user) => <CampaignsPage user={user} /> };
 const crmDashboard: Route = { path: 'comercial-painel', label: 'Painel comercial', render: () => <CrmDashboardPage /> };
@@ -94,6 +95,7 @@ const prices: Route = { path: 'precos', label: 'Preços', render: (user) => <Pri
 // As regras valem no banco (RLS); o menu apenas as reflete.
 function modulesFor(user: SessionUser): Module[] {
   const professional = user.roles.includes('professional');
+  const seesPatientTasks = professional || user.roles.includes('owner');
   const modules: Module[] = [
     { title: 'Início', icon: 'home', routes: [home] },
     { title: 'Atendimento', short: 'Agenda', icon: 'calendar', routes: [agenda, ...(can(user, 'messages.manage') ? [conversations] : []), calendars] },
@@ -124,7 +126,7 @@ function modulesFor(user: SessionUser): Module[] {
         return list.length ? [...list, yearlyReport] : [];
       })()
     },
-    { title: 'Tarefas', icon: 'check', routes: [tasks, ...(can(user, 'tasks.manage') ? [teamTasks] : []), recurrences] },
+    ...(seesPatientTasks ? [{ title: 'Tarefas', icon: 'check' as const, routes: [patientTasks] }] : []),
     {
       // Resultado, despesas e repasses: Proprietário(a) e Financeiro. Cobranças: quem atende o caixa.
       // Profissional: as cobranças das próprias sessões e o próprio repasse.
@@ -156,10 +158,17 @@ export function Shell({ user, onLogout }: { user: SessionUser; onLogout: () => v
   const accountRef = useRef<HTMLDivElement>(null);
 
   const modules = modulesFor(user);
-  const routes = [...modules.flatMap((module) => module.routes), ...(user.roles.includes('professional') ? [printRecord] : [])];
+  const routes = [...modules.flatMap((module) => module.routes), ...(user.roles.includes('professional') ? [printRecord] : []),
+    ...(user.roles.includes('professional') || user.roles.includes('owner') ? [patientActivities] : [])];
   const current = routes.find((route) => route.path === path) ?? home;
   const currentModule = modules.find((module) => module.routes.includes(current)) ?? modules[0];
   const initials = user.name.split(' ').filter((part) => part.length > 2).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+
+  useEffect(() => {
+    if (['pendencias-internas', 'tarefas-equipe', 'tarefas-recorrentes'].includes(path) || (path === 'tarefas' && params.has('tarefa'))) {
+      window.location.hash = user.roles.includes('owner') || user.roles.includes('professional') ? '/tarefas' : '/inicio';
+    }
+  }, [path, params, user.roles]);
 
   // No celular a barra de módulos rola de lado: mantém o módulo atual visível.
   useEffect(() => {

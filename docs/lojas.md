@@ -30,14 +30,14 @@ Preparação do app "Renata de Azevedo, Equipe" (`br.com.renatadeazevedo.equipe`
 
 - **Nome:** Renata de Azevedo, Equipe
 - **Subtítulo (Apple, até 30 caracteres):** App da equipe da clínica
-- **Descrição curta (Google, até 80):** Agenda, pacientes e tarefas da equipe da clínica Renata de Azevedo.
+- **Descrição curta (Google, até 80):** Agenda, pacientes e tarefas terapêuticas da clínica Renata de Azevedo.
 - **Descrição:**
 
   > Aplicativo de uso exclusivo da equipe da clínica Renata de Azevedo Psicologia & Coaching. O acesso é feito com a conta criada pela clínica; não há cadastro aberto.
   >
   > • Agenda do dia e da semana, com confirmação de sessões, presença e link do atendimento on-line
   > • Pacientes da sua carteira, com contato rápido
-  > • Tarefas e avisos da equipe, com notificações
+  > • Tarefas enviadas pelas profissionais aos pacientes, com acompanhamento das respostas
   > • Cobranças em aberto e registro de pagamentos (para quem tem acesso)
   > • Rascunho de evolução logo após a sessão (a finalização é feita no computador)
   >

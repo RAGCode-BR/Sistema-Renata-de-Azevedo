@@ -1,3 +1,4 @@
+import { Select } from '../../components/Select.tsx';
 import { useState } from 'react';
 import { can } from '../../../../shared/permissions.ts';
 import type { Expense, NamedItem, SessionUser } from '../../../../shared/types.ts';
@@ -125,16 +126,16 @@ function ExpenseForm({ expense, categories, centers, onClose, onSaved }: {
       <Field label="Valor"><input className="input" name="amount" inputMode="decimal" required placeholder="0,00"
         defaultValue={expense ? String(expense.amount).replace('.', ',') : ''} /></Field>
       <Field label="Categoria">
-        <select className="input" name="category" required defaultValue={expense?.category_id ?? ''}>
+        <Select className="input" name="category" required defaultValue={expense?.category_id ?? ''}>
           <option value="" disabled>Escolha</option>
           {usable(categories, expense?.category_id).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label="Centro de custo">
-        <select className="input" name="center" required defaultValue={expense?.cost_center_id ?? ''}>
+        <Select className="input" name="center" required defaultValue={expense?.cost_center_id ?? ''}>
           <option value="" disabled>Escolha</option>
           {usable(centers, expense?.cost_center_id).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label="Competência (mês a que se refere)"><input className="input" name="competence" type="date" required defaultValue={expense?.competence_date ?? todayKey()} /></Field>
       <Field label="Vencimento"><input className="input" name="due" type="date" required defaultValue={expense?.due_date ?? todayKey()} /></Field>
@@ -145,9 +146,9 @@ function ExpenseForm({ expense, categories, centers, onClose, onSaved }: {
       {isPaid && <>
         <Field label="Data do pagamento"><input className="input" name="paidAt" type="date" required max={todayKey()} defaultValue={expense?.paid_at ?? todayKey()} /></Field>
         <Field label="Forma de pagamento">
-          <select className="input" name="method" defaultValue={expense?.method ?? 'pix'}>
+          <Select className="input" name="method" defaultValue={expense?.method ?? 'pix'}>
             {EXPENSE_METHODS.map((method) => <option key={method} value={method}>{paymentMethodLabel[method]}</option>)}
-          </select>
+          </Select>
         </Field>
       </>}
       <Field label="Observação (opcional)" full><input className="input" name="notes" maxLength={300} defaultValue={expense?.notes ?? ''} /></Field>

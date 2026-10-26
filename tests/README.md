@@ -28,7 +28,7 @@ Registros e capturas de cada rodada ficam em `tests/.saida/` (fora do Git). Com 
 
 | Nome | Arquivo | Cobre |
 | --- | --- | --- |
-| banco | `supabase/tests/*.sql` | Permissões (com varredura), segurança da estrutura e integridade financeira |
+| banco | `supabase/tests/*.sql` | Permissões (com varredura), segurança da estrutura, integridade financeira e atividades dos pacientes |
 | geral | `e2e/00-geral.mjs` | Login, menus, painel e páginas principais |
 | usuarios | `e2e/01-usuarios.mjs` | Contas, perfis, desativação |
 | painel | `e2e/02-painel.mjs` | Indicadores do início por perfil |
@@ -36,7 +36,6 @@ Registros e capturas de cada rodada ficam em `tests/.saida/` (fora do Git). Com 
 | pacientes | `e2e/04-pacientes.mjs` | Cadastro, documentos administrativos |
 | prontuario | `e2e/05-prontuario.mjs` | Evoluções, finalização, exportação, sigilo |
 | financeiro | `e2e/06-financeiro.mjs` | Cobranças, pagamentos, despesas, repasses |
-| tarefas | `e2e/07-tarefas.mjs` | Tarefas, recorrências, avisos |
 | comercial | `e2e/08-comercial.mjs` | Funil, campanhas, importação de leads |
 | relatorios | `e2e/09-relatorios.mjs` | Relatórios e comparativo |
 | app | `e2e/12-app-equipe.mjs` | Aplicativo da equipe (versão web, tela de celular) |

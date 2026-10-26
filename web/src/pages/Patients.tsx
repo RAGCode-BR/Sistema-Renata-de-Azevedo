@@ -1,3 +1,4 @@
+import { Select } from '../components/Select.tsx';
 import { useState } from 'react';
 import { can } from '../../../shared/permissions.ts';
 import type { PatientStatus, SessionUser } from '../../../shared/types.ts';
@@ -39,10 +40,10 @@ function PatientList({ user }: { user: SessionUser }) {
           <input type="search" placeholder="Buscar por nome, e-mail ou telefone" aria-label="Buscar paciente"
             value={search} onChange={(event) => setSearch(event.target.value)} />
         </label>
-        <select className="input compact" aria-label="Situação" value={status} onChange={(event) => setStatus(event.target.value as PatientStatus | '')}>
+        <Select className="input compact" aria-label="Situação" value={status} onChange={(event) => setStatus(event.target.value as PatientStatus | '')}>
           <option value="">Todas as situações</option>
           {Object.entries(patientStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
+        </Select>
         {manager && <button type="button" className="button" disabled={loading} onClick={() => setCreating(true)}>Novo paciente</button>}
       </Heading>
 

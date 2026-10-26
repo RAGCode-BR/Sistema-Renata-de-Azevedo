@@ -1,3 +1,4 @@
+import { Select } from '../../components/Select.tsx';
 import { useState } from 'react';
 import { can } from '../../../../shared/permissions.ts';
 import type { Campaign, NamedItem, SessionUser } from '../../../../shared/types.ts';
@@ -95,10 +96,10 @@ function CampaignForm({ campaign, sources, onClose, onSaved }: {
           onBlur={(event) => { if (!code) setCode(slug(event.target.value)); }} />
       </Field>
       <Field label="Canal">
-        <select className="input" value={sourceId} onChange={(event) => setSourceId(event.target.value)}>
+        <Select className="input" value={sourceId} onChange={(event) => setSourceId(event.target.value)}>
           <option value="">Não informado</option>
           {sources.filter((item) => item.active || item.id === sourceId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label="Investimento total">
         <input className="input" name="budget" inputMode="decimal" placeholder="0,00" defaultValue={campaign ? String(campaign.budget).replace('.', ',') : ''} />

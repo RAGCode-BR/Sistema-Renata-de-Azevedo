@@ -1,3 +1,4 @@
+import { Select } from '../../components/Select.tsx';
 import { useState } from 'react';
 import type { Charge, Patient, PaymentMethod, Professional } from '../../../../shared/types.ts';
 import { api } from '../../api.ts';
@@ -41,10 +42,10 @@ export function PaymentForm({ patients, patientId: initialPatient, chargeId, onC
       onSaved();
     }}>
       <Field label="Paciente" full>
-        <select className="input" name="patientId" value={patientId} onChange={(event) => { setPatientId(event.target.value); setSelected([]); }} required>
+        <Select className="input" name="patientId" value={patientId} onChange={(event) => { setPatientId(event.target.value); setSelected([]); }} required>
           <option value="" disabled>Escolha</option>
           {patients.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
+        </Select>
       </Field>
       {patientId && (
         <fieldset className="full checks charge-picks">
@@ -65,9 +66,9 @@ export function PaymentForm({ patients, patientId: initialPatient, chargeId, onC
           onChange={(event) => setAmountText(event.target.value)} />
       </Field>
       <Field label="Forma de pagamento">
-        <select className="input" name="method" defaultValue="pix">
+        <Select className="input" name="method" defaultValue="pix">
           {METHODS.map((method) => <option key={method} value={method}>{paymentMethodLabel[method]}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label="Data do recebimento"><input className="input" name="receivedAt" type="date" required max={todayKey()} defaultValue={todayKey()} /></Field>
       <Field label="Observação (opcional)"><input className="input" name="notes" maxLength={200} /></Field>
@@ -95,16 +96,16 @@ export function NewChargeForm({ patients, professionals, onClose, onSaved }: {
       onSaved();
     }}>
       <Field label="Paciente">
-        <select className="input" name="patientId" required defaultValue="">
+        <Select className="input" name="patientId" required defaultValue="">
           <option value="" disabled>Escolha</option>
           {patients.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label="Profissional (para o repasse)">
-        <select className="input" name="professionalId" defaultValue="">
+        <Select className="input" name="professionalId" defaultValue="">
           <option value="">Nenhuma (receita da clínica)</option>
           {professionals.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label="Descrição" full><input className="input" name="description" required maxLength={200} placeholder="Ex.: Pacote de 4 sessões, relatório" /></Field>
       <Field label="Valor"><input className="input" name="amount" inputMode="decimal" required placeholder="300,00" /></Field>

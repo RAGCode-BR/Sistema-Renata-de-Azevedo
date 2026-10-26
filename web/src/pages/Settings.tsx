@@ -1,3 +1,4 @@
+import { Select } from '../components/Select.tsx';
 import type { ClinicSettings } from '../../../shared/types.ts';
 import { api } from '../api.ts';
 import { Field } from '../components/Modal.tsx';
@@ -54,11 +55,11 @@ export function SettingsPage() {
       <Panel title="Google Agenda">
         <form className="panel-body form-grid" onSubmit={google.onSubmit} key={`g${data.google_event_title}`}>
           <Field label="Título dos eventos das sessões no Google">
-            <select className="input" name="title" defaultValue={data.google_event_title}>
+            <Select className="input" name="title" defaultValue={data.google_event_title}>
               <option value="initials">Só as iniciais do paciente (recomendado)</option>
               <option value="generic">Apenas "Atendimento"</option>
               <option value="full">Nome completo do paciente</option>
-            </select>
+            </Select>
           </Field>
           <p className="muted small full">O Google é um serviço externo: quanto menos dado do paciente, melhor (LGPD). A mudança vale para os próximos envios.</p>
           {google.error && <p className="erro full" role="alert">{google.error}</p>}
@@ -235,10 +236,10 @@ function PortalPanel() {
           <input className="input" name="url" type="url" placeholder="https://portal.renatadeazevedo.com.br" defaultValue={state.url ?? ''} />
         </Field>
         <Field label="Quem recebe os pedidos do portal (remarcar, cancelar, já paguei)" full>
-          <select className="input" name="assignee" defaultValue={state.assignee_id ?? ''}>
+          <Select className="input" name="assignee" defaultValue={state.assignee_id ?? ''}>
             <option value="">Ninguém fixo (avisa a recepção e o financeiro)</option>
             {people.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Como pagar (aparece para o paciente)" full>
           <textarea className="input" name="instructions" rows={3} maxLength={2000} defaultValue={state.payment_instructions ?? ''}

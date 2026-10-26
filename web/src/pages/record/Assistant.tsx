@@ -1,3 +1,4 @@
+import { Select } from '../../components/Select.tsx';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import type { AiDraft, AiItem, AiRun, SessionUser } from '../../../../shared/types.ts';
@@ -90,10 +91,10 @@ export function Assistant({ user, patientId, onUsed }: { user: SessionUser; pati
           {!state.blocker && (
             <form className="form-grid ai-form" onSubmit={(event) => { event.preventDefault(); if (content.trim()) generate(new FormData(event.currentTarget)); }}>
               <Field label="Sessão (opcional)">
-                <select className="input" name="session" defaultValue="">
+                <Select className="input" name="session" defaultValue="">
                   <option value="">Sem sessão</option>
                   {sessions.map((item) => <option key={item.id} value={item.id}>{longDay(item.starts_at)}, {time(item.starts_at)}</option>)}
-                </select>
+                </Select>
               </Field>
               <Field label="Arquivo da transcrição (.txt, .vtt, .srt)">
                 <input className="input" type="file" accept=".txt,.vtt,.srt,text/plain,text/vtt" onChange={async (event) => {
@@ -161,13 +162,13 @@ export function Assistant({ user, patientId, onUsed }: { user: SessionUser; pati
           <p className="modal-text full">A IA deixa de poder ser usada para este paciente e o que estiver guardado (transcrições e rascunhos não usados) é apagado. Evoluções já finalizadas continuam no prontuário.</p>
         </FormModal>
       )}
-      {open && <Review user={user} patientId={patientId} runId={open} onClose={() => setOpen(null)} onChanged={status.reload} onUsed={onUsed} />}
+      {open && <Review patientId={patientId} runId={open} onClose={() => setOpen(null)} onChanged={status.reload} onUsed={onUsed} />}
     </>
   );
 }
 
-function Review({ user, patientId, runId, onClose, onChanged, onUsed }: {
-  user: SessionUser; patientId: string; runId: string; onClose: () => void; onChanged: () => void; onUsed: () => void;
+function Review({ patientId, runId, onClose, onChanged, onUsed }: {
+  patientId: string; runId: string; onClose: () => void; onChanged: () => void; onUsed: () => void;
 }) {
   const notify = useToast();
   const { data, error } = useLoad(() => api.aiRun(runId), [runId]);
@@ -235,16 +236,6 @@ function Review({ user, patientId, runId, onClose, onChanged, onUsed }: {
                 <ul className="ai-list">{draft.evolution[section].map((item, index) => <Item key={index} item={item} id={keyOf(section, index)} selectable />)}</ul></div>
             ))}
             {draft.gaps.length > 0 && <><h3 className="task-section">Para você completar</h3><ul className="ai-list plain">{draft.gaps.map((gap, index) => <li key={index}>{gap}</li>)}</ul></>}
-            {draft.admin_tasks.length > 0 && <><h3 className="task-section">Tarefas administrativas sugeridas</h3>
-              <ul className="ai-list">{draft.admin_tasks.map((item, index) => (
-                <li key={index} className="ai-item"><span>{item.text}
-                  <button type="button" className="link-btn ai-source" onClick={async () => {
-                    try {
-                      await api.saveTask(null, { title: item.text.slice(0, 200), description: '', assigneeId: user.id, priority: 'normal', dueDate: null, dueTime: null, patientId });
-                      notify('Tarefa criada em Minhas tarefas.');
-                    } catch (failure) { notify(errorMessage(failure)); }
-                  }}>criar tarefa</button></span></li>
-              ))}</ul></>}
           </section>
           <section aria-label="Transcrição com dados ocultos" className="ai-transcript">
             <h3 className="task-section">Transcrição (dados pessoais ocultos)</h3>

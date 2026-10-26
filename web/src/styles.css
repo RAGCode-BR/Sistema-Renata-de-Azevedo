@@ -1,6 +1,50 @@
 /* O sistema real e a demonstração compartilham a identidade visual. */
 @import "../../assets/css/app.css";
 
+/* Listas de seleção desenhadas pelo sistema; o select nativo permanece só para FormData. */
+.app-select { position: relative; display: block; width: 100%; min-width: 0; }
+.app-select.compact { display: inline-block; width: auto; }
+.app-select-native { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.app-select-trigger { display: flex; align-items: center; justify-content: space-between; gap: 14px; text-align: left; cursor: pointer; color: var(--texto); }
+.app-select-trigger.compact { width: auto; min-width: 120px; }
+.app-select-trigger:disabled { cursor: not-allowed; opacity: .6; }
+.app-select-trigger.invalid { border-color: var(--vermelho, #b43d4c); }
+.app-select-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-select-chevron { flex: none; width: 9px; height: 9px; border-right: 2px solid var(--suave); border-bottom: 2px solid var(--suave); transform: translateY(-2px) rotate(45deg); }
+.app-select-menu { position: fixed; z-index: 1000; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--linha); border-radius: 12px; background: var(--branco); box-shadow: var(--sombra-flutuante); padding: 5px; }
+.app-select-search { width: 100%; height: 38px; padding: 0 11px; margin-bottom: 4px; border: 1px solid var(--linha); border-radius: 8px; background: var(--branco); color: var(--texto); font: inherit; }
+.app-select-search:focus { outline: 2px solid var(--vinho-claro); border-color: var(--vinho); }
+.app-select-options { min-height: 0; overflow-y: auto; }
+.app-select-option { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 38px; padding: 8px 10px; text-align: left; border-radius: 8px; color: var(--texto); font: inherit; cursor: pointer; }
+.app-select-option:hover, .app-select-option.active { background: var(--vinho-claro); color: var(--vinho); }
+.app-select-option:disabled { opacity: .48; cursor: not-allowed; }
+.app-select-empty { margin: 0; padding: 12px; color: var(--suave); font-size: 14px; }
+.app-select-validation { display: block; margin-top: 5px; color: var(--vermelho, #b43d4c); font-size: 13px; }
+
+.activity-checklist-editor, .activity-checklist-summary, .portal-activity-checklist { display: grid; gap: 8px; }
+.activity-checklist-card { display: grid; gap: 14px; padding: 18px; border: 1px solid var(--vinho-tom); border-radius: 16px; background: var(--vinho-claro); }
+.activity-checklist-heading { display: flex; align-items: center; gap: 12px; }
+.activity-checklist-heading-icon { display: grid; place-items: center; flex: none; width: 38px; height: 38px; border-radius: 11px; background: var(--vinho); color: var(--branco); font-size: 24px; line-height: 1; }
+.activity-checklist-heading > div { display: grid; gap: 1px; min-width: 0; }
+.activity-checklist-heading strong { color: var(--vinho-escuro); font-size: 16px; line-height: 1.2; }
+.activity-checklist-heading > div > span { color: var(--suave); font-size: 13px; }
+.activity-checklist-count { margin-left: auto; flex: none; padding: 4px 9px; border-radius: 999px; background: var(--branco); color: var(--vinho); font-size: 12px; font-weight: 600; }
+.activity-checklist-editor { gap: 10px; }
+.activity-checklist-empty { display: flex; align-items: center; gap: 10px; min-height: 60px; padding: 10px 14px; border: 1px dashed var(--vinho-tom); border-radius: 11px; background: var(--branco); color: var(--suave); font-size: 14px; }
+.activity-checklist-empty-icon { color: var(--vinho); font-size: 23px; line-height: 1; }
+.activity-checklist-row { display: flex; align-items: center; gap: 10px; }
+.activity-checklist-number { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border: 1px solid var(--vinho-tom); border-radius: 9px; background: var(--branco); color: var(--vinho); font-size: 13px; font-weight: 600; }
+.activity-checklist-row .input { flex: 1; min-width: 0; }
+.activity-checklist-row .link-btn { flex: none; }
+.activity-checklist-add { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--vinho); border-radius: 10px; background: var(--vinho); color: var(--branco); font: inherit; font-weight: 600; cursor: pointer; transition: background-color 160ms ease, box-shadow 160ms ease; }
+.activity-checklist-add:hover { background: var(--vinho-escuro); box-shadow: 0 4px 12px rgba(83, 16, 47, .15); }
+.activity-checklist-add-icon { display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid currentColor; border-radius: 7px; font-size: 19px; line-height: 1; }
+.activity-checklist-help { margin: -4px 0 0; color: var(--suave); font-size: 13px; }
+.activity-checklist-summary { margin-top: 5px; }
+.portal-activity-checklist { margin: 12px 0; }
+.portal-activity-checklist .check { align-items: flex-start; }
+.portal-activity-checklist .check input { margin-top: 4px; flex: none; }
+
 /* Perfis do usuário: um por linha, com a descrição do que cada um permite. */
 .role-checks { display: grid; gap: 10px; }
 .role-checks .check { align-items: flex-start; }
@@ -393,14 +437,14 @@ html { scroll-padding-top: 88px; }
 .login-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
 
 @media (max-width: 560px) {
-  /* No celular, o menu do portal vira uma barra fixa embaixo, com as cinco seções sempre visíveis. */
-  .portal { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  /* No celular, as seis seções ficam visíveis em duas linhas. */
+  .portal { padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
   .portal-nav {
-    position: fixed; top: auto; right: 0; bottom: 0; left: 0; display: grid; grid-template-columns: repeat(5, 1fr);
+    position: fixed; top: auto; right: 0; bottom: 0; left: 0; display: grid; grid-template-columns: repeat(3, 1fr);
     gap: 2px; padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); box-shadow: 0 -1px 0 var(--linha);
   }
-  .portal-nav a { padding: 10px 2px; font-size: 13px; text-align: center; }
-  body:has(.portal) .toast { bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .portal-nav a { padding: 7px 2px; font-size: 13px; text-align: center; }
+  body:has(.portal) .toast { bottom: calc(124px + env(safe-area-inset-bottom)); }
   .portal-top { padding: 10px 16px; }
   .portal-top img { height: 32px; }
   .portal-list { padding: 0 16px 8px; }

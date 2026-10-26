@@ -1,3 +1,4 @@
+import { Select } from '../../components/Select.tsx';
 import { useState } from 'react';
 import type { YearRow } from '../../../../shared/types.ts';
 import { api } from '../../api.ts';
@@ -47,10 +48,10 @@ export function YearlyReportPage() {
   const tools = (
     <>
       <label className="field-inline no-print">Ano
-        <select className="input compact" value={yearA} onChange={(event) => setYearA(Number(event.target.value))}>{years.map((y) => <option key={y}>{y}</option>)}</select>
+        <Select className="input compact" value={yearA} onChange={(event) => setYearA(Number(event.target.value))}>{years.map((y) => <option key={y}>{y}</option>)}</Select>
       </label>
       <label className="field-inline no-print">comparado a
-        <select className="input compact" value={yearB} onChange={(event) => setYearB(Number(event.target.value))}>{years.map((y) => <option key={y}>{y}</option>)}</select>
+        <Select className="input compact" value={yearB} onChange={(event) => setYearB(Number(event.target.value))}>{years.map((y) => <option key={y}>{y}</option>)}</Select>
       </label>
       <PrintButton />
     </>

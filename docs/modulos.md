@@ -118,32 +118,11 @@ Cobranças, pagamentos, alocações e repasses não têm acesso direto às tabel
 - **Despesas:** cada uma tem categoria e centro de custo, e as duas listas podem ser editadas em **Despesas**. Os centros de custo iniciais são Administrativo, Atendimento clínico, Comercial e marketing.
 - **Fica para depois:** recibos e nota fiscal, importação do Yampa/Clinical Experts, conciliação bancária e PIX automático.
 
-## Tarefas
+## Tarefas dos pacientes
 
-**Quem faz o quê:**
+No menu **Tarefas**, a profissional vinculada escolhe um paciente da sua carteira, escreve título e orientações, define um prazo opcional e envia. A Proprietária usa a mesma página, vê todas as tarefas e respostas e escolhe uma profissional vinculada ao criar uma tarefa. O paciente (ou responsável com acesso ativo) vê, responde e conclui a tarefa no portal. O portal exige vínculo ativo e aceite dos termos.
 
-| Perfil | Acesso |
-|---|---|
-| Proprietário(a) e Gerente (`tasks.manage`) | Atribuem tarefas a qualquer pessoa ativa da equipe e acompanham todas em **Tarefas da equipe** |
-| Demais perfis | Criam tarefas só para si. Concluem, mudam a situação e comentam as que receberam |
-
-Só quem criou a tarefa (ou tem `tasks.manage`) edita ou cancela. Ninguém lê as tabelas diretamente: tudo passa por funções do banco, que gravam o histórico em `task_events`.
-
-- **Tarefa:** título, descrição, responsável, prazo (data e horário opcionais) e prioridade (baixa, normal, alta ou urgente). Pode ter um vínculo opcional com paciente, só administrativo: o nome do paciente aparece apenas para quem já vê aquele paciente. O formulário avisa para não escrever informação clínica.
-- **Situações:** a fazer, em andamento, concluída e cancelada. O check conclui e registra quem concluiu e quando. Concluídas e canceladas ficam visíveis por 60 dias em "Com concluídas".
-- **Recorrência:** diária, dias úteis, semanal, mensal, último dia do mês ou anual (página **Recorrentes**).
-  - Ao concluir ou cancelar uma ocorrência, a próxima é criada na **data fixa da regra**. Ex.: uma tarefa mensal do dia 5 concluída no dia 8 gera a próxima no dia 5 do mês seguinte. Em meses curtos, vale o último dia do mês.
-  - Se a data calculada já passou, a regra avança até hoje ou depois, para a tarefa não nascer atrasada.
-  - Só existe uma ocorrência em aberto por regra.
-  - Pausar uma regra mantém a tarefa em aberto. Retomar cria a próxima, se não houver uma em aberto.
-- **Avisos (sino no topo):**
-  - Avisam quando a tarefa é atribuída, concluída ou comentada, e mostram o resumo das próprias tarefas que vencem hoje ou estão atrasadas.
-  - "Vence hoje" e "atrasada" são calculados na hora, no fuso de São Paulo, sem rotina agendada no banco.
-  - Os avisos levam só o título e o link da tarefa.
-- **Painel inicial:**
-  - Para quem tem `tasks.manage`, "tarefas atrasadas na equipe"; para os demais, as próprias.
-  - Nas pendências, as tarefas para hoje e as atrasadas.
-- **Fica para depois:** avisos por e-mail, WhatsApp (Bloco 10) e push (Bloco 12). Também automações que criam tarefas sozinhas, como uma tarefa para a recepção quando a cobrança vence há 7 dias, ou para a gerência quando um paciente ativo fica 30 dias sem sessão.
+O módulo de pendências internas foi retirado do sistema web e do aplicativo. Pedidos do portal continuam na ficha do paciente e avisam a equipe; retornos comerciais ficam no contato; remarcações do WhatsApp avisam a equipe com acesso à agenda. Registros legados no banco não foram apagados.
 
 ## Comercial (CRM)
 
@@ -336,7 +315,7 @@ O módulo **Relatórios** reúne o que já estava espalhado e acrescenta compara
   - Edge Function `ai-draft`, com o SDK oficial (`@anthropic-ai/sdk`).
   - Modelo `claude-opus-5-5` (troca pelo segredo `AI_MODEL`), esforço alto e resposta em **formato JSON fixo**.
   - Fallback automático (`fallbacks: "default"`) se o modelo recusar o pedido.
-- **O que volta:** resumo, tópicos, rascunho de evolução (temas trabalhados, intervenções realizadas, observações relevantes, combinados e próximos passos), tarefas administrativas e o que falta completar.
+- **O que volta:** resumo, tópicos, rascunho de evolução (temas trabalhados, intervenções realizadas, observações relevantes, combinados e próximos passos) e o que falta completar. Sugestões administrativas não são exibidas.
 - **Regras conferidas pelo sistema** (além das instruções dadas à IA):
   - cada item precisa de um **trecho literal da transcrição**, senão é descartado;
   - itens com diagnóstico, CID, transtorno, prescrição, medicação ou dose são descartados;
@@ -344,7 +323,6 @@ O módulo **Relatórios** reúne o que já estava espalhado e acrescenta compara
 - **Revisão:**
   - A profissional vê o rascunho ao lado da transcrição (com o trecho de origem destacado), marca os itens que entram e edita o texto.
   - "Usar como rascunho de evolução" cria um **rascunho** em Evoluções, com o selo "rascunho de IA". Ele só vale quando ela **finalizar**.
-  - As tarefas sugeridas viram tarefas reais só com um clique dela.
 - **Rastro:**
   - A evolução guarda de qual rascunho de IA nasceu.
   - Cada uso registra profissional, data, modelo, tokens e custo.
@@ -385,10 +363,10 @@ O módulo **Relatórios** reúne o que já estava espalhado e acrescenta compara
 
 **O que o aplicativo faz**
 
-- **Início:** sessões do dia, pendências de evolução (profissional), cobranças vencidas e tarefas abertas.
+- **Início:** sessões do dia, pendências de evolução (profissional) e cobranças vencidas.
 - **Agenda:** dia e semana; abrir a sessão, confirmar, registrar presença ou falta; link do Meet.
 - **Pacientes:** busca e ficha resumida com Ligar e WhatsApp.
-- **Tarefas:** concluir, comentar e criar.
+- **Tarefas (Proprietária e Profissional):** criar orientações para pacientes e acompanhar as respostas.
 - **Mais:** avisos, cobranças em aberto com registro de pagamento (quem tem permissão de financeiro) e "Meu repasse" (profissional).
 - **Prontuário no celular:** só as pendências e o **rascunho** da evolução. Finalizar e ver o histórico completo continua no computador.
 
@@ -451,6 +429,7 @@ No Expo Go dá para testar tudo, menos o push (a Expo exige um build próprio pa
     - **Confirmar presença**, que grava na agenda;
     - **Preciso remarcar ou cancelar**: não mexe na agenda, cria uma tarefa para a equipe entrar em contato;
     - o link do Meet aparece 1 hora antes da sessão on-line.
+  - **Atividades:** orientações da profissional, prazo opcional, resposta e conclusão pelo paciente ou responsável com acesso ativo.
   - **Financeiro:**
     - cobranças em aberto, com o saldo depois de pagamentos parciais;
     - pagamentos recebidos, sem as observações internas;

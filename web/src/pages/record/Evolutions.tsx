@@ -1,3 +1,4 @@
+import { Select } from '../../components/Select.tsx';
 import { useState } from 'react';
 import type { ClinicalNote, PendingNote } from '../../../../shared/types.ts';
 import { api } from '../../api.ts';
@@ -66,7 +67,7 @@ export function Evolutions({ patientId, notes, pending, appointmentId, aiNotes, 
         <div className="panel-body stack">
           <label className="field">
             <span>Sessão</span>
-            <select className="input" name="appointmentId" value={draft.appointmentId}
+            <Select className="input" name="appointmentId" value={draft.appointmentId}
               onChange={(event) => setDraft({ ...draft, appointmentId: event.target.value })}>
               <option value="">Sem sessão vinculada</option>
               {sessions.map((item) => (
@@ -74,7 +75,7 @@ export function Evolutions({ patientId, notes, pending, appointmentId, aiNotes, 
                   {sessionLabel(item.starts_at)}{item.overdue ? ' (fora do prazo)' : ''}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className="field">
             <span>Evolução</span>

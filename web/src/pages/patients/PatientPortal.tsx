@@ -1,3 +1,4 @@
+import { Select } from '../../components/Select.tsx';
 import { useState } from 'react';
 import { can } from '../../../../shared/permissions.ts';
 import type { Patient, PortalAccess, PortalRelationship, PortalSharedDocument, SessionUser } from '../../../../shared/types.ts';
@@ -9,7 +10,6 @@ import { age, dateOnly, dateTime, fileSize } from '../../format.ts';
 import { errorMessage, text, useFormSubmit, useLoad } from '../../hooks.ts';
 
 const REQUEST: Record<string, string> = { reschedule: 'Remarcar sessão', cancel: 'Cancelar sessão', paid: 'Avisou pagamento' };
-const TASK: Record<string, string> = { todo: 'tarefa a fazer', doing: 'tarefa em andamento', done: 'tarefa concluída', cancelled: 'tarefa cancelada' };
 
 // Aba "Portal" da ficha: quem acessa (convite e revogação), documentos compartilhados e pedidos feitos
 // pelo paciente. Convidar e revogar: quem gerencia pacientes. Compartilhar: também a profissional responsável.
@@ -91,10 +91,10 @@ export function PatientPortal({ user, patient, caresFor }: { user: SessionUser; 
           <form className="panel-body form-grid" onSubmit={invite.onSubmit}
             key={`${relationship}-${active.length}`}>
             <Field label="Quem vai acessar">
-              <select className="input" value={relationship} onChange={(event) => setRelationship(event.target.value as PortalRelationship)}>
+              <Select className="input" value={relationship} onChange={(event) => setRelationship(event.target.value as PortalRelationship)}>
                 <option value="self" disabled={minor}>O próprio paciente</option>
                 <option value="guardian">Responsável</option>
-              </select>
+              </Select>
             </Field>
             <Field label="E-mail">
               <input className="input" name="email" type="email" required defaultValue={suggested} />
@@ -157,11 +157,10 @@ export function PatientPortal({ user, patient, caresFor }: { user: SessionUser; 
                   {item.appointment_starts_at && ` · sessão de ${dateTime(item.appointment_starts_at)}`}
                   {item.charge_description && ` · ${item.charge_description}`}
                   <span className="sub">
-                    {dateTime(item.created_at)}{item.requested_by && ` · ${item.requested_by}`}{item.task_status && ` · ${TASK[item.task_status]}`}
+                    {dateTime(item.created_at)}{item.requested_by && ` · ${item.requested_by}`}
                     {item.message && ` · "${item.message}"`}
                   </span>
                 </div>
-                {item.task_id && <a className="link-btn" href={`#/tarefas?tarefa=${item.task_id}`}>Ver tarefa</a>}
               </li>
             ))}
           </ul>

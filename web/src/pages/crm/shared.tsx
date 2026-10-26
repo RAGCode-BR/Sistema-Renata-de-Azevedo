@@ -1,3 +1,4 @@
+import { Select } from '../../components/Select.tsx';
 import { useEffect, useState } from 'react';
 import { can } from '../../../../shared/permissions.ts';
 import type { Lead, LeadDuplicate, LeadInput, LeadStage, NamedItem, Professional, SessionUser } from '../../../../shared/types.ts';
@@ -84,16 +85,16 @@ export function LeadForm({ user, lead, lists, onClose, onSaved }: {
         </div>
       )}
       <Field label="Origem">
-        <select className="input" name="source" defaultValue={lead?.source_id ?? ''}>
+        <Select className="input" name="source" defaultValue={lead?.source_id ?? ''}>
           <option value="">Não informada</option>
           {active(lists.sources, lead?.source_id).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label="Campanha">
-        <select className="input" name="campaign" defaultValue={lead?.campaign_id ?? ''}>
+        <Select className="input" name="campaign" defaultValue={lead?.campaign_id ?? ''}>
           <option value="">Nenhuma</option>
           {active(lists.campaigns, lead?.campaign_id).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label="Interesse">
         <input className="input" name="interest" list="lead-interesses" maxLength={120} defaultValue={lead?.interest ?? ''} />
@@ -104,17 +105,17 @@ export function LeadForm({ user, lead, lists, onClose, onSaved }: {
         <datalist id="lead-locais">{LEAD_LOCATIONS.map((item) => <option key={item} value={item} />)}</datalist>
       </Field>
       <Field label="Profissional desejada (opcional)">
-        <select className="input" name="professional" defaultValue={lead?.preferred_professional_id ?? ''}>
+        <Select className="input" name="professional" defaultValue={lead?.preferred_professional_id ?? ''}>
           <option value="">Sem preferência</option>
           {lists.professionals.filter((item) => item.active || item.id === lead?.preferred_professional_id)
             .map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label="Responsável">
-        <select className="input" name="owner" defaultValue={lead ? lead.owner_id ?? '' : user.id}>
+        <Select className="input" name="owner" defaultValue={lead ? lead.owner_id ?? '' : user.id}>
           <option value="">Sem responsável</option>
           {lists.owners.map((item) => <option key={item.id} value={item.id}>{item.id === user.id ? `${item.name} (eu)` : item.name}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label="Observações" full><textarea className="input" name="notes" rows={3} maxLength={4000} defaultValue={lead?.notes ?? ''} /></Field>
     </FormModal>
@@ -167,10 +168,10 @@ export function LeadDetail({ user, leadId, lists, onClose, onChanged }: {
         refresh();
       }}>
         <Field label="Motivo">
-          <select className="input" name="reason" required defaultValue="">
+          <Select className="input" name="reason" required defaultValue="">
             <option value="" disabled>Escolha</option>
             {lists.reasons.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Detalhe (opcional)" full><input className="input" name="note" maxLength={300} /></Field>
       </FormModal>
@@ -181,12 +182,12 @@ export function LeadDetail({ user, leadId, lists, onClose, onChanged }: {
     return (
       <FormModal title="Agendar retorno" submitLabel="Agendar" onClose={() => setDialog(null)} onSubmit={async (form) => {
         await api.scheduleFollowup(leadId, text(form, 'date'), text(form, 'time') || null, user.id);
-        notify('Retorno agendado: a tarefa está em Minhas tarefas.');
+        notify('Retorno agendado no Comercial.');
         refresh();
       }}>
         <Field label="Data"><input className="input" name="date" type="date" required min={todayKey()} defaultValue={todayKey()} /></Field>
         <Field label="Horário (opcional)"><input className="input" name="time" type="time" /></Field>
-        <p className="muted small full">Cria a tarefa "Retornar contato: {lead.name}" para você.</p>
+        <p className="muted small full">O retorno de {lead.name} aparecerá na ficha do contato.</p>
       </FormModal>
     );
   }
@@ -199,10 +200,10 @@ export function LeadDetail({ user, leadId, lists, onClose, onChanged }: {
         {lead && stage && <>
           <div className="lead-stage-row">
             <label className="field-inline">Etapa
-              <select className="input compact" value={lead.stage_id} disabled={!manage || busy || Boolean(lead.patient_id)}
+              <Select className="input compact" value={lead.stage_id} disabled={!manage || busy || Boolean(lead.patient_id)}
                 onChange={(event) => move(event.target.value)}>
                 {lists.stages.filter((item) => item.active || item.id === lead.stage_id).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select>
+              </Select>
             </label>
             {lead.loss_reason_id && <span className="st charge-overdue">Motivo: {nameOf(lists.reasons, lead.loss_reason_id)}</span>}
           </div>
@@ -231,9 +232,9 @@ export function LeadDetail({ user, leadId, lists, onClose, onChanged }: {
 
           {manage && (
             <form className="lead-contact" onSubmit={contact.onSubmit}>
-              <select className="input compact" name="kind" aria-label="Tipo de contato" defaultValue="message">
+              <Select className="input compact" name="kind" aria-label="Tipo de contato" defaultValue="message">
                 {contactKinds.map((kind) => <option key={kind} value={kind}>{leadActivityLabel[kind].charAt(0).toUpperCase() + leadActivityLabel[kind].slice(1)}</option>)}
-              </select>
+              </Select>
               <input className="input" name="body" maxLength={4000} placeholder="O que foi conversado (opcional)" aria-label="Descrição do contato" />
               <button type="submit" className="button light" disabled={contact.busy}>{contact.busy ? 'Salvando…' : 'Registrar'}</button>
               {contact.error && <p className="erro full" role="alert">{contact.error}</p>}
@@ -286,10 +287,10 @@ function ConvertForm({ lead, lists, onClose, onDone }: { lead: Lead; lists: CrmL
       <p className="modal-text full">Cria o cadastro de {lead.name} com telefone, e-mail, origem e campanha do lead.</p>
       {duplicates.length > 0 && (
         <Field label="Já é paciente?" full>
-          <select className="input" value={existing} onChange={(event) => setExisting(event.target.value)}>
+          <Select className="input" value={existing} onChange={(event) => setExisting(event.target.value)}>
             <option value="">Não, criar novo cadastro</option>
             {duplicates.map((item) => <option key={item.id} value={item.id}>Ligar a {item.name} (mesmo contato)</option>)}
-          </select>
+          </Select>
         </Field>
       )}
       {!existing && (

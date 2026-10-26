@@ -52,8 +52,6 @@ function Root() {
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="sessao/[id]" options={{ title: 'Sessão' }} />
         <Stack.Screen name="paciente/[id]" options={{ title: 'Paciente' }} />
-        <Stack.Screen name="tarefa/[id]" options={{ title: 'Tarefa' }} />
-        <Stack.Screen name="tarefa/nova" options={{ title: 'Nova tarefa', presentation: 'modal' }} />
         <Stack.Screen name="evolucao/[sessao]" options={{ title: 'Rascunho de evolução' }} />
         <Stack.Screen name="avisos" options={{ title: 'Avisos' }} />
         <Stack.Screen name="cobrancas" options={{ title: 'Cobranças em aberto' }} />

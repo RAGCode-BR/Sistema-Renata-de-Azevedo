@@ -57,6 +57,7 @@ import type {
   NewUser,
   NoteStatusRow,
   Patient,
+  PatientActivity,
   PatientDocument,
   PatientInput,
   Payment,
@@ -462,6 +463,16 @@ export function createApi(supabase: SupabaseClient) {
     // Sessões realizadas sem evolução: todas para quem vê a agenda geral, só as próprias para a profissional.
     pendingNotes: () => run<PendingNote[]>(supabase.rpc('pending_clinical_notes')),
 
+    // Atividades dos pacientes. A profissional vê sua carteira; a proprietária vê todas.
+    patientActivityPatients: () => run<{ id: string; name: string }[]>(supabase.rpc('patient_activity_patients')),
+    patientActivityProfessionals: (patientId: string) => run<{ id: string; name: string }[]>(supabase.rpc('patient_activity_professionals', { p_patient_id: patientId })),
+    patientActivities: (patientId?: string) => run<PatientActivity[]>(supabase.rpc('patient_activity_list', { p_patient_id: patientId ?? null })),
+    savePatientActivity: (id: string | null, patientId: string, title: string, instructions: string, dueDate: string | null,
+      professionalId: string | null = null, checklist: { id?: string; text: string }[] = []) =>
+      run<string>(supabase.rpc('save_patient_activity_with_checklist', { p_id: id, p_patient_id: patientId, p_title: title,
+        p_instructions: instructions, p_due_date: dueDate, p_professional_id: professionalId, p_checklist: checklist })),
+    cancelPatientActivity: (id: string) => run<unknown>(supabase.rpc('cancel_patient_activity', { p_id: id })),
+
     // Tarefas. Regras de quem vê, edita e atribui ficam nas funções do banco.
     tasks: (scope: TaskScope, open: boolean) => run<Task[]>(supabase.rpc('task_list', { p_scope: scope, p_open: open })),
     task: async (id: string) => (await run<Task[]>(supabase.rpc('task_list', { p_scope: 'mine', p_open: false, p_task_id: id })))[0] ?? null,
@@ -599,6 +610,11 @@ export function createApi(supabase: SupabaseClient) {
     portalMe: () => run<PortalMe>(supabase.rpc('portal_me')),
     portalAcceptTerms: (version: string) => run<unknown>(supabase.rpc('portal_accept_terms', { p_version: version })),
     portalAppointments: (patientId: string) => run<PortalAppointment[]>(supabase.rpc('portal_appointments', { p_patient_id: patientId })),
+    portalPatientActivities: (patientId: string) => run<PatientActivity[]>(supabase.rpc('portal_patient_activities', { p_patient_id: patientId })),
+    portalCompletePatientActivity: (id: string, response: string) =>
+      run<unknown>(supabase.rpc('portal_complete_patient_activity', { p_id: id, p_response: response || null })),
+    portalCompletePatientActivityItem: (id: string, itemId: string) =>
+      run<unknown>(supabase.rpc('portal_complete_patient_activity_item', { p_id: id, p_item_id: itemId })),
     portalConfirm: (appointmentId: string) => run<unknown>(supabase.rpc('portal_confirm', { p_appointment_id: appointmentId })),
     portalRequestChange: (appointmentId: string, kind: 'reschedule' | 'cancel', message: string) =>
       run<unknown>(supabase.rpc('portal_request_change', { p_appointment_id: appointmentId, p_kind: kind, p_message: message || null })),
