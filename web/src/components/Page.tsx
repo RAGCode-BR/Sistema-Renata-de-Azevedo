@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 
-export function Heading({ title, lead, children }: { title: string; lead?: ReactNode; children?: ReactNode }) {
+export function Heading({ title, lead, children, className }: { title: string; lead?: ReactNode; children?: ReactNode; className?: string }) {
   return (
-    <section className="heading">
+    <section className={`heading${className ? ` ${className}` : ''}`}>
       <div>
         <h1>{title}</h1>
         {lead && <p className="lead">{lead}</p>}

@@ -9,8 +9,10 @@ import { PortalLogin } from './PortalLogin.tsx';
 import { PortalTerms } from './PortalTerms.tsx';
 import { Appointments, Documents, Finance, Home, Notices } from './pages.tsx';
 import { PatientActivities } from './PatientActivities.tsx';
+import { PatientForms } from './PatientForms.tsx';
 
-const PAGES = [['inicio', 'Início'], ['consultas', 'Sessões'], ['atividades', 'Minhas tarefas'], ['financeiro', 'Financeiro'], ['documentos', 'Documentos'], ['avisos', 'Avisos']] as const;
+const PAGES = [['inicio', 'Início'], ['consultas', 'Sessões'], ['atividades', 'Minhas tarefas'],
+  ['formularios', 'Formulários'], ['financeiro', 'Financeiro'], ['documentos', 'Documentos'], ['avisos', 'Avisos']] as const;
 type Page = typeof PAGES[number][0];
 const PATIENT_KEY = 'portal-paciente';
 
@@ -117,6 +119,7 @@ function PortalShell({ me, onLogout }: { me: PortalMe; onLogout: () => void }) {
         {page === 'inicio' && <Home key={patientId} me={me} patient={patient} />}
         {page === 'consultas' && <Appointments key={patientId} patientId={patientId} />}
         {page === 'atividades' && <PatientActivities key={patientId} patientId={patientId} />}
+        {page === 'formularios' && <PatientForms key={patientId} patientId={patientId} />}
         {page === 'financeiro' && <Finance key={patientId} patientId={patientId} instructions={me.payment_instructions} />}
         {page === 'documentos' && <Documents key={patientId} patientId={patientId} />}
         {page === 'avisos' && <Notices />}

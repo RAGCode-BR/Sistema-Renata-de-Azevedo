@@ -17,6 +17,7 @@ const marital = [['single', 'Solteiro(a)'], ['married', 'Casado(a)'], ['stable_u
 export function PatientForm({ patient, professionals, onClose, onSaved }: Props) {
   const savedId = useRef<string | null>(patient?.id ?? null);
   const [birthDate, setBirthDate] = useState(patient?.birth_date?.slice(0, 10) ?? '');
+  const [status, setStatus] = useState<PatientStatus>(patient?.status ?? 'active');
   const minor = (age(birthDate) ?? 99) < 18;
   const [hasGuardian, setHasGuardian] = useState(Boolean(patient?.guardian_name));
   const showGuardian = minor || hasGuardian;
@@ -109,7 +110,7 @@ export function PatientForm({ patient, professionals, onClose, onSaved }: Props)
           .filter(Boolean).join(', ') || (patient?.address ?? ''),
         guardian_name: guardian('guardian_name'), guardian_relationship: guardian('guardian_relationship'),
         guardian_phone: guardian('guardian_phone'), guardian_email: guardian('guardian_email'),
-        admin_notes: text(data, 'admin_notes'), status: (text(data, 'status') || 'active') as PatientStatus,
+        admin_notes: text(data, 'admin_notes'), status, exit_reason: status === 'discharged' || status === 'inactive' ? text(data, 'exit_reason') : '',
         email_opt_in: data.get('email_opt_in') === 'on', sms_opt_in: data.get('sms_opt_in') === 'on', professionalIds
       };
       const id = await api.savePatient(savedId.current, input);
@@ -142,9 +143,12 @@ export function PatientForm({ patient, professionals, onClose, onSaved }: Props)
         <option value="female">Feminino</option><option value="male">Masculino</option>
         <option value="other">Outro</option><option value="undisclosed">Prefere não informar</option>
       </Select></Field>
-      <Field label="Situação"><Select className="input" name="status" defaultValue={patient?.status ?? 'active'}>
+      <Field label="Situação"><Select className="input" name="status" value={status} onChange={(event) => setStatus(event.target.value as PatientStatus)}>
         {(Object.entries(patientStatusLabel) as [PatientStatus, string][]).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
       </Select></Field>
+      {(status === 'discharged' || status === 'inactive') && <Field label="Motivo do encerramento *" full>
+        <input className="input" name="exit_reason" required maxLength={200} placeholder="Ex.: alta, mudança, opção do paciente" defaultValue={patient?.exit_reason ?? ''} />
+      </Field>}
     </div></section>
 
     <section className="patient-form-section full"><h3>Informações adicionais</h3><div className="form-grid">

@@ -56,6 +56,18 @@ export function PrintRecordPage({ patientId }: { patientId: string | null }) {
           </div>
         )) : <p className="muted">Nenhuma evolução finalizada.</p>}
       </section>
+      {data.forms.length > 0 && <section>
+        <h2>Formulários e escalas respondidos</h2>
+        {data.forms.map((form) => <div className="print-section" key={form.id}>
+          <h3>{form.title}</h3>
+          <p className="muted small">Respondido em {dateTime(form.completed_at)}
+            {form.score !== null ? ` · pontuação ${Number(form.score)} de ${Number(form.score_max)}` : ''}</p>
+          {form.description && <p className="pre">{form.description}</p>}
+          {form.questions.map((q) => <div key={q.id}><strong>{q.label}</strong><p className="pre">
+            {q.type === 'choice' || q.type === 'scale' ? q.options?.[Number(form.answers?.[q.id])] ?? '—'
+              : form.answers?.[q.id] || '—'}</p></div>)}
+        </div>)}
+      </section>}
       <footer className="print-footer muted small">
         Documento gerado pelo sistema da clínica. A identificação da profissional e as datas de finalização são registradas no sistema.
       </footer>

@@ -8,13 +8,20 @@ import { useToast } from '../components/Toast.tsx';
 import { dateOnly } from '../format.ts';
 import { errorMessage, text, useLoad } from '../hooks.ts';
 
-export function PatientActivitiesPage({ isOwner = false }: { isOwner?: boolean }) {
+export function PatientActivitiesPage({ isOwner = false, initialPatient = null }: { isOwner?: boolean; initialPatient?: string | null }) {
   const notify = useToast();
   const { data, error, reload } = useLoad(api.patientActivities, []);
   const { data: patients } = useLoad(api.patientActivityPatients, []);
-  const [editing, setEditing] = useState<PatientActivity | 'new' | null>(null);
-  const [selectedPatient, setSelectedPatient] = useState('');
+  const [editing, setEditing] = useState<PatientActivity | 'new' | null>(initialPatient ? 'new' : null);
+  const [selectedPatient, setSelectedPatient] = useState(initialPatient ?? '');
   const [selectedProfessional, setSelectedProfessional] = useState('');
+  const [sourceMessage, setSourceMessage] = useState('');
+  const [draftTitle, setDraftTitle] = useState('');
+  const [draftInstructions, setDraftInstructions] = useState('');
+  const [transcribing, setTranscribing] = useState('');
+  const sources = useLoad(async () => ({ patientId: selectedPatient, items: selectedPatient && editing === 'new'
+    ? await api.patientWhatsappTaskSources(selectedPatient) : [] }), [selectedPatient, editing === 'new']);
+  const sourceRows = sources.data?.patientId === selectedPatient ? sources.data.items : undefined;
   const [checklist, setChecklist] = useState<PatientActivityChecklistItem[]>([]);
   const { data: professionals } = useLoad(
     () => !isOwner ? Promise.resolve([])
@@ -38,7 +45,7 @@ export function PatientActivitiesPage({ isOwner = false }: { isOwner?: boolean }
 
   return <>
     <Heading title="Tarefas" lead="Crie tarefas para os pacientes e acompanhe as respostas enviadas pelo portal.">
-      <button type="button" className="button" onClick={() => { setSelectedPatient(''); setSelectedProfessional(''); setChecklist([]); setEditing('new'); }}>Nova tarefa para paciente</button>
+      <button type="button" className="button" onClick={() => { setSelectedPatient(''); setSelectedProfessional(''); setSourceMessage(''); setDraftTitle(''); setDraftInstructions(''); setChecklist([]); setEditing('new'); }}>Nova tarefa para paciente</button>
     </Heading>
     <div className="tabs spaced-tabs" role="tablist" aria-label="Situação das tarefas para pacientes">
       <button type="button" role="tab" aria-selected={filter === 'assigned'} className={filter === 'assigned' ? 'tab on' : 'tab'} onClick={() => setFilter('assigned')}>Em aberto</button>
@@ -59,7 +66,7 @@ export function PatientActivitiesPage({ isOwner = false }: { isOwner?: boolean }
           <td>{item.due_date ? dateOnly(item.due_date) : 'Sem prazo'}</td>
           <td>{item.status === 'assigned' ? 'Em aberto' : item.status === 'completed' ? `Concluída em ${dateOnly(item.completed_at!)}` : 'Cancelada'}</td>
           <td className="actions-cell">{item.status === 'assigned' && <>
-            <button type="button" className="link-btn" onClick={() => { setSelectedPatient(item.patient_id); setSelectedProfessional(item.professional_id); setChecklist(item.checklist ?? []); setEditing(item); }}>Editar</button>
+            <button type="button" className="link-btn" onClick={() => { setSelectedPatient(item.patient_id); setSelectedProfessional(item.professional_id); setSourceMessage(''); setDraftTitle(item.title); setDraftInstructions(item.instructions); setChecklist(item.checklist ?? []); setEditing(item); }}>Editar</button>
             <button type="button" className="link-btn danger" disabled={busy === item.id} onClick={() => cancel(item)}>Cancelar</button>
           </>}</td>
         </tr>)}</tbody>
@@ -69,14 +76,18 @@ export function PatientActivitiesPage({ isOwner = false }: { isOwner?: boolean }
       submitLabel={editing === 'new' ? 'Enviar tarefa' : 'Salvar'} onClose={() => setEditing(null)}
       onSubmit={async (form) => {
         if (checklist.some((entry) => !entry.text.trim())) throw new Error('Preencha ou remova os itens vazios do checklist.');
-        await api.savePatientActivity(editing === 'new' ? null : editing.id, text(form, 'patient'),
-          text(form, 'title'), text(form, 'instructions'), text(form, 'dueDate') || null,
-          isOwner ? text(form, 'professional') : null, checklist.map(({ id, text }) => ({ id, text: text.trim() })));
+        const args = [editing === 'new' ? null : editing.id, text(form, 'patient'),
+          draftTitle.trim(), draftInstructions.trim(), text(form, 'dueDate') || null,
+          isOwner ? text(form, 'professional') : null,
+          checklist.map(({ id, text }) => ({ id, text: text.trim() }))] as const;
+        if (sourceMessage && editing === 'new') await api.savePatientActivityFromWhatsapp(...args, sourceMessage);
+        else await api.savePatientActivity(...args);
         notify(editing === 'new' ? 'Tarefa enviada ao portal do paciente.' : 'Tarefa atualizada.');
         reload();
       }}>
       <Field label="Paciente" full><Select className="input" name="patient" required value={selectedPatient} disabled={editing !== 'new'}
-        onChange={(event) => { setSelectedPatient(event.target.value); setSelectedProfessional(''); }}>
+        onChange={(event) => { setSelectedPatient(event.target.value); setSelectedProfessional(''); setSourceMessage('');
+          setDraftTitle(''); setDraftInstructions(''); }}>
         <option value="">Selecione</option>
         {(patients ?? []).map((patient) => <option key={patient.id} value={patient.id}>{patient.name}</option>)}
       </Select>{editing !== 'new' && <input type="hidden" name="patient" value={editing.patient_id} />}
@@ -89,7 +100,37 @@ export function PatientActivitiesPage({ isOwner = false }: { isOwner?: boolean }
       </Select>{selectedPatient && professionals && !professionals.length &&
         <span className="muted small">Vincule uma profissional a este paciente no cadastro antes de enviar a tarefa.</span>}
       </Field>}
-      <Field label="Título" full><input className="input" name="title" required maxLength={200} defaultValue={editing === 'new' ? '' : editing.title} /></Field>
+      {editing === 'new' && selectedPatient && <section className="activity-whatsapp-source full" aria-label="Criar tarefa de uma mensagem do WhatsApp">
+        <div className="activity-whatsapp-heading"><strong>Usar mensagem do WhatsApp</strong>
+          <span>Escolha uma mensagem recebida e revise o texto antes de enviar.</span></div>
+        {sources.error && <p className="muted small">{sources.error}</p>}
+        {!sourceRows && !sources.error && <p className="muted small">Buscando mensagens…</p>}
+        {!sources.error && sourceRows?.length === 0 && <p className="muted small">Nenhuma mensagem recebida deste paciente no número oficial da clínica.</p>}
+        {sourceRows && sourceRows.length > 0 && <div className="activity-whatsapp-list">
+          {sourceRows.map((message) => {
+            const content = message.audio ? message.transcript : message.body;
+            return <div className={sourceMessage === message.id ? 'activity-whatsapp-item selected' : 'activity-whatsapp-item'} key={message.id}>
+              <span className="muted small">{message.audio ? 'Áudio' : 'Mensagem'} · {dateOnly(message.created_at)}</span>
+              <p className="pre">{content || 'Áudio ainda não transcrito.'}</p>
+              {message.audio && !message.transcript
+                ? <button type="button" className="button light" disabled={Boolean(transcribing)} onClick={async () => {
+                  setTranscribing(message.id);
+                  try { await api.transcribePatientWhatsappAudio(message.id); sources.reload(); notify('Áudio transcrito. Revise o texto antes de usar.'); }
+                  catch (failure) { notify(errorMessage(failure)); }
+                  finally { setTranscribing(''); }
+                }}>{transcribing === message.id ? 'Transcrevendo…' : 'Transcrever áudio'}</button>
+                : <button type="button" className="button light" onClick={() => {
+                  const candidate = (content ?? '').trim();
+                  setSourceMessage(message.id);
+                  setDraftTitle(candidate.split(/[.!?\n]/)[0].slice(0, 120) || 'Tarefa para o paciente');
+                  setDraftInstructions(candidate.slice(0, 4000));
+                }}>{sourceMessage === message.id ? 'Mensagem selecionada' : 'Usar como rascunho'}</button>}
+            </div>;
+          })}
+        </div>}
+      </section>}
+      <Field label="Título" full><input className="input" name="title" required maxLength={200} value={draftTitle}
+        onChange={(event) => setDraftTitle(event.target.value)} /></Field>
       <section className="activity-checklist-card full" aria-labelledby="activity-checklist-title">
         <div className="activity-checklist-heading">
           <span className="activity-checklist-heading-icon" aria-hidden="true">✓</span>
@@ -114,7 +155,8 @@ export function PatientActivitiesPage({ isOwner = false }: { isOwner?: boolean }
           <span className="activity-checklist-add-icon" aria-hidden="true">+</span>Adicionar item ao checklist</button>}
         <p className="activity-checklist-help">O paciente marca cada item quando o concluir.</p>
       </section>
-      <Field label="Orientações para o paciente" full><textarea className="input" name="instructions" rows={5} required maxLength={4000} defaultValue={editing === 'new' ? '' : editing.instructions} /></Field>
+      <Field label="Orientações para o paciente" full><textarea className="input" name="instructions" rows={5} required maxLength={4000}
+        value={draftInstructions} onChange={(event) => setDraftInstructions(event.target.value)} /></Field>
       <Field label="Prazo (opcional)"><input className="input" name="dueDate" type="date" defaultValue={editing === 'new' ? '' : editing.due_date ?? ''} /></Field>
       <p className="muted small full">A tarefa aparece no portal das pessoas com acesso a este paciente.</p>
     </FormModal>}

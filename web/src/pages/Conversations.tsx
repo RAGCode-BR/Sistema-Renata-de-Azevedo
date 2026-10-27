@@ -18,7 +18,7 @@ const formatPhone = (phone: string) => phone.replace(/^55(\d{2})(\d{4,5})(\d{4})
 
 // Conversas do WhatsApp (equipe de atendimento). Resposta livre só até 24 h depois da última mensagem
 // da pessoa; fora disso o WhatsApp só aceita modelos aprovados (confirmação, lembrete).
-export function ConversationsPage({ phone: initial }: { phone: string | null }) {
+export function ConversationsPage({ phone: initial, canCreatePatientTask = false }: { phone: string | null; canCreatePatientTask?: boolean }) {
   const notify = useToast();
   const list = useLoad(api.whatsappConversations, []);
   const [phone, setPhone] = useState<string | null>(initial);
@@ -51,15 +51,17 @@ export function ConversationsPage({ phone: initial }: { phone: string | null }) 
               </ul>
             ) : <PanelState error={list.error} loading={!list.error} empty="" />}
           </Panel>
-          {current && <Thread conversation={current} onBack={() => setPhone(null)} onChanged={list.reload} notify={notify} />}
+          {current && <Thread conversation={current} onBack={() => setPhone(null)} onChanged={list.reload} notify={notify}
+            canCreatePatientTask={canCreatePatientTask} />}
         </div>
       )}
     </>
   );
 }
 
-function Thread({ conversation, onBack, onChanged, notify }: {
+function Thread({ conversation, onBack, onChanged, notify, canCreatePatientTask }: {
   conversation: WhatsappConversation; onBack: () => void; onChanged: () => void; notify: (text: string) => void;
+  canCreatePatientTask: boolean;
 }) {
   const { data, error, reload } = useLoad(() => api.whatsappMessages(conversation.phone), [conversation.phone, conversation.last_at]);
   const [text, setText] = useState('');
@@ -98,6 +100,8 @@ function Thread({ conversation, onBack, onChanged, notify }: {
           <div key={item.id} className={`bubble ${item.direction}`}>
             {KIND[item.kind] && <span className="bubble-kind">{KIND[item.kind]}</span>}
             <p className="pre">{item.body}</p>
+            {canCreatePatientTask && conversation.kind === 'patient' && conversation.ref_id && item.direction === 'in' &&
+              <a className="link-btn" href={`#/tarefas?paciente=${conversation.ref_id}`}>Criar tarefa para paciente</a>}
             <span className="bubble-meta">{dateTime(item.created_at)}{item.direction === 'out' && STATUS[item.status] ? ` · ${STATUS[item.status]}` : ''}
               {item.status === 'failed' && item.error ? ` (${item.error})` : ''}</span>
           </div>

@@ -60,6 +60,8 @@ export interface Patient {
   guardian_phone: string | null;
   guardian_email: string | null;
   status: PatientStatus;
+  exit_reason: string | null;
+  status_changed_at: string | null;
   created_at: string;
   source_id: string | null;
   campaign_id: string | null;
@@ -221,6 +223,7 @@ export interface ClinicalExport {
   exported_at: string;
   notes: Pick<ClinicalNote, 'id' | 'body' | 'finalized_at' | 'appointment_starts_at' | 'rectifies_id' | 'rectification_reason'>[];
   formulation: Pick<CaseFormulation, 'template_name' | 'sections' | 'content' | 'updated_at'> | null;
+  forms: PatientFormResult[];
 }
 
 // Situação de preenchimento de uma sessão realizada (sem conteúdo clínico).
@@ -381,6 +384,33 @@ export interface PatientActivityChecklistItem {
   completed_at: string | null;
 }
 
+export type PatientFormKind = 'exercise' | 'form' | 'scale';
+export interface PatientFormQuestion {
+  id: string; label: string; type: 'text' | 'number' | 'choice' | 'scale'; required: boolean;
+  options?: string[]; reverse?: boolean;
+}
+export interface PatientFormTemplate {
+  id: string; title: string; description: string; kind: PatientFormKind;
+  questions: PatientFormQuestion[]; active: boolean; created_at: string;
+}
+export interface PatientFormAssignment {
+  id: string; patient_id?: string; patient_name?: string; professional_id?: string;
+  title: string; description: string; kind: PatientFormKind; questions: PatientFormQuestion[];
+  due_date: string | null; status: 'assigned' | 'completed' | 'cancelled';
+  answers: Record<string, string> | null; score: number | null; score_max: number | null;
+  assigned_at: string; completed_at: string | null;
+}
+export type PatientFormResult = Pick<PatientFormAssignment,
+  'id' | 'title' | 'description' | 'kind' | 'questions' | 'answers' | 'score' | 'score_max' | 'completed_at'>;
+
+export interface PatientWhatsappTaskSource {
+  id: string;
+  body: string;
+  audio: boolean;
+  transcript: string | null;
+  created_at: string;
+}
+
 export type TaskStatus = 'todo' | 'doing' | 'done' | 'cancelled';
 export type TaskPriority = 'low' | 'normal' | 'high' | 'urgent';
 export type TaskFrequency = 'daily' | 'weekdays' | 'weekly' | 'monthly' | 'monthly_last' | 'yearly';
@@ -502,8 +532,36 @@ export interface LeadInput {
   preferred_professional_id: string; owner_id: string; notes: string;
 }
 
+export interface LeadAssessment {
+  id: string;
+  lead_id: string;
+  professional_id: string;
+  professional_name: string;
+  starts_at: string;
+  ends_at: string;
+  status: 'scheduled' | 'attended' | 'missed' | 'cancelled' | 'converted';
+  appointment_id: string | null;
+}
+
+export interface PatientProfessionalEvent {
+  id: number;
+  professional_id: string;
+  professional_name: string;
+  kind: 'entry' | 'exit';
+  created_at: string;
+}
+
+export interface CrmProfessionalFlow {
+  professional_id: string;
+  professional_name: string;
+  linked_now: number;
+  entries: number;
+  exits: number;
+}
+
 export type LeadActivityKind = 'created' | 'edited' | 'assigned' | 'stage' | 'converted' | 'call' | 'message' | 'email'
-  | 'meeting' | 'note' | 'followup' | 'followup_done' | 'followup_cancelled' | 'site';
+  | 'meeting' | 'note' | 'followup' | 'followup_done' | 'followup_cancelled' | 'site'
+  | 'assessment_scheduled' | 'assessment_attended' | 'assessment_missed' | 'assessment_cancelled';
 export interface LeadActivity {
   id: number; lead_id: string; actor_id: string | null; kind: LeadActivityKind; body: string | null;
   from_value: string | null; to_value: string | null; created_at: string;
@@ -556,6 +614,15 @@ export interface AgingRow {
 export interface ExpenseReportRow { dimension: 'category' | 'cost_center'; name: string; competence: number; paid: number }
 export interface PayoutReportRow { month: string; professional_id: string; professional_name: string; received: number; percent: number | null; payout: number | null; paid_at: string | null }
 export interface CampaignReportRow { id: string; name: string; source_name: string | null; budget: number; leads: number; converted: number; lost: number; attended: number; revenue: number | null }
+export interface PerformanceReport {
+  new_patients: number; ended_patients: number; leads: number; converted: number;
+  observed_ltv: number | null; estimated_cac: number | null; campaign_budget: number | null;
+  campaign_converted: number; financial_available: boolean; history_from: string;
+  exit_reasons: { name: string; count: number }[];
+  professionals: { professional_id: string; professional_name: string; leads: number; converted: number;
+    new_patients: number; ended_patients: number; linked_now: number; entries: number; exits: number;
+    opening: number | null; growth_percent: number | null }[];
+}
 export interface YearRow {
   month: string; billed: number | null; received: number | null; expenses_paid: number | null; cash_result: number | null;
   completed: number | null; missed: number | null; cancelled: number | null; new_patients: number | null; leads: number | null; converted: number | null;
@@ -634,7 +701,7 @@ export type PatientInput = {
     | 'address_country' | 'address_postal_code' | 'address_state' | 'address_city' | 'address_district'
     | 'address_street' | 'address_number' | 'address_complement']: string;
 } & Pick<Patient, 'tags' | 'additional_contacts' | 'emergency_contacts' | 'identification_documents'
-  | 'email_opt_in' | 'sms_opt_in' | 'sex' | 'marital_status'> & { status: PatientStatus; professionalIds: string[] };
+  | 'email_opt_in' | 'sms_opt_in' | 'sex' | 'marital_status'> & { status: PatientStatus; exit_reason: string; professionalIds: string[] };
 
 export interface NewAppointment {
   patientId: string;

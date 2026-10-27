@@ -13,6 +13,7 @@ import type {
   ExpenseReportRow,
   PatientReport,
   PaymentMethodRow,
+  PerformanceReport,
   PayoutReportRow,
   RevenueRow,
   SessionReportRow,
@@ -24,6 +25,9 @@ import type {
   CrmSummary,
   ImportRow,
   Lead,
+  LeadAssessment,
+  PatientProfessionalEvent,
+  CrmProfessionalFlow,
   LeadActivity,
   LeadDuplicate,
   LeadInput,
@@ -59,6 +63,12 @@ import type {
   NoteStatusRow,
   Patient,
   PatientActivity,
+  PatientFormAssignment,
+  PatientFormKind,
+  PatientFormQuestion,
+  PatientFormResult,
+  PatientFormTemplate,
+  PatientWhatsappTaskSource,
   PatientDocument,
   PatientInput,
   Payment,
@@ -125,7 +135,7 @@ const DOCUMENTS_BUCKET = 'patient-documents';
 const PORTAL_BUCKET = 'portal-documents';
 
 const PATIENT_COLUMNS = 'id, name, social_name, phone, email, birth_date, cpf, address, admin_notes, guardian_name, '
-  + 'guardian_relationship, guardian_phone, guardian_email, status, created_at, source_id, campaign_id, whatsapp_opt_in, '
+  + 'guardian_relationship, guardian_phone, guardian_email, status, exit_reason, status_changed_at, created_at, source_id, campaign_id, whatsapp_opt_in, '
   + 'email_opt_in, sms_opt_in, sex, rg, occupation, marital_status, tags, additional_contacts, emergency_contacts, '
   + 'identification_documents, address_country, address_postal_code, address_state, address_city, address_district, '
   + 'address_street, address_number, address_complement, photo_path, patient_professionals(professional_id)';
@@ -487,10 +497,30 @@ export function createApi(supabase: SupabaseClient) {
     patientActivityPatients: () => run<{ id: string; name: string }[]>(supabase.rpc('patient_activity_patients')),
     patientActivityProfessionals: (patientId: string) => run<{ id: string; name: string }[]>(supabase.rpc('patient_activity_professionals', { p_patient_id: patientId })),
     patientActivities: (patientId?: string) => run<PatientActivity[]>(supabase.rpc('patient_activity_list', { p_patient_id: patientId ?? null })),
+    patientFormTemplates: () => run<PatientFormTemplate[]>(supabase.rpc('patient_form_templates_list')),
+    savePatientFormTemplate: (id: string | null, title: string, description: string, kind: PatientFormKind,
+      questions: PatientFormQuestion[]) => run<string>(supabase.rpc('save_patient_form_template', {
+        p_id: id, p_title: title, p_description: description, p_kind: kind, p_questions: questions })),
+    assignPatientForm: (templateId: string, patientId: string, dueDate: string | null) =>
+      run<string>(supabase.rpc('assign_patient_form', { p_template_id: templateId, p_patient_id: patientId, p_due_date: dueDate })),
+    cancelPatientForm: (id: string) => run<unknown>(supabase.rpc('cancel_patient_form', { p_id: id })),
+    patientFormAssignments: (patientId?: string) => run<PatientFormAssignment[]>(
+      supabase.rpc('patient_form_assignments_list', { p_patient_id: patientId ?? null })),
+    clinicalPatientFormResults: (patientId: string) => run<PatientFormResult[]>(
+      supabase.rpc('clinical_patient_form_results', { p_patient_id: patientId })),
+    patientWhatsappTaskSources: (patientId: string) => run<PatientWhatsappTaskSource[]>(
+      supabase.rpc('patient_whatsapp_task_sources', { p_patient_id: patientId })),
+    transcribePatientWhatsappAudio: (messageId: string) => invoke<{ text: string }>('patient-task-audio',
+      { messageId }, 'Não foi possível transcrever o áudio.'),
     savePatientActivity: (id: string | null, patientId: string, title: string, instructions: string, dueDate: string | null,
       professionalId: string | null = null, checklist: { id?: string; text: string }[] = []) =>
       run<string>(supabase.rpc('save_patient_activity_with_checklist', { p_id: id, p_patient_id: patientId, p_title: title,
         p_instructions: instructions, p_due_date: dueDate, p_professional_id: professionalId, p_checklist: checklist })),
+    savePatientActivityFromWhatsapp: (id: string | null, patientId: string, title: string, instructions: string,
+      dueDate: string | null, professionalId: string | null, checklist: { id?: string; text: string }[], messageId: string) =>
+      run<string>(supabase.rpc('save_patient_activity_from_whatsapp', { p_id: id, p_patient_id: patientId,
+        p_title: title, p_instructions: instructions, p_due_date: dueDate, p_professional_id: professionalId,
+        p_checklist: checklist, p_message_id: messageId })),
     cancelPatientActivity: (id: string) => run<unknown>(supabase.rpc('cancel_patient_activity', { p_id: id })),
 
     // Tarefas. Regras de quem vê, edita e atribui ficam nas funções do banco.
@@ -526,6 +556,14 @@ export function createApi(supabase: SupabaseClient) {
     patientLeads: (patientId: string) => run<Lead[]>(supabase.from('leads').select('*')
       .eq('patient_id', patientId).order('converted_at', { ascending: false })),
     leadActivities: (id: string) => run<LeadActivity[]>(supabase.from('lead_activities').select('*').eq('lead_id', id).order('created_at').order('id')),
+    leadAssessments: (leadId: string) => run<LeadAssessment[]>(supabase.rpc('lead_assessment_list', { p_lead_id: leadId })),
+    patientProfessionalHistory: (patientId: string) => run<PatientProfessionalEvent[]>(
+      supabase.rpc('patient_professional_history', { p_patient_id: patientId })),
+    scheduleLeadAssessment: (leadId: string, professionalId: string, startsAt: string, endsAt: string) =>
+      run<string>(supabase.rpc('schedule_lead_assessment', { p_lead_id: leadId, p_professional_id: professionalId,
+        p_starts_at: startsAt, p_ends_at: endsAt })),
+    setLeadAssessmentStatus: (id: string, status: 'attended' | 'missed' | 'cancelled') =>
+      run<unknown>(supabase.rpc('set_lead_assessment_status', { p_id: id, p_status: status })),
     saveLead: (id: string | null, input: LeadInput) => run<string>(supabase.rpc('save_lead', { p_id: id, p_data: input })),
     moveLead: (id: string, stageId: string, lossReasonId: string | null, note: string) =>
       run<unknown>(supabase.rpc('move_lead', { p_id: id, p_stage_id: stageId, p_loss_reason_id: lossReasonId, p_note: note })),
@@ -559,6 +597,8 @@ export function createApi(supabase: SupabaseClient) {
       .update({ default_owner_id: ownerId, updated_at: new Date().toISOString() }).eq('id', true).select('id').single()),
     crmOwners: () => run<{ id: string; name: string }[]>(supabase.rpc('crm_owners')),
     crmSummary: (from: string, to: string) => run<CrmSummary>(supabase.rpc('crm_summary', { p_from: from, p_to: to })),
+    crmProfessionalFlow: (from: string, to: string) => run<CrmProfessionalFlow[]>(
+      supabase.rpc('crm_professional_flow', { p_from: from, p_to: to })),
     crmMonthly: (year: number) => run<CrmMonth[]>(supabase.rpc('crm_monthly', { p_year: year })),
     setPatientOrigin: (patientId: string, sourceId: string | null, campaignId: string | null) =>
       run<unknown>(supabase.rpc('set_patient_origin', { p_patient_id: patientId, p_source_id: sourceId, p_campaign_id: campaignId })),
@@ -576,6 +616,9 @@ export function createApi(supabase: SupabaseClient) {
     reportExpenses: (from: string, to: string) => run<ExpenseReportRow[]>(supabase.rpc('report_expenses', { p_from: from, p_to: to })),
     reportPayouts: (from: string, to: string) => run<PayoutReportRow[]>(supabase.rpc('report_payouts', { p_from: from, p_to: to })),
     reportCampaigns: (from: string, to: string) => run<CampaignReportRow[]>(supabase.rpc('report_campaigns', { p_from: from, p_to: to })),
+    reportPerformance: (from: string, to: string, professionalId: string | null, sourceId: string | null) =>
+      run<PerformanceReport>(supabase.rpc('report_performance', { p_from: from, p_to: to,
+        p_professional_id: professionalId, p_source_id: sourceId })),
     reportYear: (year: number) => run<YearRow[]>(supabase.rpc('report_year', { p_year: year })),
 
     // WhatsApp: conversas, respostas (dentro de 24 h), autorizações e configuração.
@@ -635,6 +678,10 @@ export function createApi(supabase: SupabaseClient) {
     portalAcceptTerms: (version: string) => run<unknown>(supabase.rpc('portal_accept_terms', { p_version: version })),
     portalAppointments: (patientId: string) => run<PortalAppointment[]>(supabase.rpc('portal_appointments', { p_patient_id: patientId })),
     portalPatientActivities: (patientId: string) => run<PatientActivity[]>(supabase.rpc('portal_patient_activities', { p_patient_id: patientId })),
+    portalPatientForms: (patientId: string) => run<PatientFormAssignment[]>(
+      supabase.rpc('portal_patient_forms', { p_patient_id: patientId })),
+    portalSubmitPatientForm: (id: string, answers: Record<string, string>) =>
+      run<unknown>(supabase.rpc('portal_submit_patient_form', { p_id: id, p_answers: answers })),
     portalCompletePatientActivity: (id: string, response: string) =>
       run<unknown>(supabase.rpc('portal_complete_patient_activity', { p_id: id, p_response: response || null })),
     portalCompletePatientActivityItem: (id: string, itemId: string) =>

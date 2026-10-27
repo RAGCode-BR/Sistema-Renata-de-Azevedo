@@ -35,7 +35,7 @@ function PatientList({ user }: { user: SessionUser }) {
 
   return (
     <>
-      <Heading title="Pacientes" lead={plural(patients.filter((item) => item.status === 'active').length, 'paciente em acompanhamento', 'pacientes em acompanhamento')}>
+      <Heading className="patients-heading" title="Pacientes" lead={plural(patients.filter((item) => item.status === 'active').length, 'paciente em acompanhamento', 'pacientes em acompanhamento')}>
         <label className="search">
           <input type="search" placeholder="Buscar por nome, e-mail ou telefone" aria-label="Buscar paciente"
             value={search} onChange={(event) => setSearch(event.target.value)} />
@@ -69,7 +69,7 @@ function PatientList({ user }: { user: SessionUser }) {
             </table>
           </div>
         ) : (
-          <PanelState error={error} loading={!data} empty={term || status ? 'Nenhum paciente encontrado com esses filtros.' : 'Nenhum paciente cadastrado.'} />
+          <PanelState error={error} loading={!data} empty={patients.length === 0 ? 'Nenhum paciente cadastrado.' : term || status ? 'Nenhum paciente encontrado com esses filtros.' : 'Nenhum paciente cadastrado.'} />
         )}
       </Panel>
 

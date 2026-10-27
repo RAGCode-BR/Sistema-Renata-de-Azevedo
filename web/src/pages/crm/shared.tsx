@@ -1,12 +1,12 @@
 import { Select } from '../../components/Select.tsx';
 import { useEffect, useState } from 'react';
 import { can } from '../../../../shared/permissions.ts';
-import type { Lead, LeadDuplicate, LeadInput, LeadStage, NamedItem, Professional, SessionUser } from '../../../../shared/types.ts';
+import type { Lead, LeadAssessment, LeadDuplicate, LeadInput, LeadStage, NamedItem, Professional, SessionUser } from '../../../../shared/types.ts';
 import { api } from '../../api.ts';
-import { Field, FormModal, Modal } from '../../components/Modal.tsx';
+import { ConfirmModal, Field, FormModal, Modal } from '../../components/Modal.tsx';
 import { useToast } from '../../components/Toast.tsx';
 import {
-  LEAD_INTERESTS, LEAD_LOCATIONS, contactKinds, dateTime, dayLabel, leadActivityLabel, todayKey
+  LEAD_INTERESTS, LEAD_LOCATIONS, contactKinds, dateKey, dateTime, dayLabel, leadActivityLabel, todayKey
 } from '../../format.ts';
 import { errorMessage, text, useFormSubmit, useLoad } from '../../hooks.ts';
 
@@ -122,7 +122,7 @@ export function LeadForm({ user, lead, lists, onClose, onSaved }: {
   );
 }
 
-type Dialog = 'edit' | 'lost' | 'convert' | 'followup' | 'cancel_followup' | null;
+type Dialog = 'edit' | 'lost' | 'convert' | 'followup' | 'cancel_followup' | 'assessment' | null;
 export const followupLabel = (lead: Lead) => lead.next_contact_at
   ? `${dayLabel(lead.next_contact_at)}${lead.next_contact_time ? ` às ${lead.next_contact_time.slice(0, 5)}` : ''}` : '—';
 
@@ -132,10 +132,12 @@ export function LeadDetail({ user, leadId, lists, onClose, onChanged }: {
 }) {
   const notify = useToast();
   const manage = can(user, 'crm.manage');
-  const { data, error, reload } = useLoad(() => Promise.all([api.lead(leadId), api.leadActivities(leadId)]), [leadId]);
+  const { data, error, reload } = useLoad(() => Promise.all([api.lead(leadId), api.leadActivities(leadId), api.leadAssessments(leadId)]), [leadId]);
   const [dialog, setDialog] = useState<Dialog>(null);
+  const [assessmentAction, setAssessmentAction] = useState<{ item: LeadAssessment; status: 'attended' | 'missed' | 'cancelled' } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [lead, activities] = data ?? [null, []];
+  const [lead, activities, assessments] = data ?? [null, [], []];
+  const scheduledAssessment = assessments.find((item) => item.status === 'scheduled');
   const stage = lists.stages.find((item) => item.id === lead?.stage_id);
   const contact = useFormSubmit(async (form) => {
     await api.addLeadActivity(leadId, text(form, 'kind'), text(form, 'body'));
@@ -180,6 +182,26 @@ export function LeadDetail({ user, leadId, lists, onClose, onChanged }: {
     );
   }
   if (dialog === 'convert' && lead) return <ConvertForm lead={lead} lists={lists} onClose={() => setDialog(null)} onDone={refresh} />;
+  if (dialog === 'assessment' && lead) return <FormModal title="Agendar avaliação" submitLabel="Reservar horário" onClose={() => setDialog(null)}
+    onSubmit={async (form) => {
+      const start = new Date(text(form, 'startsAt'));
+      const duration = Number(text(form, 'duration'));
+      if (Number.isNaN(start.getTime())) throw new Error('Informe a data e o horário.');
+      await api.scheduleLeadAssessment(lead.id, text(form, 'professional'), start.toISOString(),
+        new Date(start.getTime() + duration * 60_000).toISOString());
+      notify('Avaliação reservada na agenda.'); refresh();
+    }}>
+    <p className="modal-text full">Reserve uma avaliação para {lead.name}. O lead continua no funil até a conversão. O horário aparece na agenda da profissional.</p>
+    <Field label="Profissional"><Select className="input" name="professional" required defaultValue={lead.preferred_professional_id ?? ''}>
+      <option value="" disabled>Selecione</option>
+      {lists.professionals.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+    </Select></Field>
+    <Field label="Data e horário"><input className="input" name="startsAt" type="datetime-local" required /></Field>
+    <Field label="Duração"><Select className="input" name="duration" defaultValue="50">
+      {[30, 45, 50, 60, 90, 120].map((minutes) => <option key={minutes} value={minutes}>{minutes} minutos</option>)}
+    </Select></Field>
+    <p className="muted small full">Ao converter o lead antes da avaliação, a reserva vira uma sessão de avaliação do paciente no mesmo horário.</p>
+  </FormModal>;
   if (dialog === 'followup' && lead) {
     return (
       <FormModal title="Agendar retorno" submitLabel="Agendar" onClose={() => setDialog(null)} onSubmit={async (form) => {
@@ -206,6 +228,7 @@ export function LeadDetail({ user, leadId, lists, onClose, onChanged }: {
   </FormModal>;
 
   return (
+    <>
     <Modal title={lead?.name ?? 'Lead'} onClose={onClose}>
       <div className="modal-body task-detail">
         {!data && <p className={error ? 'erro' : 'muted'} role={error ? 'alert' : undefined}>{error || 'Carregando…'}</p>}
@@ -233,11 +256,31 @@ export function LeadDetail({ user, leadId, lists, onClose, onChanged }: {
             {lead.utm_campaign && <><dt>Link</dt><dd>{[lead.utm_source, lead.utm_medium, lead.utm_campaign].filter(Boolean).join(' / ')}</dd></>}
             {lead.patient_id && <><dt>Paciente</dt><dd><a href={`#/pacientes?id=${lead.patient_id}`}>Abrir cadastro</a> · <a href="#/agenda">Agendar sessão</a></dd></>}
           </dl>
+          {assessments.length > 0 && <section className="lead-assessments">
+            <h3 className="task-section">Avaliações</h3>
+            {assessments.map((item) => <div key={item.id} className="lead-assessment-row">
+              <span><strong>{dateTime(item.starts_at)}</strong> · {item.professional_name}<span className="sub">
+                {item.status === 'scheduled' ? 'Agendada' : item.status === 'attended' ? 'Compareceu' : item.status === 'missed' ? 'Faltou'
+                  : item.status === 'converted' ? 'Virou sessão do paciente' : 'Cancelada'}</span></span>
+              <span className="lead-assessment-actions">
+                {item.status === 'scheduled' && <a className="link-btn" href={`#/agenda?data=${dateKey(new Date(item.starts_at))}`}>Ver agenda</a>}
+                {item.appointment_id && <a className="link-btn" href={`#/agenda?data=${dateKey(new Date(item.starts_at))}&sessao=${item.appointment_id}`}>Abrir sessão</a>}
+                {manage && item.status === 'scheduled' && <>
+                  {new Date(item.ends_at).getTime() <= Date.now() && <>
+                    <button type="button" className="link-btn" onClick={() => setAssessmentAction({ item, status: 'attended' })}>Compareceu</button>
+                    <button type="button" className="link-btn" onClick={() => setAssessmentAction({ item, status: 'missed' })}>Faltou</button>
+                  </>}
+                  <button type="button" className="link-btn danger" onClick={() => setAssessmentAction({ item, status: 'cancelled' })}>Cancelar</button>
+                </>}
+              </span>
+            </div>)}
+          </section>}
           {lead.notes && <p className="pre task-description">{lead.notes}</p>}
 
           {manage && (
             <div className="task-actions">
               {!lead.patient_id && <button type="button" className="button" onClick={() => setDialog('convert')}>Converter em paciente</button>}
+              {!lead.patient_id && stage.kind === 'open' && !scheduledAssessment && <button type="button" className="button light" onClick={() => setDialog('assessment')}>Agendar avaliação</button>}
               {!lead.patient_id && stage.kind === 'open' && <button type="button" className="button light" onClick={() => setDialog('followup')}>{lead.next_contact_at ? 'Reagendar retorno' : 'Agendar retorno'}</button>}
               {lead.next_contact_at && <button type="button" className="link-btn danger" onClick={() => setDialog('cancel_followup')}>Cancelar retorno</button>}
               <button type="button" className="link-btn" onClick={() => setDialog('edit')}>Editar</button>
@@ -269,6 +312,15 @@ export function LeadDetail({ user, leadId, lists, onClose, onChanged }: {
         </>}
       </div>
     </Modal>
+      {assessmentAction && <ConfirmModal title={assessmentAction.status === 'cancelled' ? 'Cancelar avaliação' : 'Registrar resultado da avaliação'}
+        confirmLabel={assessmentAction.status === 'attended' ? 'Confirmar comparecimento' : assessmentAction.status === 'missed' ? 'Confirmar falta' : 'Cancelar avaliação'}
+        onClose={() => setAssessmentAction(null)} onConfirm={async () => {
+          await api.setLeadAssessmentStatus(assessmentAction.item.id, assessmentAction.status);
+          notify('Avaliação atualizada.'); refresh();
+        }}>
+        <p className="modal-text">{assessmentAction.item.professional_name} · {dateTime(assessmentAction.item.starts_at)}. O resultado ficará no histórico comercial.</p>
+      </ConfirmModal>}
+    </>
   );
 }
 
@@ -278,6 +330,7 @@ export function activityText(kind: string, from: string | null, to: string | nul
   if (kind === 'followup') return `agendou retorno para ${dayLabel(to?.slice(0, 10) ?? null)}${to && to.length > 10 ? ` às ${to.slice(11, 16)}` : ''}`;
   if (kind === 'followup_done') return `concluiu o retorno de ${dayLabel(from?.slice(0, 10) ?? null)}`;
   if (kind === 'followup_cancelled') return `cancelou o retorno de ${dayLabel(from?.slice(0, 10) ?? null)}`;
+  if (kind === 'assessment_scheduled') return `agendou avaliação para ${to ?? '—'}`;
   if (['call', 'message', 'email', 'meeting', 'note'].includes(kind)) return `registrou ${leadActivityLabel[kind]}`;
   return leadActivityLabel[kind] ?? kind;
 }
@@ -310,9 +363,9 @@ function ConvertForm({ lead, lists, onClose, onDone }: { lead: Lead; lists: CrmL
           </Select>
         </Field>
       )}
-      {!existing && (
+      {(
         <fieldset className="full checks">
-          <legend>Profissional responsável</legend>
+          <legend>{existing ? 'Adicionar profissional ao paciente (opcional)' : 'Profissional responsável'}</legend>
           {lists.professionals.filter((item) => item.active).map((item) => (
             <label key={item.id} className="check">
               <input type="checkbox" name="professionals" value={item.id} defaultChecked={item.id === lead.preferred_professional_id} />

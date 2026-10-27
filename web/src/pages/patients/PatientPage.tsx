@@ -123,6 +123,7 @@ function Overview({ patient, responsible }: { patient: Patient; responsible: str
         <div className="panel-body">
           <dl className="facts">
             <dt>Situação</dt><dd>{patientStatusLabel[patient.status]}</dd>
+            {patient.exit_reason && <><dt>Motivo do encerramento</dt><dd>{patient.exit_reason}</dd></>}
             <dt>Profissionais</dt><dd>{responsible || '—'}</dd>
           </dl>
         </div>
@@ -172,16 +173,20 @@ function PatientHistory({ patient, appointments, canSeeCommercial, canSeePayment
   patient: Patient; appointments: Appointment[]; canSeeCommercial: boolean; canSeePayments: boolean;
 }) {
   const { data, error } = useLoad(async () => {
-    const [documents, leads, payments] = await Promise.all([
+    const [documents, leads, payments, professionalEvents] = await Promise.all([
       api.patientDocuments(patient.id), canSeeCommercial ? api.patientLeads(patient.id) : Promise.resolve([]),
-      canSeePayments ? api.payments(null, null, patient.id) : Promise.resolve([])
+      canSeePayments ? api.payments(null, null, patient.id) : Promise.resolve([]),
+      canSeeCommercial ? api.patientProfessionalHistory(patient.id) : Promise.resolve([])
     ]);
     const activityGroups = await Promise.all(leads.map((lead) => api.leadActivities(lead.id)));
-    return { documents, leads, activityGroups, payments };
+    return { documents, leads, activityGroups, payments, professionalEvents };
   }, [patient.id, canSeeCommercial, canSeePayments]);
   if (!data) return <PanelState error={error} loading={!error} empty="" />;
   const events = [
     { id: `patient-${patient.id}`, when: patient.created_at, title: 'Paciente cadastrado', detail: '', href: '' },
+    ...data.professionalEvents.map((item) => ({ id: `professional-${item.id}`, when: item.created_at,
+      title: item.kind === 'entry' ? 'Vinculado à profissional' : 'Vínculo com profissional encerrado',
+      detail: item.professional_name, href: '' })),
     ...appointments.map((item) => ({ id: `session-${item.id}`, when: item.starts_at,
       title: `${sessionTypeLabel[item.session_type]} · ${statusLabel[item.status]}`,
       detail: `${item.professional_name} · ${modalityLabel[item.modality]}`,

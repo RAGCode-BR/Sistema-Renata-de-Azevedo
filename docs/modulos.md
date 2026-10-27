@@ -1,6 +1,12 @@
 # Módulos do sistema
 
-Como cada parte funciona e o que precisa ser configurado. Lista única do que falta configurar: [configuracoes-pendentes.md](configuracoes-pendentes.md). Quem vê o quê: [matriz-de-acesso.md](matriz-de-acesso.md).
+Como cada parte funciona e o que precisa ser configurado. Lista única do que falta configurar: [configuracoes-pendentes.md](configuracoes-pendentes.md). Quem vê o quê: [matriz-de-acesso.md](matriz-de-acesso.md). Resultado da revisão integrada: [auditoria-jornada.md](auditoria-jornada.md).
+
+## Navegação e usabilidade (módulo 9)
+
+- O cabeçalho oferece **Buscar página** (atalho `Ctrl/⌘ + K`) para abrir diretamente qualquer página disponível ao perfil conectado; a busca aceita nomes com ou sem acentos.
+- No celular, **Início**, **Agenda**, **Pacientes** e **Tarefas** ficam na barra inferior quando disponíveis. **Mais** reúne os demais módulos com rótulos legíveis. As páginas do módulo atual continuam nas abas sob o cabeçalho.
+- A interface mantém a identidade em vinho, creme e branco. A navegação foi conferida em larguras de computador e celular no `npm run dev`.
 
 ## Usuários
 
@@ -127,6 +133,12 @@ No menu **Tarefas**, a profissional vinculada escolhe um paciente da sua carteir
 
 O módulo de pendências internas foi retirado do sistema web e do aplicativo. Pedidos do portal continuam na ficha do paciente e avisam a equipe; retornos comerciais ficam no contato; remarcações do WhatsApp avisam a equipe com acesso à agenda. Registros legados no banco não foram apagados.
 
+### Mensagens do WhatsApp como origem de tarefas (módulo 7)
+
+Na criação da tarefa, depois de escolher o paciente, a profissional responsável ou a proprietária pode selecionar uma mensagem recebida no número oficial da clínica. O texto preenche **um rascunho editável** de título e orientações; a tarefa só chega ao paciente após revisão e envio humano. A origem fica vinculada à tarefa no banco. Áudios recebidos aparecem na mesma lista e podem ser transcritos sob demanda, sem criação automática da tarefa. O checklist e a conclusão pelo paciente continuam no portal. As pendências internas da equipe permanecem fora do sistema.
+
+A transcrição de áudio depende de `WHATSAPP_TOKEN` e `OPENAI_API_KEY` configurados como segredos do projeto Supabase e da função `patient-task-audio` implantada. O áudio é baixado da Meta e enviado à API de transcrição da OpenAI somente quando a pessoa autorizada clicar em **Transcrever áudio**; a transcrição é guardada na mensagem e deve ser conferida antes do uso. Áudios de até 25 MB são aceitos. O número oficial e o webhook do WhatsApp ainda precisam ser configurados na Meta para receber mensagens reais.
+
 ## Comercial (CRM)
 
 Substitui o Converte no controle de contatos, funil e campanhas. É usado por Proprietário(a), Gerente e Recepção (`crm.view` e `crm.manage`); profissionais não acessam. As alterações nos leads passam por funções do banco, que registram cada passo na linha do tempo do lead (`lead_activities`).
@@ -139,6 +151,7 @@ Substitui o Converte no controle de contatos, funil e campanhas. É usado por Pr
   - Etapas: Novo contato → Em atendimento → Primeira consulta agendada → Convertido, ou Perdido. As etapas podem ser editadas.
   - "Perdido" exige motivo (preço, horário, não respondeu, escolheu outro lugar, outro).
   - "Convertido" só acontece pela **conversão em paciente**: ela cria o cadastro (ou liga a um paciente com o mesmo contato), com a profissional, a origem e a campanha.
+- **Avaliações antes da conversão:** no lead, **Agendar avaliação** reserva um horário na agenda da profissional e move o contato para **Primeira consulta agendada**. A avaliação pode ser marcada como compareceu, faltou ou cancelada; o resultado fica no histórico e alimenta os indicadores comerciais. Uma reserva futura vira sessão de avaliação ao converter o lead, sem duplicar o horário. Se o lead for ligado a um paciente existente, as profissionais escolhidas são acrescentadas aos vínculos desse paciente. Reservas ainda não criam cobrança nem prontuário.
 - **Contatos e retorno:**
   - Cada ligação, mensagem, e-mail ou conversa é registrada no lead.
   - **Retornos** no Funil mostra os contatos pendentes em ordem de data e horário, com responsável e atraso destacado.
@@ -152,6 +165,7 @@ Substitui o Converte no controle de contatos, funil e campanhas. É usado por Pr
   - Os leads que entraram no mês, acompanhados até hoje: convertidos, taxa de conversão, compareceram, faturamento e tempo médio até o primeiro contato.
   - Novos pacientes de todas as origens.
   - Por origem, por etapa, motivos de perda e mês a mês, com comparação com o mês anterior e com o mesmo mês do ano anterior.
+  - **Carteira por profissional:** total de pacientes vinculados hoje e entradas/saídas no mês. O histórico de movimentações começa na ativação desse controle; vínculos anteriores entram no total atual.
   - O Início mostra os novos pacientes do mês e a conversão.
 - **Formulário do site** (Edge Function pública `lead-capture`):
   - Os códigos ficam em **Configurações do comercial**: um rastreador para o cabeçalho (guarda por 30 dias as UTMs do anúncio) e o formulário, para um bloco "HTML personalizado" do WordPress.
@@ -183,6 +197,7 @@ O módulo **Relatórios** reúne o que já estava espalhado e acrescenta compara
 | Financeiro: DRE, por profissional, despesas, repasses | Proprietário(a) e Financeiro (`finance.view`) |
 | Financeiro: formas de pagamento e inadimplência | Quem vê cobranças (`billing.view`), inclusive Gerente e Recepção |
 | Comercial | Quem acessa o Comercial (`crm.view`) |
+| Desempenho: pacientes, conversão, carteiras, motivos de saída e indicadores financeiros | Quem acessa o Comercial (`crm.view`); CAC e LTV somente com acesso a cobranças ou financeiro |
 | Comparativo anual | Todos os acima; cada indicador aparece só para quem pode vê-lo |
 
 - **Operacional:**
@@ -200,6 +215,9 @@ O módulo **Relatórios** reúne o que já estava espalhado e acrescenta compara
   - **Despesas** por categoria e por centro de custo, com o peso de cada um no total.
   - **Repasses** mês a mês.
 - **Comercial:** leads do período por origem e por campanha (investimento, custo por lead, custo por paciente, faturamento e retorno), etapas e motivos de perda.
+- **Desempenho (módulo 6):** filtro por período, equipe inteira ou profissional e origem comercial; novos pacientes cadastrados no período, pacientes que tiveram acompanhamento encerrado no período, motivos de saída, conversão de leads por profissional, carteira atual, entradas, saídas e crescimento percentual. O cadastro exige motivo quando muda para alta ou inativo. Os encerramentos só são contabilizados desde 27/10/2026, quando o histórico começou. O crescimento usa abertura da carteira no primeiro dia, entradas e saídas do período; antes de 27/10/2026 aparece sem cálculo. Um paciente vinculado a duas profissionais consta nas duas carteiras, mas uma vez no total da equipe. Leads sem profissional preferida entram no total, mas não na comparação individual.
+  - **CAC estimado:** orçamento total cadastrado das campanhas com leads criados no recorte ÷ leads dessas campanhas que viraram pacientes até hoje. O orçamento não é gasto efetivo por data; para obter CAC real será preciso registrar desembolsos por campanha e período.
+  - **LTV observado:** total de pagamentos não estornados recebidos até hoje dos pacientes cadastrados no recorte ÷ número desses pacientes. É média histórica recebida, não projeção de receita futura. Com filtro de profissional, são considerados pacientes vinculados hoje ou historicamente; a receita do paciente não é repartida entre profissionais.
 - **Comparativo anual:**
   - Dois anos no acumulado até o mesmo mês: faturado, recebido, despesas pagas, resultado de caixa, sessões, taxa de faltas, novos pacientes, leads e conversão.
   - Cada indicador traz a variação e o gráfico mês a mês, que também pode ser visto em tabela.
@@ -415,6 +433,8 @@ No Expo Go dá para testar tudo, menos o push (a Expo exige um build próprio pa
 - **Formato:** portal web separado do sistema da equipe, no mesmo projeto (`web/src/portal/`).
   - Abre em `#/portal`, ou sozinho num endereço que comece com `portal.` (ex.: `portal.renatadeazevedo.com.br`).
   - Funciona no navegador do celular; não precisa instalar nada.
+
+**Formulários, exercícios e escalas (módulo 8):** a profissional cria modelos em **Pacientes → Formulários e escalas**, com perguntas de texto, número, escolha ou escala pontuável, e os envia aos pacientes da própria carteira. O paciente ou responsável responde em **Formulários** no portal; cada envio aceita uma resposta e mantém uma cópia das perguntas do momento do envio. Escalas somam o índice das alternativas a partir de zero, com opção de inverter perguntas; a pontuação não traz diagnóstico, faixas de interpretação ou normas automáticas. A profissional vê respostas e pontuação na aba **Formulários** do prontuário, e elas entram na exportação do prontuário. A proprietária e a equipe administrativa não acessam esse conteúdo clínico. A publicação como aplicativo nas lojas ainda depende de um projeto e distribuição próprios; o portal funciona no navegador do celular.
 - **Por que não um app nas lojas:** o paciente usa poucas vezes por mês. Um app exigiria instalação e revisão da Apple e do Google, e misturá-lo ao app da equipe aumentaria o risco de vazamento.
 
 **Como funciona**

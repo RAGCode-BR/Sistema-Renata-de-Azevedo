@@ -13,7 +13,17 @@ const typeIn = (name, v) => page.type(`dialog[open] [name="${name}"]`, v);
 const rowOf = (email) => page.evaluate((e) => [...document.querySelectorAll('tbody tr')].find((tr) => tr.textContent.includes(e))?.innerText.replace(/\u00a0/g, ' '), email);
 async function selectModule(module) {
   await page.waitForFunction(() => !document.querySelector('dialog[open]'), { timeout: 5000 });
-  await page.click(`.rail-link[aria-label="${module}"]`);
+  if (await page.evaluate(() => matchMedia('(max-width: 860px)').matches)) {
+    const primary = await page.$eval('.mobile-rail', (rail, name) =>
+      [...rail.querySelectorAll('a')].some((link) => link.textContent.trim() === name), module);
+    if (primary) await page.evaluate((name) => [...document.querySelectorAll('.mobile-rail a')]
+      .find((link) => link.textContent.trim() === name).click(), module);
+    else {
+      await page.click('.mobile-rail button');
+      await page.evaluate((name) => [...document.querySelectorAll('.mobile-more a')]
+        .find((link) => link.textContent.trim().includes(name)).click(), module);
+    }
+  } else await page.click(`.rail-link[aria-label="${module}"]`);
   await page.waitForFunction((m) => document.querySelector('.subnav h2')?.textContent === m, { timeout: 5000 }, module);
 }
 async function menuPages() {
@@ -207,8 +217,24 @@ try {
 
   await clickText('.tab', 'Quadro');
   await openCardOf(SITE_LEAD);
+  await clickText('dialog[open] button', 'Agendar avaliação');
+  await selectByText('professional', PROF);
+  const assessmentDay = at(nextMonday(), 0, 10);
+  await page.$eval('dialog[open] input[name=startsAt]', (el, value) => { el.value = value; }, localInput(assessmentDay));
+  await clickText('dialog[open] button', 'Reservar horário');
+  await toast('Avaliação reservada na agenda.');
+  await waitDialogText('Avaliações');
+  await waitDialogText('Agendada');
+  await clickText('dialog[open] button', 'Fechar');
+  const assessmentDate = `${assessmentDay.getFullYear()}-${String(assessmentDay.getMonth() + 1).padStart(2, '0')}-${String(assessmentDay.getDate()).padStart(2, '0')}`;
+  await page.evaluate((date) => { location.hash = `#/agenda?data=${date}`; }, assessmentDate);
+  await page.waitForFunction((name) => [...document.querySelectorAll('.slot-item.b-bloqueio')].some((item) => item.innerText.includes('Avaliação · ' + name)),
+    { timeout: 15000 }, SITE_LEAD);
+  ok('Avaliação do lead ocupa a agenda antes da conversão, sem criar paciente');
+  await go('Funil');
+  await openCardOf(SITE_LEAD);
   await clickText('dialog[open] button', 'Converter em paciente');
-  await page.evaluate((p) => [...document.querySelectorAll('dialog[open] label.check')].find((l) => l.textContent.trim() === p).querySelector('input').click(), PROF);
+  await page.evaluate((p) => { const input = [...document.querySelectorAll('dialog[open] label.check')].find((l) => l.textContent.trim() === p)?.querySelector('input'); if (!input.checked) input.click(); }, PROF);
   await clickText('dialog[open] button', 'Converter');
   await toast('Lead convertido');
   await page.waitForFunction((n) => document.querySelector('main h1')?.textContent === n, { timeout: 15000 }, SITE_LEAD);
@@ -218,13 +244,16 @@ try {
   if (origin !== 'Instagram') throw new Error('Origem do paciente: ' + origin);
   await clickText('dialog[open] button', 'Cancelar');
   ok('Conversão: cadastro do paciente criado com a profissional e a origem Instagram');
+  await clickText('.patient-tabs .tab', 'Sessões');
+  await waitMain('Avaliação');
+  ok('Conversão transforma a avaliação futura em sessão do paciente no mesmo horário');
   await clickText('.patient-tabs .tab', 'Histórico');
-  await waitMain('Enviei os valores pelo WhatsApp.', 'Retornei a ligação.', 'Paciente cadastrado');
+  await waitMain('Enviei os valores pelo WhatsApp.', 'Retornei a ligação.', 'Paciente cadastrado', 'Vinculado à profissional');
   if (!(await mainText()).includes('Novo contato')) throw new Error('Histórico comercial não chegou à ficha do paciente');
   ok('Histórico do paciente reúne contato comercial, conversão e cadastro');
 
   await go('Painel comercial');
-  await waitMain('leads', 'taxa de conversão');
+  await waitMain('leads', 'taxa de conversão', 'Carteira por profissional');
   const dash = await mainText();
   if (!/\n2\nleads/.test(dash) || !/\n1\nconvertidos em pacientes/.test(dash) || !dash.includes('50%') || !dash.includes('Preço')) throw new Error('Painel: ' + dash.slice(0, 600));
   ok('Painel comercial: 2 leads, 1 convertido (50%), motivo de perda "Preço"');
@@ -256,10 +285,12 @@ try {
   ok('Início mostra novos pacientes e conversão');
 
   await page.setViewport({ width: 390, height: 844 });
-  await go('Funil');
+  await selectModule('Comercial');
+  await clickText('.sub-link', 'Funil');
   await page.waitForSelector('.kanban');
   const layout = await page.evaluate(() => ({ overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    rail: (() => { const r = document.querySelector('.rail-link.active').getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth + 1; })() }));
+    rail: (() => { const link = document.querySelector('.mobile-rail button.active'); if (!link) return false;
+      const r = link.getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth + 1; })() }));
   if (layout.overflow > 1 || !layout.rail) throw new Error('Celular: ' + JSON.stringify(layout));
   await page.screenshot({ path: process.env.SHOT_DIR + '/comercial-celular.png' });
   ok('Celular: funil sem rolagem da página e o módulo atual visível na barra inferior');

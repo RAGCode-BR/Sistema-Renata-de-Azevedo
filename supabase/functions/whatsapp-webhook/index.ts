@@ -20,6 +20,7 @@ async function validSignature(secret: string, raw: string, header: string | null
 interface Incoming {
   from: string; id: string; type: string; text?: { body: string }; button?: { payload?: string; text?: string };
   interactive?: { button_reply?: { id: string; title: string } }; context?: { id: string };
+  audio?: { id: string; mime_type?: string };
 }
 
 Deno.serve(async (request) => {
@@ -55,6 +56,12 @@ Deno.serve(async (request) => {
           p_button: button, p_context_wamid: message.context?.id ?? null
         });
         if (error) console.error(error);
+        if (!error && message.type === 'audio' && message.audio?.id) {
+          const { error: mediaError } = await admin.rpc('attach_whatsapp_audio', {
+            p_wamid: message.id, p_media_id: message.audio.id
+          });
+          if (mediaError) console.error(mediaError);
+        }
       }
     }
   }

@@ -10,10 +10,12 @@ import { Evolutions } from './record/Evolutions.tsx';
 import { Formulation } from './record/Formulation.tsx';
 import { PersonalNotes } from './record/PersonalNotes.tsx';
 import { Assistant } from './record/Assistant.tsx';
+import { PatientFormResults } from './record/PatientFormResults.tsx';
 
-type Tab = 'evolucoes' | 'conceitualizacao' | 'documentos' | 'pessoais' | 'assistente';
+type Tab = 'evolucoes' | 'conceitualizacao' | 'formularios' | 'documentos' | 'pessoais' | 'assistente';
 const TABS: [Tab, string][] = [
-  ['evolucoes', 'Evoluções'], ['conceitualizacao', 'Conceitualização'], ['documentos', 'Documentos clínicos'], ['pessoais', 'Anotações pessoais'],
+  ['evolucoes', 'Evoluções'], ['conceitualizacao', 'Conceitualização'], ['formularios', 'Formulários'],
+  ['documentos', 'Documentos clínicos'], ['pessoais', 'Anotações pessoais'],
   ['assistente', 'Assistente de IA']
 ];
 
@@ -86,6 +88,7 @@ function PatientRecord({ user, patientId, professionalId, appointmentId }: { use
       {tab === 'conceitualizacao' && (
         <Formulation patientId={patientId} professionalId={professionalId} formulation={record.formulation} onChanged={reload} />
       )}
+      {tab === 'formularios' && <PatientFormResults patientId={patientId} />}
       {tab === 'documentos' && (
         <ClinicalDocuments patientId={patientId} professionalId={professionalId} documents={record.documents} onChanged={reload} />
       )}

@@ -456,6 +456,9 @@ verify_jwt = false
 [functions.whatsapp-webhook]
 verify_jwt = false
 
+[functions.patient-task-audio]
+verify_jwt = false
+
 # Assistente de IA (desligado até a configuração). Token e autorizações conferidos dentro da função.
 [functions.ai-draft]
 verify_jwt = false

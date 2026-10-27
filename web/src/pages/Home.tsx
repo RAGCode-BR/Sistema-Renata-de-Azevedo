@@ -81,7 +81,7 @@ export function HomePage({ user }: { user: SessionUser }) {
         {overview && (
           <a className="number" href="#/profissionais">
             <strong>{data ? professionalsCount : '–'}</strong>
-            <span>profissionais em atividade</span>
+            <span>{professionalsCount === 1 ? 'profissional em atividade' : 'profissionais em atividade'}</span>
           </a>
         )}
         {commercial && (

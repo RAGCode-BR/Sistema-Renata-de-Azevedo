@@ -160,7 +160,9 @@ export const leadActivityLabel: Record<string, string> = {
   created: 'cadastrou o lead', edited: 'editou os dados', assigned: 'mudou o responsável', stage: 'mudou a etapa',
   converted: 'converteu em paciente', call: 'ligação', message: 'mensagem', email: 'e-mail', meeting: 'conversa presencial',
   note: 'anotação', followup: 'agendou retorno', followup_done: 'concluiu retorno',
-  followup_cancelled: 'cancelou retorno', site: 'formulário do site'
+  followup_cancelled: 'cancelou retorno', site: 'formulário do site',
+  assessment_scheduled: 'agendou avaliação', assessment_attended: 'registrou comparecimento à avaliação',
+  assessment_missed: 'registrou falta à avaliação', assessment_cancelled: 'cancelou avaliação'
 };
 export const contactKinds = ['call', 'message', 'email', 'meeting', 'note'] as const;
 // Serviços e locais do site (renatadeazevedo.com.br); a lista aceita outros valores.

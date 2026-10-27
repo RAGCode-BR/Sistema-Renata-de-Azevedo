@@ -18,7 +18,7 @@ Cada item: faça, confira o resultado e anote qualquer coisa estranha, confusa o
 - [ ] Entrar no sistema e no aplicativo do celular (Expo Go ou build de teste) com a própria conta.
 - [ ] Trocar a senha; ativar a verificação em duas etapas (menu da conta) e entrar de novo com o código.
 - [ ] Conferir que o menu mostra só o que faz sentido para a sua função ([matriz de acesso](matriz-de-acesso.md)).
-- [ ] Criar uma tarefa para si, concluir; ver o aviso no sino.
+- [ ] Conferir os avisos no sino e abrir a página relacionada. Tarefas da equipe permanecem fora do sistema.
 
 ### Recepção e Gerência
 
@@ -43,7 +43,8 @@ Cada item: faça, confira o resultado e anote qualquer coisa estranha, confusa o
 - [ ] Prontuário: escrever e finalizar uma evolução de sessão realizada; tentar alterar a finalizada (só retificação); exportar em PDF.
 - [ ] Conceitualização de caso e documentos clínicos de um paciente fictício.
 - [ ] No celular: ver o dia, confirmar sessão, salvar rascunho de evolução.
-- [ ] Criar uma atividade para paciente fictício, acessar o portal com a conta dele, responder e concluir; conferir a resposta no sistema e no app da profissional.
+- [ ] Criar uma tarefa com checklist para paciente fictício, acessar o portal com a conta dele, marcar os itens concluídos, responder e concluir; conferir a resposta no sistema e no app da profissional.
+- [ ] Enviar um formulário ou escala ao paciente fictício, responder pelo portal e conferir o resultado no prontuário.
 - [ ] Conferir "Meu repasse" e "Meus números".
 
 ### Proprietária

@@ -18,7 +18,7 @@ export function CrmDashboardPage() {
   const lastYear = monthKey(new Date(start.getFullYear() - 1, start.getMonth(), 1));
   const { data, error } = useLoad(() => Promise.all([
     api.crmSummary(month, monthEnd(month)), api.crmSummary(previous, monthEnd(previous)), api.crmSummary(lastYear, monthEnd(lastYear)),
-    api.crmMonthly(start.getFullYear())
+    api.crmMonthly(start.getFullYear()), api.crmProfessionalFlow(month, monthEnd(month))
   ]), [month]);
 
   const tools = (
@@ -28,7 +28,7 @@ export function CrmDashboardPage() {
     </label>
   );
   if (!data) return <><Heading title="Painel comercial">{tools}</Heading><PanelState error={error} loading={!error} empty="" /></>;
-  const [current, before, yearAgo, months] = data;
+  const [current, before, yearAgo, months, professionalFlow] = data;
   const maxMonth = Math.max(1, ...months.map((item) => item.leads));
   const conversion = (summary: CrmSummary) => rate(summary.converted, summary.leads);
 
@@ -41,7 +41,7 @@ export function CrmDashboardPage() {
         <Kpi label="convertidos em pacientes" value={current.converted} before={before.converted} yearAgo={yearAgo.converted} format={String} />
         <Kpi label="taxa de conversão" value={conversion(current) ?? 0} before={conversion(before) ?? 0} yearAgo={conversion(yearAgo) ?? 0}
           format={(value) => pct(current.leads ? value : null)} points />
-        <Kpi label="compareceram à primeira sessão" value={current.attended} before={before.attended} yearAgo={yearAgo.attended} format={String} />
+        <Kpi label="compareceram à avaliação ou sessão" value={current.attended} before={before.attended} yearAgo={yearAgo.attended} format={String} />
         <Kpi label="novos pacientes (todas as origens)" value={current.new_patients} before={before.new_patients} yearAgo={yearAgo.new_patients} format={String} />
         {current.revenue !== null && <Kpi label="faturamento desses leads" value={current.revenue} before={before.revenue ?? 0} yearAgo={yearAgo.revenue ?? 0} format={money} />}
         <div className="number">
@@ -51,6 +51,16 @@ export function CrmDashboardPage() {
       </section>
 
       <div className="finance-split">
+        <Panel title="Carteira por profissional">
+          <div className="table-wrap"><table className="table">
+            <thead><tr><th>Profissional</th><th className="num">Vinculados hoje</th><th className="num">Entradas no mês</th><th className="num">Saídas no mês</th></tr></thead>
+            <tbody>{professionalFlow.map((item) => <tr key={item.professional_id}>
+              <td>{item.professional_name}</td><td className="num">{item.linked_now}</td>
+              <td className="num">{item.entries}</td><td className="num">{item.exits}</td>
+            </tr>)}</tbody>
+          </table></div>
+          <p className="muted small panel-note">Entradas e saídas são registradas a partir da ativação deste histórico. O total de vinculados inclui cadastros anteriores.</p>
+        </Panel>
         <Panel title="Por origem">
           {current.by_source.length ? (
             <div className="table-wrap">
