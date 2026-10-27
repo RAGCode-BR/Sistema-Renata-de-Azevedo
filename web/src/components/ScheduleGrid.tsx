@@ -10,6 +10,7 @@ export interface GridColumn {
   key: string;
   title: string;
   subtitle?: string;
+  professionalColor?: string;
   date: Date;
   professionalId: string | null;
   appointments: Appointment[];
@@ -106,7 +107,8 @@ export function ScheduleGrid({ columns, week, showProfessional, onOpenAppointmen
           <div className="col-head" />
           {columns.map((column) => (
             <div key={column.key} className={sameDay(column.date, now) && week ? 'col-head today' : 'col-head'} role="columnheader">
-              <strong>{column.title}</strong>{column.subtitle}
+              <strong className="schedule-column-title">{column.professionalColor &&
+                <span className="professional-color-dot" style={{ background: column.professionalColor }} aria-hidden="true" />}{column.title}</strong>{column.subtitle}
             </div>
           ))}
 

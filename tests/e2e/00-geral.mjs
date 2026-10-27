@@ -81,10 +81,10 @@ try {
   ok(`Administração entrou; menu: ${adminNav.join(', ')}`);
 
   await go('Profissionais');
-  for (const [name, email] of [['Teste Renata', 'renata@example.test'], ['Teste Mariana', '']]) {
+  for (const [name, email] of [['Teste Renata', 'renata@example.test'], ['Teste Mariana', 'mariana@example.test']]) {
     await clickText('button', 'Nova profissional');
     await typeIn('name', name);
-    if (email) await typeIn('email', email);
+    await typeIn('email', email);
     await clickText('dialog[open] button', 'Cadastrar profissional');
     await page.waitForFunction((t) => [...document.querySelectorAll('td')].some((td) => td.textContent === t), { timeout: 5000 }, name);
   }

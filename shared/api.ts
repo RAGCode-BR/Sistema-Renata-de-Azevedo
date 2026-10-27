@@ -58,6 +58,7 @@ import type {
   NewAppointment,
   NewPayment,
   NewProfessional,
+  ProfessionalDocument,
   NewScheduleBlock,
   NewUser,
   NoteStatusRow,
@@ -245,12 +246,61 @@ export function createApi(supabase: SupabaseClient) {
       if (error) throw new Error(error.code === 'same_password' ? 'A nova senha precisa ser diferente da atual.' : 'Senha fraca. Escolha uma senha mais longa.');
     },
 
-    professionals: () => run<Professional[]>(supabase.from('professionals').select('id, name, email, specialty, active').order('name')),
-    createProfessional: (input: NewProfessional) => run<unknown>(supabase.from('professionals')
-      .insert({ name: input.name, email: input.email || null, specialty: input.specialty || null }).select('id').single()),
+    professionals: () => run<Professional[]>(supabase.from('professionals').select('id, name, email, specialty, active, tags, color, photo_path, commission_sales, commission_sessions, uses_clinic_hours').order('name')),
+    createProfessional: (input: NewProfessional) => run<{ id: string }>(supabase.from('professionals')
+      .insert({ name: input.name, email: input.email || null, specialty: input.specialty || null,
+        tags: input.tags, color: input.color, commission_sales: input.commission_sales,
+        commission_sessions: input.commission_sessions, uses_clinic_hours: input.uses_clinic_hours }).select('id').single()),
     updateProfessional: (id: string, input: NewProfessional & { active: boolean }) => run<unknown>(supabase.from('professionals')
-      .update({ name: input.name, email: input.email || null, specialty: input.specialty || null, active: input.active })
+      .update({ name: input.name, email: input.email || null, specialty: input.specialty || null,
+        tags: input.tags, color: input.color, active: input.active,
+        commission_sales: input.commission_sales, commission_sessions: input.commission_sessions,
+        uses_clinic_hours: input.uses_clinic_hours })
       .eq('id', id).select('id').single()),
+    professionalPhotoUrl: async (path: string) => {
+      const { data, error } = await supabase.storage.from('professional-files').createSignedUrl(path, 60);
+      if (error || !data) throw new Error('Não foi possível abrir a foto.');
+      return data.signedUrl;
+    },
+    uploadProfessionalPhoto: async (professionalId: string, file: File) => {
+      if (!['image/jpeg', 'image/png'].includes(file.type) || file.size > 2 * 1024 * 1024)
+        throw new Error('A foto deve ser JPG ou PNG e ter até 2 MB.');
+      const path = `professionals/${professionalId}/photo/${crypto.randomUUID()}.${file.type === 'image/png' ? 'png' : 'jpg'}`;
+      const { error } = await supabase.storage.from('professional-files').upload(path, file, { contentType: file.type, upsert: false });
+      if (error) throw new Error(`Não foi possível enviar a foto: ${error.message}`);
+      try { await run(supabase.from('professionals').update({ photo_path: path }).eq('id', professionalId).select('id').single()); }
+      catch (failure) { await supabase.storage.from('professional-files').remove([path]); throw failure; }
+      return path;
+    },
+    professionalDocuments: (professionalId: string) => run<ProfessionalDocument[]>(supabase.from('professional_documents')
+      .select('id, professional_id, title, storage_path, size_bytes, mime_type, created_at')
+      .eq('professional_id', professionalId).order('created_at', { ascending: false })),
+    uploadProfessionalDocument: async (professionalId: string, file: File) => {
+      const extension = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
+      const path = `professionals/${professionalId}/files/${crypto.randomUUID()}.${extension}`;
+      const mimeByExtension: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', jfif: 'image/jpeg',
+        png: 'image/png', webp: 'image/webp', heic: 'image/heic', heif: 'image/heif', pdf: 'application/pdf',
+        txt: 'text/plain', doc: 'application/msword',
+        docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ogg: 'audio/ogg', mp4: 'video/mp4', mov: 'video/quicktime' };
+      const mimeType = mimeByExtension[extension] ?? file.type.split(';')[0] ?? 'application/octet-stream';
+      const { error } = await supabase.storage.from('professional-files').upload(path, file, { contentType: mimeType, upsert: false });
+      if (error) throw new Error(`Não foi possível enviar ${file.name}: ${error.message}`);
+      try {
+        await run(supabase.from('professional_documents').insert({ professional_id: professionalId, title: file.name,
+          storage_path: path, size_bytes: file.size, mime_type: mimeType }).select('id').single());
+      } catch (failure) { await supabase.storage.from('professional-files').remove([path]); throw failure; }
+    },
+    professionalDocumentUrl: async (path: string) => {
+      const { data, error } = await supabase.storage.from('professional-files').createSignedUrl(path, 60);
+      if (error || !data) throw new Error('Não foi possível abrir o anexo.');
+      return data.signedUrl;
+    },
+    deleteProfessionalDocument: async (document: ProfessionalDocument) => {
+      await run(supabase.from('professional_documents').delete().eq('id', document.id).select('id').single());
+      await supabase.storage.from('professional-files').remove([document.storage_path]);
+    },
 
     users: async (): Promise<UserAccount[]> => {
       const rows = await run<(Omit<UserAccount, 'roles'> & { user_roles: { role: Role }[] })[]>(supabase.from('profiles')

@@ -95,6 +95,7 @@ try {
   await go('Profissionais');
   await clickText('button', 'Nova profissional');
   await typeIn('name', 'Teste Painel');
+  await typeIn('email', 'teste-painel@example.test');
   await clickText('dialog[open] button', 'Cadastrar profissional');
   await waitText('Profissional cadastrada.');
   await go('Usuários');

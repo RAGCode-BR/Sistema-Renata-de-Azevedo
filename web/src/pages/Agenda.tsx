@@ -124,7 +124,7 @@ export function AgendaPage({ user, date, session }: { user: SessionUser; date: s
     ? visibleProfessionals.map((professional) => {
       const mine = onDay(shownAppointments, anchor).filter((item) => item.professional_id === professional.id);
       return {
-        key: professional.id, title: professional.name,
+        key: professional.id, title: professional.name, professionalColor: professional.color,
         subtitle: [professional.specialty, plural(mine.filter((item) => occupiesSlot(item.status)).length, 'sessão', 'sessões')].filter(Boolean).join(' · '),
         date: anchor, professionalId: professional.id, appointments: mine,
         blocks: onDay(shownBlocks, anchor).filter((item) => item.professional_id === professional.id)
@@ -217,7 +217,7 @@ export function AgendaPage({ user, date, session }: { user: SessionUser; date: s
               const hasBlock = blocks.some((item) => item.professional_id === professional.id && overlaps(item));
               const free = validTime && !hasSession && !hasBlock;
               return <div className={`availability-person ${free ? 'is-free' : 'is-busy'}`} key={professional.id}>
-                <div><strong>{professional.name}</strong><span>{professional.specialty || 'Profissional'}</span></div>
+                <div><strong className="professional-list-name"><span className="professional-color-dot" style={{ background: professional.color }} aria-hidden="true" />{professional.name}</strong><span>{professional.specialty || 'Profissional'}</span></div>
                 <span className="availability-state">{!validTime ? 'Escolha um horário entre 7h e 20h' : free ? 'Sem conflito' : hasSession ? 'Sessão marcada' : 'Horário bloqueado'}</span>
                 {free && canBlock && <button type="button" className="button light" onClick={() => {
                   if (manager) setDialog({ kind: 'new', professionalId: professional.id, start: availabilityStart });

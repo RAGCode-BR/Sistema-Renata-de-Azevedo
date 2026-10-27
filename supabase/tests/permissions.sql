@@ -2103,6 +2103,17 @@ SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000
 DO $$ BEGIN
   INSERT INTO public.session_prices (professional_id, session_type, amount) VALUES (NULL, NULL, 300);
   PERFORM public.set_payout_percent('00000000-0000-4000-8000-00000000000a', 60);
+  IF (SELECT percent FROM public.payout_statement('2025-03-01')
+      WHERE professional_id = '00000000-0000-4000-8000-00000000000a') IS NOT NULL THEN
+    RAISE EXCEPTION 'FALHA: comissão desativada não deveria gerar repasse';
+  END IF;
+  BEGIN
+    PERFORM public.close_payout('00000000-0000-4000-8000-00000000000a', '2025-03-01', '2025-04-05');
+    RAISE EXCEPTION 'FALHA: comissão desativada permitiu fechamento';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'FALHA%' THEN RAISE; END IF;
+  END;
+  UPDATE public.professionals SET commission_sessions = true
+    WHERE id = '00000000-0000-4000-8000-00000000000a';
 END $$;
 RESET ROLE;
 
@@ -2215,7 +2226,8 @@ DO $$ BEGIN
   BEGIN
     PERFORM public.close_payout('00000000-0000-4000-8000-00000000000a', '2025-03-01', '2025-04-05');
     RAISE EXCEPTION 'FALHA: repasse do mesmo mês fechado duas vezes';
-  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'FALHA%' THEN RAISE; END IF;
+  EXCEPTION WHEN unique_violation THEN NULL;
+    WHEN raise_exception THEN IF SQLERRM LIKE 'FALHA%' THEN RAISE; END IF;
   END;
   IF (SELECT cash_result FROM public.finance_summary(2025) WHERE month = '2025-03-01') <> -1850 THEN
     RAISE EXCEPTION 'FALHA: resultado de caixa de março deveria ser 150 - 2000 = -1850';

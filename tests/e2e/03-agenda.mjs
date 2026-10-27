@@ -105,6 +105,7 @@ try {
   await go('Profissionais');
   await clickText('button', 'Nova profissional');
   await typeIn('name', 'Teste Agenda');
+  await typeIn('email', 'teste-agenda-prof@example.test');
   await typeIn('specialty', 'Psicologia');
   await clickText('dialog[open] button', 'Cadastrar profissional');
   await toast('Profissional cadastrada.');

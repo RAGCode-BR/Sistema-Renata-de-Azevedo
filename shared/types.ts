@@ -30,6 +30,22 @@ export interface Professional {
   email: string | null;
   specialty: string | null;
   active: boolean;
+  tags: string[];
+  color: string;
+  photo_path: string | null;
+  commission_sales: boolean;
+  commission_sessions: boolean;
+  uses_clinic_hours: boolean;
+}
+
+export interface ProfessionalDocument {
+  id: string;
+  professional_id: string;
+  title: string;
+  storage_path: string;
+  size_bytes: number;
+  mime_type: string | null;
+  created_at: string;
 }
 
 export interface UserAccount {
@@ -676,7 +692,8 @@ export interface GoogleSyncStatus { enabled: boolean; last_run_at: string | null
 
 // Corpos aceitos pelas rotas de cadastro.
 
-export interface NewProfessional { name: string; email: string; specialty: string }
+export interface NewProfessional { name: string; email: string; specialty: string; tags: string[]; color: string;
+  commission_sales: boolean; commission_sessions: boolean; uses_clinic_hours: boolean }
 
 export interface NewUser {
   name: string;

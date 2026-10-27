@@ -23,6 +23,14 @@ Não há cadastro público. Quem tem a permissão **gerenciar usuários** (hoje,
 
 **A primeira conta** precisa ser criada por fora, uma única vez. Em **Authentication → Users → Add user** (com *Auto Confirm User*), defina em *app_metadata* `{"roles": ["owner"]}` e o nome em *user_metadata* `{"name": "..."}`.
 
+## Profissionais
+
+- O cadastro reúne nome e e-mail obrigatórios, foto JPG/PNG, especialidade, etiquetas, cor, situação, comissões, horário de atendimento e anexos. A cor identifica a profissional na lista e na agenda diária.
+- **Possui acesso ao sistema?** cria imediatamente uma conta com perfil Profissional e senha inicial, vinculada ao cadastro, quando marcada na criação. Em cadastros existentes, o controle ativa ou desativa a conta vinculada. A criação de acesso exige permissão para gerenciar usuários.
+- **Comissionar atendimentos** habilita o repasse de sessões ainda não fechado; o percentual é definido em **Financeiro → Repasses**. Fechamentos anteriores preservam seus valores. **Comissionar vendas** registra a preferência, mas o cálculo automático de vendas ainda não está implementado.
+- **Igual ao da clínica** registra a preferência de horário. A agenda ainda não dispõe de escala de trabalho cadastrada; a disponibilidade considera sessões e bloqueios.
+- Fotos e anexos ficam em armazenamento privado. Anexos aceitam os formatos indicados no formulário, até 10 MB cada, e são acessíveis somente a quem gerencia profissionais.
+
 ## Painel inicial
 
 A página **Início** é a primeira depois do login e mostra só dados reais, filtrados pelas permissões de cada perfil:

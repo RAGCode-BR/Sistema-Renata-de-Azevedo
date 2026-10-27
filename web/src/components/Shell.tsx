@@ -72,7 +72,7 @@ const recordControl: Route = { path: 'controle-prontuarios', label: 'Controle de
 const settings: Route = { path: 'configuracoes', label: 'Configurações', render: () => <SettingsPage /> };
 // Fora do menu: aberta pelo botão "Exportar prontuário".
 const printRecord: Route = { path: 'prontuario-impressao', label: 'Exportar prontuário', render: (_user, params) => <PrintRecordPage patientId={params.get('paciente')} /> };
-const professionals: Route = { path: 'profissionais', label: 'Profissionais', render: () => <ProfessionalsPage /> };
+const professionals: Route = { path: 'profissionais', label: 'Profissionais', render: (user) => <ProfessionalsPage user={user} /> };
 const users: Route = { path: 'usuarios', label: 'Usuários', render: (user) => <UsersPage user={user} /> };
 const patientTasks: Route = { path: 'tarefas', label: 'Tarefas', render: (user, params) =>
   <PatientActivitiesPage isOwner={user.roles.includes('owner')} initialPatient={params.get('paciente')} /> };

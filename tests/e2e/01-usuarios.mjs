@@ -82,11 +82,47 @@ try {
   await go('Profissionais');
   await clickText('button', 'Nova profissional');
   await typeIn('name', 'Teste Atende');
+  await typeIn('email', 'teste-atende@example.test');
   await clickText('dialog[open] button', 'Cadastrar profissional');
   await waitText('Profissional cadastrada.');
 
+  await clickText('button', 'Nova profissional');
+  await typeIn('name', 'Teste Acesso');
+  await typeIn('email', 'teste-acesso-prof@example.test');
+  await typeIn('specialty', 'Psicologia');
+  await page.type('dialog[open] input[aria-label="Nova etiqueta"]', 'Infantil');
+  await clickText('dialog[open] button', '+ Adicionar');
+  await page.select('dialog[open] select[name=color]', '#5B806B');
+  await page.click('dialog[open] input[name=commission_sessions]');
+  await page.click('dialog[open] input[name=access]');
+  await typeIn('password', 'Senha-Acesso-123!');
+  await (await page.$('dialog[open] input[accept="image/jpeg,image/png"]')).uploadFile(`${process.env.FIXTURES_DIR}/foto-teste.png`);
+  await (await page.$('dialog[open] input[multiple]')).uploadFile(`${process.env.FIXTURES_DIR}/declaracao-teste.pdf`);
+  await page.waitForFunction(() => document.querySelector('dialog[open]')?.innerText.includes('declaracao-teste.pdf'), { timeout: 5000 });
+  await clickText('dialog[open] button', 'Cadastrar profissional');
+  try {
+    await page.waitForFunction(() => [...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('Teste Acesso') && tr.innerText.includes('Infantil')),
+      { timeout: 10000 });
+  } catch (failure) {
+    console.log('  diagnóstico cadastro: ' + JSON.stringify(await page.evaluate(() => ({ modal: document.querySelector('dialog[open]')?.innerText.slice(-1000),
+      rows: [...document.querySelectorAll('tbody tr')].map((tr) => tr.innerText.slice(0, 200)) }))));
+    throw failure;
+  }
+  await page.evaluate(() => [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('Teste Acesso')).querySelector('button').click());
+  try {
+    await page.waitForFunction(() => document.querySelector('dialog[open]')?.innerText.includes('declaracao-teste.pdf'), { timeout: 10000 });
+  } catch (failure) {
+    console.log('  diagnóstico anexo: ' + JSON.stringify(await page.evaluate(() => document.querySelector('dialog[open]')?.innerText.slice(-1000))));
+    throw failure;
+  }
+  await page.waitForSelector('dialog[open] img[alt="Foto da profissional"]', { timeout: 10000 });
+  await clickText('dialog[open] button', 'Cancelar');
+  ok('Cadastro profissional: foto, anexo, etiqueta, cor, comissão e acesso no mesmo formulário');
+
   await go('Usuários');
   await waitText(ownerEmail);
+  if (!(await rowOf('teste-acesso-prof@example.test')).includes('Profissional')) throw new Error('Conta vinculada não criada');
+  ok('Acesso do profissional criou a conta com o perfil Profissional');
   await newUser('Teste Dona Atende', 'teste-dona-atende@example.test', ['owner', 'professional'], 'Teste Atende');
   if (!(await rowOf('teste-dona-atende@example.test')).includes('Proprietário(a) · Profissional')) throw new Error('dois perfis');
   await newUser('Teste Gerente', 'teste-gerente@example.test', ['manager']);
@@ -140,6 +176,12 @@ try {
   const title = await page.$eval('#conta-menu .pop-title', (e) => e.textContent);
   if (!title.includes('Proprietário(a) · Profissional')) { await page.screenshot({ path: `${process.env.SHOT_DIR}/pop-fail.png` }); throw new Error(`menu da conta: ${title}`); }
   ok(`Dois perfis: menu ${bothMenu.join(', ')}; conta mostra "Proprietário(a) · Profissional"`);
+  await logout();
+  await login('teste-acesso-prof@example.test', 'Senha-Acesso-123!');
+  await waitText('Olá, Teste');
+  const professionalMenu = await menuPages();
+  if (!professionalMenu.includes('Prontuários') || professionalMenu.includes('Usuários')) throw new Error(`menu profissional: ${professionalMenu}`);
+  ok('Profissional criado no cadastro consegue entrar com o perfil correto');
 } catch (error) {
   console.log(`✖ FALHA após o passo ${n}: ${error.message}`);
   console.log('  em ' + (error.stack ?? '').split('\n').filter((l) => l.includes('/e2e/')).map((l) => l.trim().replace(/^.*\/e2e\//, '')).join(' ← '));

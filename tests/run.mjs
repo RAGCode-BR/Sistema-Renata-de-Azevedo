@@ -84,8 +84,10 @@ const rows = (output) => { try { return JSON.parse(output.slice(output.indexOf('
 // Arquivos cuja pasta de paciente não existe mais (o storage não apaga junto com o banco).
 async function cleanFiles() {
   const orphans = rows(sqlText(`SELECT bucket_id, name FROM storage.objects
-    WHERE bucket_id IN ('patient-documents', 'clinical-documents', 'portal-documents')
-      AND split_part(name, '/', 2) NOT IN (SELECT id::text FROM public.patients)`));
+    WHERE (bucket_id IN ('patient-documents', 'clinical-documents', 'portal-documents')
+      AND split_part(name, '/', 2) NOT IN (SELECT id::text FROM public.patients))
+      OR (bucket_id = 'professional-files'
+      AND split_part(name, '/', 2) NOT IN (SELECT id::text FROM public.professionals))`));
   for (const bucket of new Set(orphans.map((o) => o.bucket_id))) {
     await admin.storage.from(bucket).remove(orphans.filter((o) => o.bucket_id === bucket).map((o) => o.name));
   }
