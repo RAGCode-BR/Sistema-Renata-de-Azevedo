@@ -1,10 +1,11 @@
 # Cabeçalhos das telas na Cloudflare.
-# connect-src libera apenas o projeto Supabase (login, dados e Edge Functions).
+# connect-src libera o projeto Supabase (login, dados e Edge Functions) e o ViaCEP (endereço a partir do CEP).
+# img-src aceita blob: (prévia da foto antes de salvar) e o Supabase (fotos por link assinado).
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: same-origin
   Strict-Transport-Security: max-age=31536000; includeSubDomains
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://qnchebjrgnfgszrzlyue.supabase.co; form-action 'self'; base-uri 'none'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https://qnchebjrgnfgszrzlyue.supabase.co; connect-src 'self' https://qnchebjrgnfgszrzlyue.supabase.co https://viacep.com.br; form-action 'self'; base-uri 'none'; frame-ancestors 'none'
 
 # Os nomes gerados pelo Vite mudam a cada versão, então podem ficar em cache.
 /assets/*

@@ -4,7 +4,7 @@ import { api } from '../api.ts';
 import { Panel, PanelState } from '../components/Page.tsx';
 import { Select } from '../components/Select.tsx';
 import { useToast } from '../components/Toast.tsx';
-import { dateOnly } from '../format.ts';
+import { dateOnly, dayOf } from '../format.ts';
 import { errorMessage, useLoad } from '../hooks.ts';
 
 const kindLabel = { exercise: 'Exercício', form: 'Formulário', scale: 'Escala' };
@@ -35,7 +35,7 @@ export function PatientForms({ patientId }: { patientId: string }) {
   const card = (form: PatientFormAssignment) => <li className="portal-item portal-form-card" key={form.id}>
     <div><span className="muted small">{kindLabel[form.kind]}{form.due_date ? ` · até ${dateOnly(form.due_date)}` : ''}</span>
       <strong>{form.title}</strong>{form.description && <p className="pre">{form.description}</p>}
-      {form.status === 'completed' && <span className="muted small">Respondido em {dateOnly(form.completed_at)}.</span>}
+      {form.status === 'completed' && <span className="muted small">Respondido em {dayOf(form.completed_at)}.</span>}
     </div>
     {form.status === 'assigned' && <div className="portal-form-questions">
       {form.questions.map((q, index) => <label className="field" key={q.id}>

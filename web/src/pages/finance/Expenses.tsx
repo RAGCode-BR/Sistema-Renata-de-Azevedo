@@ -151,7 +151,7 @@ function ExpenseForm({ expense, categories, centers, onClose, onSaved }: {
           </Select>
         </Field>
       </>}
-      <Field label="Observação (opcional)" full><input className="input" name="notes" maxLength={300} defaultValue={expense?.notes ?? ''} /></Field>
+      <Field label="Observação (opcional)" full><textarea className="input" name="notes" rows={2} maxLength={300} defaultValue={expense?.notes ?? ''} /></Field>
     </FormModal>
   );
 }

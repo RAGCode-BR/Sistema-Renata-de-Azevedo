@@ -8,6 +8,7 @@ import { ConfirmModal, Field, FormModal } from '../components/Modal.tsx';
 import { Heading, Panel, PanelState } from '../components/Page.tsx';
 import { useToast } from '../components/Toast.tsx';
 import { secret, text, useLoad } from '../hooks.ts';
+import { initials } from '../format.ts';
 
 export function UsersPage({ user }: { user: SessionUser }) {
   const notify = useToast();
@@ -28,18 +29,18 @@ export function UsersPage({ user }: { user: SessionUser }) {
       <Panel title="Usuários cadastrados">
         {users.length ? (
           <div className="table-wrap">
-            <table className="table">
+            <table className="table stacked">
               <thead>
-                <tr><th>Nome</th><th>E-mail</th><th>Perfis</th><th>Profissional</th><th>Situação</th><th><span className="sr-only">Ações</span></th></tr>
+                <tr><th>Nome</th><th>Login</th><th>E-mail</th><th>Perfis</th><th>Profissional</th><th>Situação</th><th><span className="sr-only">Ações</span></th></tr>
               </thead>
               <tbody>
                 {users.map((item) => (
                   <tr key={item.id}>
-                    <td>{item.name}{item.id === user.id && <span className="sub">Você</span>}</td>
-                    <td>{item.email}</td>
-                    <td>{item.roles.map((role) => roleLabel[role]).join(' · ') || '—'}</td>
+                    <td><div className="pt-who" data-initials={initials(item.name)}><strong>{item.name}</strong>{item.id === user.id && <span className="sub">Você</span>}</div></td>
+                    <td>{item.username || '—'}</td><td>{item.email}</td>
+                    <td>{item.roles.length ? <span className="chips">{item.roles.map((role) => <span key={role} className="chip chip-muted">{roleLabel[role]}</span>)}</span> : '—'}</td>
                     <td>{(item.professional_id && names.get(item.professional_id)) || '—'}</td>
-                    <td>{item.active ? 'Ativa' : 'Inativa'}</td>
+                    <td className="cell-status"><span className={item.active ? 'chip chip-good' : 'chip chip-muted'}>{item.active ? 'Ativa' : 'Inativa'}</span></td>
                     <td className="actions-cell">
                       <button type="button" className="link-btn" disabled={loading}
                         aria-label={`Editar ${item.name}`} onClick={() => setEditing(item)}>Editar</button>
@@ -116,14 +117,20 @@ function UserForm({ account, users, professionals, self, onClose, onSaved }: Use
         if (!roles.length) throw new Error('Escolha ao menos um perfil.');
         const professionalId = professional ? text(data, 'professionalId') || null : null;
         if (account) {
+          const username = text(data, 'username').toLowerCase();
+          if (username !== account.username) await api.updateUsername(account.id, username);
           await api.updateUserAccess({ userId: account.id, roles, professionalId, active: isSelf || data.get('active') === 'on' });
         } else {
-          await api.createUser({ name: text(data, 'name'), email: text(data, 'email'), roles, professionalId, password: secret(data, 'password') });
+          await api.createUser({ name: text(data, 'name'), email: text(data, 'email'), username: text(data, 'username').toLowerCase(),
+            roles, professionalId, password: secret(data, 'password') });
         }
         onSaved();
       }}>
       {!account && <Field label="Nome"><input className="input" name="name" required /></Field>}
       {!account && <Field label="E-mail"><input className="input" name="email" type="email" required /></Field>}
+      <Field label="Login"><input className="input" name="username" required minLength={3} maxLength={32}
+        pattern="[A-Za-z](?:[A-Za-z0-9._]|-){2,31}" autoCapitalize="none" autoComplete="off" defaultValue={account?.username ?? ''}
+        placeholder="ex.: renata" /></Field>
 
       <fieldset className="full checks role-checks">
         <legend>Perfis</legend>

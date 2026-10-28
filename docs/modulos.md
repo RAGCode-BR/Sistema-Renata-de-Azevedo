@@ -12,6 +12,8 @@ Como cada parte funciona e o que precisa ser configurado. Lista única do que fa
 
 Não há cadastro público. Quem tem a permissão **gerenciar usuários** (hoje, só Proprietário(a)) cria, edita e exclui contas na página **Usuários**.
 
+- **Entrada da equipe:** nome de usuário exclusivo e senha, na web e no aplicativo. Os logins das contas existentes foram gerados a partir da parte inicial do e-mail e aparecem em **Usuários**; a Proprietária pode trocá-los. Os pacientes continuam entrando com código enviado por e-mail.
+
 - **Criar:** a Edge Function `admin-create-user` cria a conta no Supabase Auth, com os perfis em `app_metadata.roles`. O gatilho `on_auth_user_created` cria o perfil e os perfis de acesso. Uma conta sem perfis, criada fora da função, não tem acesso a nada.
 - **Editar** perfis, profissional vinculada e situação (ativa/inativa): função do banco `set_user_access`. Desativar corta o acesso na hora, porque as políticas conferem isso a cada consulta.
 - **Excluir:** Edge Function `admin-delete-user`. Prontuários e sessões continuam guardados, porque pertencem à profissional (`professionals`), não à conta.
@@ -145,7 +147,14 @@ O módulo de pendências internas foi retirado do sistema web e do aplicativo. P
 
 Na criação da tarefa, depois de escolher o paciente, a profissional responsável ou a proprietária pode selecionar uma mensagem recebida no número oficial da clínica. O texto preenche **um rascunho editável** de título e orientações; a tarefa só chega ao paciente após revisão e envio humano. A origem fica vinculada à tarefa no banco. Áudios recebidos aparecem na mesma lista e podem ser transcritos sob demanda, sem criação automática da tarefa. O checklist e a conclusão pelo paciente continuam no portal. As pendências internas da equipe permanecem fora do sistema.
 
-A transcrição de áudio depende de `WHATSAPP_TOKEN` e `OPENAI_API_KEY` configurados como segredos do projeto Supabase e da função `patient-task-audio` implantada. O áudio é baixado da Meta e enviado à API de transcrição da OpenAI somente quando a pessoa autorizada clicar em **Transcrever áudio**; a transcrição é guardada na mensagem e deve ser conferida antes do uso. Áudios de até 25 MB são aceitos. O número oficial e o webhook do WhatsApp ainda precisam ser configurados na Meta para receber mensagens reais.
+**Transcrição de áudio:** segue as mesmas regras do assistente de IA. Só a **profissional responsável** transcreve, e só com:
+- a IA ligada em Configurações, dentro do limite mensal (o custo da transcrição entra nesse limite);
+- o termo de uso da IA aceito por ela;
+- o consentimento de IA do paciente registrado.
+
+O áudio é baixado da Meta e enviado à OpenAI só quando ela clica em **Transcrever áudio**, uma vez por áudio. Cada transcrição fica no registro de acesso clínico. O texto fica numa tabela própria, que a recepção não lê, e é apagado no prazo de guarda da IA (Configurações → Assistente de IA). Revise sempre o texto antes de enviar a tarefa. Áudios de até 25 MB, nos formatos que a OpenAI aceita (o áudio de voz do WhatsApp é aceito).
+
+Para ligar: segredos `WHATSAPP_TOKEN` e `OPENAI_API_KEY` no Supabase. Opcionais: `TRANSCRIBE_MODEL` (padrão `gpt-4o-mini-transcribe`) e `TRANSCRIBE_USD_PER_MINUTE` (preço por minuto usado no limite de custo, padrão 0,006). O número oficial e o webhook do WhatsApp também precisam estar configurados na Meta.
 
 ## Comercial (CRM)
 
@@ -442,7 +451,7 @@ No Expo Go dá para testar tudo, menos o push (a Expo exige um build próprio pa
   - Abre em `#/portal`, ou sozinho num endereço que comece com `portal.` (ex.: `portal.renatadeazevedo.com.br`).
   - Funciona no navegador do celular; não precisa instalar nada.
 
-**Formulários, exercícios e escalas (módulo 8):** a profissional cria modelos em **Pacientes → Formulários e escalas**, com perguntas de texto, número, escolha ou escala pontuável, e os envia aos pacientes da própria carteira. O paciente ou responsável responde em **Formulários** no portal; cada envio aceita uma resposta e mantém uma cópia das perguntas do momento do envio. Escalas somam o índice das alternativas a partir de zero, com opção de inverter perguntas; a pontuação não traz diagnóstico, faixas de interpretação ou normas automáticas. A profissional vê respostas e pontuação na aba **Formulários** do prontuário, e elas entram na exportação do prontuário. A proprietária e a equipe administrativa não acessam esse conteúdo clínico. A publicação como aplicativo nas lojas ainda depende de um projeto e distribuição próprios; o portal funciona no navegador do celular.
+**Formulários, exercícios e escalas (módulo 8):** a profissional cria modelos em **Pacientes → Formulários e escalas**, com perguntas de texto, número, escolha ou escala pontuável, e os envia aos pacientes da própria carteira. O paciente ou responsável responde em **Formulários** no portal; cada envio aceita uma resposta e mantém uma cópia das perguntas do momento do envio. Escalas somam o índice das alternativas a partir de zero, com opção de inverter perguntas; a pontuação não traz diagnóstico, faixas de interpretação ou normas automáticas. No portal, o paciente vê as próprias respostas e a pontuação logo ao enviar (decisão da clínica). A profissional vê respostas e pontuação na aba **Formulários** do prontuário, e elas entram na exportação do prontuário. A proprietária e a equipe administrativa não acessam esse conteúdo clínico. A publicação como aplicativo nas lojas ainda depende de um projeto e distribuição próprios; o portal funciona no navegador do celular.
 - **Por que não um app nas lojas:** o paciente usa poucas vezes por mês. Um app exigiria instalação e revisão da Apple e do Google, e misturá-lo ao app da equipe aumentaria o risco de vazamento.
 
 **Como funciona**
@@ -515,11 +524,6 @@ No Expo Go dá para testar tudo, menos o push (a Expo exige um build próprio pa
 
 ## Verificação em duas etapas (Bloco 14)
 
-- **Para quem:** qualquer pessoa da equipe ativa na própria conta, em **menu da conta → Verificação em duas etapas**. Depois de ativar, o sistema e o app pedem o código do app autenticador (Google Authenticator, Microsoft Authenticator, 1Password…) depois da senha.
-- **Exigência para Proprietária e Gerência:** em **Configurações → Segurança**. Esses perfis veem o financeiro e todos os pacientes.
-  - Ligada, quem tem um desses perfis e entrou só com a senha fica **sem nenhuma permissão no banco** até digitar o código. A regra está nas funções de acesso do banco, não só na tela.
-  - Na primeira entrada depois de ligar, quem ainda não cadastrou o app vê o QR code para cadastrar.
-  - Só é possível ligar com a própria sessão já verificada, para ninguém trancar a clínica para fora.
-- **No aplicativo da equipe:** pede o código depois da senha. O cadastro do app autenticador é feito pelo computador, porque o QR code precisa ser lido pelo celular.
-- **Trocou de celular:** desative e ative de novo pelo menu da conta. Se a pessoa perdeu o celular, quem gerencia usuários pode remover o fator pelo painel do Supabase (**Authentication → Users → a conta → MFA factors**).
-- **Testes automáticos:** a mesma varredura feita com a conta de paciente é feita com a Proprietária sem o código, e nada passa.
+- **Situação:** retirada da tela a pedido da clínica em 28/10/2026. O menu da conta não tem mais a opção de ativar, e as Configurações não têm mais o painel Segurança.
+- **No banco:** a exigência continua existindo, desligada (`clinic_settings.require_mfa = false`). As funções de acesso só pedem o código se ela for ligada de novo, e ninguém tem app autenticador cadastrado.
+- **Para voltar:** a tela de entrada ainda sabe pedir o código e cadastrar o app; falta devolver a opção ao menu da conta e às Configurações.

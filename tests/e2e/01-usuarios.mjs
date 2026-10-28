@@ -34,10 +34,10 @@ async function logout() {
   await waitText('Entrar no sistema');
 }
 async function login(email, password) {
-  await page.waitForSelector('input[name=email]');
-  await page.$eval('input[name=email]', (e) => { e.value = ''; });
+  await page.waitForSelector('input[name=username]');
+  await page.$eval('input[name=username]', (e) => { e.value = ''; });
   await page.$eval('input[name=password]', (e) => { e.value = ''; });
-  await page.type('input[name=email]', email);
+  await page.type('input[name=username]', email.split('@')[0]);
   await page.type('input[name=password]', password);
   await clickText('button', 'Entrar');
 }
@@ -45,6 +45,7 @@ async function newUser(name, email, roles, professional) {
   await clickText('button', 'Novo usuário');
   await typeIn('name', name);
   await typeIn('email', email);
+  await typeIn('username', email.split('@')[0]);
   for (const role of ['professional', 'owner', 'manager', 'reception', 'finance']) {
     const checked = await page.$eval(`dialog[open] input[name=roles][value=${role}]`, (e) => e.checked);
     if (checked !== roles.includes(role)) await page.click(`dialog[open] input[name=roles][value=${role}]`);
@@ -59,11 +60,17 @@ async function newUser(name, email, roles, professional) {
   await page.waitForFunction((e) => document.body.innerText.includes(e), { timeout: 10000 }, email);
 }
 async function editUser(email, change) {
-  await page.evaluate((e) => [...document.querySelectorAll('tbody tr')].find((tr) => tr.textContent.includes(e)).querySelector('button').click(), email);
+  const button = await page.waitForFunction((e) => {
+    const row = [...document.querySelectorAll('tbody tr')].find((tr) => tr.textContent.includes(e));
+    const action = row?.querySelector('button');
+    return action && !action.disabled ? action : null;
+  }, { timeout: 10000 }, email);
+  await button.asElement().click();
   await page.waitForSelector('dialog[open] input[name=roles]');
   await change();
   await clickText('dialog[open] button', 'Salvar');
   await waitText('Usuário atualizado.');
+  await page.waitForFunction(() => !document.querySelector('dialog[open]'), { timeout: 10000 });
 }
 
 try {
@@ -78,6 +85,18 @@ try {
   await waitText(ownerEmail);
   if (!(await rowOf(ownerEmail)).includes('Proprietário(a)')) throw new Error('perfil do Arthuro');
   ok('Contas existentes aparecem com os perfis convertidos');
+
+  await clickText('button', 'Novo usuário');
+  const loginValidation = await page.$eval('dialog[open] input[name=username]', (input) => {
+    input.value = 'teste-login';
+    const acceptsHyphen = input.checkValidity();
+    input.value = '1login';
+    const rejectsInvalidStart = input.validity.patternMismatch;
+    return { acceptsHyphen, rejectsInvalidStart };
+  });
+  await clickText('dialog[open] button', 'Cancelar');
+  if (!loginValidation.acceptsHyphen || !loginValidation.rejectsInvalidStart) throw new Error('Validação do login no navegador');
+  ok('Campo Login aceita hífen e rejeita início inválido');
 
   await go('Profissionais');
   await clickText('button', 'Nova profissional');
@@ -95,6 +114,7 @@ try {
   await page.select('dialog[open] select[name=color]', '#5B806B');
   await page.click('dialog[open] input[name=commission_sessions]');
   await page.click('dialog[open] input[name=access]');
+  await typeIn('username', 'teste-acesso-prof');
   await typeIn('password', 'Senha-Acesso-123!');
   await (await page.$('dialog[open] input[accept="image/jpeg,image/png"]')).uploadFile(`${process.env.FIXTURES_DIR}/foto-teste.png`);
   await (await page.$('dialog[open] input[multiple]')).uploadFile(`${process.env.FIXTURES_DIR}/declaracao-teste.pdf`);
@@ -124,7 +144,9 @@ try {
   if (!(await rowOf('teste-acesso-prof@example.test')).includes('Profissional')) throw new Error('Conta vinculada não criada');
   ok('Acesso do profissional criou a conta com o perfil Profissional');
   await newUser('Teste Dona Atende', 'teste-dona-atende@example.test', ['owner', 'professional'], 'Teste Atende');
-  if (!(await rowOf('teste-dona-atende@example.test')).includes('Proprietário(a) · Profissional')) throw new Error('dois perfis');
+  const roles = await page.evaluate(() => [...[...document.querySelectorAll('tbody tr')].find((tr) => tr.textContent.includes('teste-dona-atende@example.test'))
+    .querySelectorAll('.chip')].map((chip) => chip.textContent).join(' · '));
+  if (!roles.includes('Proprietário(a) · Profissional')) throw new Error(`dois perfis: ${roles}`);
   await newUser('Teste Gerente', 'teste-gerente@example.test', ['manager']);
   ok('Usuários criados com um e com dois perfis');
 
@@ -139,20 +161,33 @@ try {
   ok('Na própria conta, "Proprietário(a)" e "Conta ativa" ficam travados');
 
   await editUser('teste-gerente@example.test', () => page.click('dialog[open] input[name=roles][value=reception]'));
-  await page.waitForFunction(() => document.body.innerText.includes('Gerente · Recepção'), { timeout: 10000 });
+  await page.waitForFunction(() => [...document.querySelectorAll('tbody tr')].some((tr) => tr.textContent.includes('teste-gerente@example.test')
+    && [...tr.querySelectorAll('.chip')].map((chip) => chip.textContent).join(' · ').includes('Gerente · Recepção')), { timeout: 10000 });
   ok('Perfis editados: Gerente · Recepção');
 
   await editUser('teste-gerente@example.test', () => page.click('dialog[open] input[name=active]'));
   await page.waitForFunction(() => [...document.querySelectorAll('tbody tr')].some((tr) => tr.textContent.includes('teste-gerente@example.test') && tr.textContent.includes('Inativa')), { timeout: 10000 });
   await logout();
   await login('teste-gerente@example.test', 'Senha-Bloco1-ok');
-  await waitText('Esta conta não tem acesso ao sistema.');
+  await waitText('Login ou senha inválidos.');
   ok('Conta desativada não entra');
 
   await login(ownerEmail, ownerPassword);
   await waitText('Olá, ');
   await go('Usuários');
   await waitText('teste-gerente@example.test');
+  await editUser('teste-acesso-prof@example.test', async () => {
+    await page.$eval('dialog[open] input[name=username]', (input) => { input.value = 'teste-acesso'; });
+  });
+  try {
+    await page.waitForFunction(() => [...document.querySelectorAll('tbody tr')].some((tr) =>
+      tr.textContent.includes('teste-acesso-prof@example.test') && tr.cells[1]?.textContent === 'teste-acesso'), { timeout: 10000 });
+  } catch (failure) {
+    console.log('  diagnóstico login: ' + JSON.stringify(await page.evaluate(() => [...document.querySelectorAll('tbody tr')]
+      .filter((tr) => tr.textContent.includes('teste-acesso-prof@example.test')).map((tr) => tr.innerText))));
+    throw failure;
+  }
+  ok('Proprietária altera o nome de usuário sem trocar o e-mail');
   await editUser('teste-gerente@example.test', async () => {
     await page.click('dialog[open] input[name=active]');
     await page.click('dialog[open] input[name=roles][value=reception]');
@@ -177,7 +212,7 @@ try {
   if (!title.includes('Proprietário(a) · Profissional')) { await page.screenshot({ path: `${process.env.SHOT_DIR}/pop-fail.png` }); throw new Error(`menu da conta: ${title}`); }
   ok(`Dois perfis: menu ${bothMenu.join(', ')}; conta mostra "Proprietário(a) · Profissional"`);
   await logout();
-  await login('teste-acesso-prof@example.test', 'Senha-Acesso-123!');
+  await login('teste-acesso', 'Senha-Acesso-123!');
   await waitText('Olá, Teste');
   const professionalMenu = await menuPages();
   if (!professionalMenu.includes('Prontuários') || professionalMenu.includes('Usuários')) throw new Error(`menu profissional: ${professionalMenu}`);

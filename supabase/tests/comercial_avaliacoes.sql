@@ -131,4 +131,5 @@ DO $$ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
 END $$;
+SELECT 'Avaliações do comercial passaram.' AS resultado;
 ROLLBACK;

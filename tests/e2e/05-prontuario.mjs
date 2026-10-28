@@ -35,10 +35,10 @@ async function logout() {
   await waitText('Entrar no sistema');
 }
 async function login(email, password) {
-  await page.waitForSelector('input[name=email]');
-  await page.$eval('input[name=email]', (e) => { e.value = ''; });
+  await page.waitForSelector('input[name=username]');
+  await page.$eval('input[name=username]', (e) => { e.value = ''; });
   await page.$eval('input[name=password]', (e) => { e.value = ''; });
-  await page.type('input[name=email]', email);
+  await page.type('input[name=username]', email.split('@')[0]);
   await page.type('input[name=password]', password);
   await clickText('button', 'Entrar');
 }
@@ -46,6 +46,7 @@ async function newUser(name, email, roles, professional) {
   await clickText('button', 'Novo usuário');
   await typeIn('name', name);
   await typeIn('email', email);
+  await typeIn('username', email.split('@')[0]);
   for (const role of ['professional', 'owner', 'manager', 'reception', 'finance']) {
     const checked = await page.$eval(`dialog[open] input[name=roles][value=${role}]`, (e) => e.checked);
     if (checked !== roles.includes(role)) await page.click(`dialog[open] input[name=roles][value=${role}]`);
@@ -192,7 +193,10 @@ try {
   await page.waitForFunction(() => [...document.querySelectorAll('.entry')].some((e) => e.innerText.includes('Finalizada em') && e.innerText.includes('Retificar') && !e.innerText.includes('Editar')), { timeout: 10000 });
   await clickText('button', 'Retificar');
   await page.waitForSelector('dialog[open] textarea[name=body]');
-  await page.$eval('dialog[open] textarea[name=body]', (el) => { el.value = 'Evolução revisada da sessão, com o horário correto.'; });
+  await page.$eval('dialog[open] textarea[name=body]', (el) => {
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(el, 'Evolução revisada da sessão, com o horário correto.');
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
   await page.type('dialog[open] input[name=reason]', 'Horário informado errado');
   await clickText('dialog[open] button', 'Registrar retificação');
   await toast('Retificação registrada.');

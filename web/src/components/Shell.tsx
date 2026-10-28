@@ -1,41 +1,42 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { SessionUser } from '../../../shared/types.ts';
 import logo from '../../../assets/logo.png';
 import { api } from '../api.ts';
 import { can, roleLabel } from '../../../shared/permissions.ts';
 import { useHashRoute } from '../hooks.ts';
-import { AgendaPage } from '../pages/Agenda.tsx';
 import { HomePage } from '../pages/Home.tsx';
-import { ClinicalNotesPage } from '../pages/ClinicalNotes.tsx';
-import { GoogleCalendarsPage } from '../pages/GoogleCalendars.tsx';
-import { PatientsPage } from '../pages/Patients.tsx';
-import { PrintRecordPage } from '../pages/PrintRecord.tsx';
-import { RecordControlPage } from '../pages/RecordControl.tsx';
-import { SettingsPage } from '../pages/Settings.tsx';
-import { ProfessionalsPage } from '../pages/Professionals.tsx';
-import { UsersPage } from '../pages/Users.tsx';
-import { ChargesPage } from '../pages/finance/Charges.tsx';
-import { ExpensesPage } from '../pages/finance/Expenses.tsx';
-import { FinanceOverviewPage } from '../pages/finance/Overview.tsx';
-import { PayoutsPage } from '../pages/finance/Payouts.tsx';
-import { PricesPage } from '../pages/finance/Prices.tsx';
 import { NotificationBell } from './Notifications.tsx';
 import { PasswordDialog } from './PasswordDialog.tsx';
-import { TwoFactorDialog } from './TwoFactor.tsx';
 import { WhatsappNoticeDialog } from './WhatsappNotice.tsx';
-import { ConversationsPage } from '../pages/Conversations.tsx';
-import { PatientActivitiesPage } from '../pages/PatientActivities.tsx';
-import { PatientFormsPage } from '../pages/PatientForms.tsx';
-import { CampaignsPage } from '../pages/crm/Campaigns.tsx';
-import { CrmDashboardPage } from '../pages/crm/Dashboard.tsx';
-import { CrmSettingsPage } from '../pages/crm/CrmSettings.tsx';
-import { FunnelPage } from '../pages/crm/Funnel.tsx';
-import { CommercialReportPage } from '../pages/reports/Commercial.tsx';
-import { FinancialReportPage } from '../pages/reports/Financial.tsx';
-import { OperationalReportPage } from '../pages/reports/Operational.tsx';
-import { PerformanceReportPage } from '../pages/reports/Performance.tsx';
-import { YearlyReportPage } from '../pages/reports/Yearly.tsx';
+
+// Cada página é baixada só quando aberta (o Início vem junto, por ser a primeira tela).
+const AgendaPage = lazy(() => import('../pages/Agenda.tsx').then((module) => ({ default: module.AgendaPage })));
+const ClinicalNotesPage = lazy(() => import('../pages/ClinicalNotes.tsx').then((module) => ({ default: module.ClinicalNotesPage })));
+const GoogleCalendarsPage = lazy(() => import('../pages/GoogleCalendars.tsx').then((module) => ({ default: module.GoogleCalendarsPage })));
+const PatientsPage = lazy(() => import('../pages/Patients.tsx').then((module) => ({ default: module.PatientsPage })));
+const PrintRecordPage = lazy(() => import('../pages/PrintRecord.tsx').then((module) => ({ default: module.PrintRecordPage })));
+const RecordControlPage = lazy(() => import('../pages/RecordControl.tsx').then((module) => ({ default: module.RecordControlPage })));
+const SettingsPage = lazy(() => import('../pages/Settings.tsx').then((module) => ({ default: module.SettingsPage })));
+const ProfessionalsPage = lazy(() => import('../pages/Professionals.tsx').then((module) => ({ default: module.ProfessionalsPage })));
+const UsersPage = lazy(() => import('../pages/Users.tsx').then((module) => ({ default: module.UsersPage })));
+const ChargesPage = lazy(() => import('../pages/finance/Charges.tsx').then((module) => ({ default: module.ChargesPage })));
+const ExpensesPage = lazy(() => import('../pages/finance/Expenses.tsx').then((module) => ({ default: module.ExpensesPage })));
+const FinanceOverviewPage = lazy(() => import('../pages/finance/Overview.tsx').then((module) => ({ default: module.FinanceOverviewPage })));
+const PayoutsPage = lazy(() => import('../pages/finance/Payouts.tsx').then((module) => ({ default: module.PayoutsPage })));
+const PricesPage = lazy(() => import('../pages/finance/Prices.tsx').then((module) => ({ default: module.PricesPage })));
+const ConversationsPage = lazy(() => import('../pages/Conversations.tsx').then((module) => ({ default: module.ConversationsPage })));
+const PatientActivitiesPage = lazy(() => import('../pages/PatientActivities.tsx').then((module) => ({ default: module.PatientActivitiesPage })));
+const PatientFormsPage = lazy(() => import('../pages/PatientForms.tsx').then((module) => ({ default: module.PatientFormsPage })));
+const CampaignsPage = lazy(() => import('../pages/crm/Campaigns.tsx').then((module) => ({ default: module.CampaignsPage })));
+const CrmDashboardPage = lazy(() => import('../pages/crm/Dashboard.tsx').then((module) => ({ default: module.CrmDashboardPage })));
+const CrmSettingsPage = lazy(() => import('../pages/crm/CrmSettings.tsx').then((module) => ({ default: module.CrmSettingsPage })));
+const FunnelPage = lazy(() => import('../pages/crm/Funnel.tsx').then((module) => ({ default: module.FunnelPage })));
+const CommercialReportPage = lazy(() => import('../pages/reports/Commercial.tsx').then((module) => ({ default: module.CommercialReportPage })));
+const FinancialReportPage = lazy(() => import('../pages/reports/Financial.tsx').then((module) => ({ default: module.FinancialReportPage })));
+const OperationalReportPage = lazy(() => import('../pages/reports/Operational.tsx').then((module) => ({ default: module.OperationalReportPage })));
+const PerformanceReportPage = lazy(() => import('../pages/reports/Performance.tsx').then((module) => ({ default: module.PerformanceReportPage })));
+const YearlyReportPage = lazy(() => import('../pages/reports/Yearly.tsx').then((module) => ({ default: module.YearlyReportPage })));
 
 interface Route {
   path: string;
@@ -156,7 +157,6 @@ function readSubmenu(): boolean {
 export function Shell({ user, onLogout }: { user: SessionUser; onLogout: () => void }) {
   const { path, params } = useHashRoute();
   const [changingPassword, setChangingPassword] = useState(false);
-  const [twoFactor, setTwoFactor] = useState(false);
   const [whatsappNotice, setWhatsappNotice] = useState(false);
   const [submenuOpen, setSubmenuOpen] = useState(readSubmenu);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -170,7 +170,8 @@ export function Shell({ user, onLogout }: { user: SessionUser; onLogout: () => v
   const routes = [...modules.flatMap((module) => module.routes), ...(user.roles.includes('professional') ? [printRecord] : []),
     ...(user.roles.includes('professional') || user.roles.includes('owner') ? [patientActivities] : [])];
   const current = routes.find((route) => route.path === path) ?? home;
-  const currentModule = modules.find((module) => module.routes.includes(current)) ?? modules[0];
+  const currentModule = modules.find((module) => module.routes.includes(current))
+    ?? (current === patientActivities ? modules.find((module) => module.title === 'Tarefas') : undefined) ?? modules[0];
   const initials = user.name.split(' ').filter((part) => part.length > 2).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
   const primaryModules = modules.filter((module) => ['Início', 'Atendimento', 'Pacientes', 'Tarefas'].includes(module.title));
   const moreModules = modules.filter((module) => !primaryModules.includes(module));
@@ -178,6 +179,14 @@ export function Shell({ user, onLogout }: { user: SessionUser; onLogout: () => v
   const query = normalize(quickQuery.trim());
   const quickResults = modules.flatMap((module) => module.routes.map((route) => ({ module, route })))
     .filter(({ module, route }) => !query || normalize(`${module.title} ${route.label}`).includes(query));
+
+  // No celular o submenu vira uma faixa que rola de lado: centraliza a página atual nela.
+  useEffect(() => {
+    const active = document.querySelector<HTMLElement>('.subnav-list .sub-link.active');
+    const list = active?.parentElement;
+    if (!active || !list || list.scrollWidth <= list.clientWidth) return;
+    list.scrollLeft += active.getBoundingClientRect().left - list.getBoundingClientRect().left - (list.clientWidth - active.offsetWidth) / 2;
+  }, [path]);
 
   useEffect(() => {
     if (['pendencias-internas', 'tarefas-equipe', 'tarefas-recorrentes'].includes(path) || (path === 'tarefas' && params.has('tarefa'))) {
@@ -253,8 +262,10 @@ export function Shell({ user, onLogout }: { user: SessionUser; onLogout: () => v
           <img src={logo} alt="Renata de Azevedo, Psicologia e Coaching" />
         </a>
 
-        <button type="button" className="quick-trigger" onClick={() => setQuickOpen(true)} aria-label="Buscar página">
-          <Icon name="search" /><span>Buscar página</span><kbd>⌘ K</kbd>
+        <button type="button" className="quick-trigger" onClick={() => setQuickOpen(true)} aria-label="Buscar página"
+          aria-keyshortcuts="Meta+K Control+K" title="Buscar página: ⌘ K no Mac, Ctrl K no Windows">
+          <Icon name="search" /><span>Buscar página</span>
+          <span className="quick-keys" aria-hidden="true"><kbd title="Mac">⌘ K</kbd><kbd title="Windows">Ctrl K</kbd></span>
         </button>
 
         <div className="top-actions" ref={accountRef}>
@@ -270,9 +281,6 @@ export function Shell({ user, onLogout }: { user: SessionUser; onLogout: () => v
             <div className="pop-title">{user.name}<br />{user.roles.map((role) => roleLabel[role]).join(' · ')}</div>
             <button type="button" className="pop-item" onClick={() => { setAccountOpen(false); setChangingPassword(true); }}>
               <Icon name="key" />Trocar senha
-            </button>
-            <button type="button" className="pop-item" onClick={() => { setAccountOpen(false); setTwoFactor(true); }}>
-              <Icon name="key" />Verificação em duas etapas
             </button>
             <button type="button" className="pop-item" onClick={() => { setAccountOpen(false); setWhatsappNotice(true); }}>
               <Icon name="bell" />Avisos no WhatsApp
@@ -335,7 +343,9 @@ export function Shell({ user, onLogout }: { user: SessionUser; onLogout: () => v
       </aside>
 
       <div className="workspace">
-        <main key={`${current.path}?${params}`}>{current.render(user, params)}</main>
+        <main key={`${current.path}?${params}`}>
+          <Suspense fallback={<p className="empty-state">Carregando…</p>}>{current.render(user, params)}</Suspense>
+        </main>
       </div>
 
       {quickOpen && <div className="quick-backdrop" onClick={() => setQuickOpen(false)}>
@@ -361,7 +371,6 @@ export function Shell({ user, onLogout }: { user: SessionUser; onLogout: () => v
       </div>}
 
       {changingPassword && <PasswordDialog onClose={() => setChangingPassword(false)} />}
-      {twoFactor && <TwoFactorDialog onClose={() => setTwoFactor(false)} />}
       {whatsappNotice && <WhatsappNoticeDialog onClose={() => setWhatsappNotice(false)} />}
     </div>
   );

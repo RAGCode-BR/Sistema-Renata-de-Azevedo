@@ -22,7 +22,8 @@ function choicesOf(children: ReactNode): Choice[] {
   });
 }
 
-// O <select> oculto mantém FormData, validação e integração com formulários existentes.
+// O <select> oculto mantém FormData, validação e integração com formulários existentes. Ele vem depois do
+// botão: dentro de um <label>, o clique no texto vai para o primeiro controle, que precisa ser o visível.
 // A lista visível é desenhada pelo sistema, inclusive dentro de <dialog>.
 export function Select({ children, className = 'input', value, defaultValue, onChange, disabled, required,
   onInvalid, ...props }: SelectProps) {
@@ -59,26 +60,31 @@ export function Select({ children, className = 'input', value, defaultValue, onC
     const closeOutside = (event: PointerEvent) => {
       if (!trigger.current?.contains(event.target as Node) && !menu.current?.contains(event.target as Node)) setOpen(false);
     };
-    const closeOnScroll = (event: Event) => {
+    // Rolagem da página ou do diálogo (inclusive a do iPhone ao abrir o teclado): a lista acompanha o campo
+    // e só fecha se o campo sair da tela.
+    const follow = (event: Event) => {
       if (menu.current?.contains(event.target as Node)) return;
-      setOpen(false);
+      const box = trigger.current?.getBoundingClientRect();
+      if (!box || box.bottom < 0 || box.top > window.innerHeight) { setOpen(false); return; }
+      place();
     };
     document.addEventListener('pointerdown', closeOutside);
-    window.addEventListener('resize', closeOnScroll);
-    document.addEventListener('scroll', closeOnScroll, true);
+    window.addEventListener('resize', follow);
+    document.addEventListener('scroll', follow, true);
     return () => {
       document.removeEventListener('pointerdown', closeOutside);
-      window.removeEventListener('resize', closeOnScroll);
-      document.removeEventListener('scroll', closeOnScroll, true);
+      window.removeEventListener('resize', follow);
+      document.removeEventListener('scroll', follow, true);
     };
   }, [open]);
 
   useEffect(() => {
-    if (open && choices.length > 8) searchField.current?.focus();
+    // Em telas de toque, focar a busca abre o teclado e rola a página: só foca com mouse e teclado.
+    if (open && choices.length > 8 && !window.matchMedia('(pointer: coarse)').matches) searchField.current?.focus();
   }, [open]);
 
-  function show() {
-    if (disabled || !trigger.current) return;
+  function place() {
+    if (!trigger.current) return;
     const box = trigger.current.getBoundingClientRect();
     const availableBelow = window.innerHeight - box.bottom - 12;
     const desired = Math.min(320, Math.max(100, choices.length * 42 + (choices.length > 8 ? 52 : 12)));
@@ -86,6 +92,11 @@ export function Select({ children, className = 'input', value, defaultValue, onC
     const maxHeight = Math.min(320, Math.max(100, above ? box.top - 12 : availableBelow));
     setBounds({ left: box.left, top: above ? Math.max(8, box.top - Math.min(desired, maxHeight) - 6) : box.bottom + 6,
       width: box.width, maxHeight });
+  }
+
+  function show() {
+    if (disabled || !trigger.current) return;
+    place();
     setSearch('');
     setActive(Math.max(0, choices.findIndex((choice) => choice.value === selectedValue && !choice.disabled)));
     setOpen(true);
@@ -108,6 +119,18 @@ export function Select({ children, className = 'input', value, defaultValue, onC
     if (!open && ['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) {
       event.preventDefault(); show(); return;
     }
+    if (event.key.length === 1 && event.key !== ' ' && !event.ctrlKey && !event.metaKey && !event.altKey
+      && document.activeElement !== searchField.current) {
+      const letter = event.key.toLocaleLowerCase('pt-BR');
+      const list = open ? filtered : choices;
+      const from = open ? active : list.findIndex((choice) => choice.value === selectedValue);
+      const next = [...list.keys()].map((step) => (from + 1 + step) % list.length)
+        .find((index) => !list[index].disabled && list[index].label.toLocaleLowerCase('pt-BR').startsWith(letter));
+      if (next === undefined) return;
+      event.preventDefault();
+      if (open) setActive(next); else choose(list[next].value);
+      return;
+    }
     if (!open) return;
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Home' || event.key === 'End') {
       event.preventDefault();
@@ -125,9 +148,9 @@ export function Select({ children, className = 'input', value, defaultValue, onC
     aria-label={props['aria-label'] ?? fieldLabel} onKeyDown={handleKey}
     style={{ left: bounds.left, top: bounds.top, width: bounds.width, maxHeight: bounds.maxHeight }}>
     {choices.length > 8 && <input ref={searchField} className="app-select-search" type="search" placeholder="Buscar opção…"
-      aria-label="Buscar opção" value={search} onChange={(event) => { setSearch(event.target.value); setActive(0); }} />}
+      aria-label="Buscar opção" aria-controls={listId} aria-activedescendant={filtered[active] ? `${listId}-${active}` : undefined} value={search} onChange={(event) => { setSearch(event.target.value); setActive(0); }} />}
     <div className="app-select-options">
-      {filtered.length ? filtered.map((choice, index) => <button key={`${choice.value}-${index}`} type="button" role="option"
+      {filtered.length ? filtered.map((choice, index) => <button key={`${choice.value}-${index}`} id={`${listId}-${index}`} type="button" role="option"
         className={index === active ? 'app-select-option active' : 'app-select-option'}
         aria-selected={choice.value === selectedValue} disabled={choice.disabled} onMouseEnter={() => setActive(index)}
         onClick={() => choose(choice.value)}>
@@ -137,18 +160,19 @@ export function Select({ children, className = 'input', value, defaultValue, onC
   </div>, trigger.current?.closest('dialog[open]') ?? document.body);
 
   return <span className={className.includes('compact') ? 'app-select compact' : 'app-select'}>
+    <button ref={trigger} type="button" className={`${className} app-select-trigger${invalid ? ' invalid' : ''}`}
+      role="combobox" aria-haspopup="listbox" aria-expanded={open} aria-controls={open ? listId : undefined}
+      aria-activedescendant={open && filtered[active] ? `${listId}-${active}` : undefined}
+      aria-label={props['aria-label'] ?? fieldLabel} aria-required={required || undefined} disabled={disabled}
+      onClick={() => open ? setOpen(false) : show()} onKeyDown={handleKey}>
+      <span className="app-select-value">{selected?.label || 'Selecione'}</span><span className="app-select-chevron" aria-hidden="true" />
+    </button>
     <select {...props} ref={native} className="app-select-native" value={value} defaultValue={defaultValue}
       disabled={disabled} required={required} tabIndex={-1} aria-hidden="true"
       onChange={(event) => { setLocalValue(event.target.value); setInvalid(false); onChange?.(event); }}
       onInvalid={(event) => { event.preventDefault(); setInvalid(true); show(); trigger.current?.focus(); onInvalid?.(event); }}>
       {children}
     </select>
-    <button ref={trigger} type="button" className={`${className} app-select-trigger${invalid ? ' invalid' : ''}`}
-      role="combobox" aria-haspopup="listbox" aria-expanded={open} aria-controls={listId}
-      aria-label={props['aria-label'] ?? fieldLabel} aria-required={required || undefined} disabled={disabled}
-      onClick={() => open ? setOpen(false) : show()} onKeyDown={handleKey}>
-      <span className="app-select-value">{selected?.label || 'Selecione'}</span><span className="app-select-chevron" aria-hidden="true" />
-    </button>
     {invalid && <span className="app-select-validation" role="alert">Selecione uma opção.</span>}
     {popup}
   </span>;

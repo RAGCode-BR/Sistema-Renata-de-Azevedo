@@ -32,7 +32,7 @@ export function ConversationsPage({ phone: initial, canCreatePatientTask = false
   return (
     <>
       <Heading title="WhatsApp" lead="Mensagens recebidas e enviadas pelo número oficial da clínica." />
-      {list.data && !conversations.length && <p className="notice">Nenhuma conversa ainda. Quando o WhatsApp estiver configurado, as mensagens aparecem aqui.</p>}
+      {list.data && !conversations.length && <section className="panel"><p className="empty-state">Nenhuma conversa ainda. Quando o WhatsApp estiver configurado, as mensagens aparecem aqui.</p></section>}
       {(!list.data || conversations.length > 0) && (
         <div className={phone ? 'chat-layout has-open' : 'chat-layout'}>
           <Panel title="Conversas">

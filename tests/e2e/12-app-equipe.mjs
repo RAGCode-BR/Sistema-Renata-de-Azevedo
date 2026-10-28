@@ -60,7 +60,7 @@ const type = async (label, value) => {
 };
 async function login(email, password) {
   await page.goto(`${base}/login`, { waitUntil: 'networkidle0' });
-  await type('E-mail', email);
+  await type('Login', email.split('@')[0]);
   await type('Senha', password);
   await tap('Entrar');
   await waitText('Olá,');
@@ -137,7 +137,10 @@ try {
   await tap('Salvar rascunho');
   await page.waitForFunction(() => !document.body.innerText.includes('Salvar rascunho'), { timeout: 15000 });
   const { data: notes } = await admin.from('clinical_notes').select('status, body').eq('patient_id', ids.patient);
-  if (notes.length !== 1 || notes[0].status !== 'draft') throw new Error('Rascunho: ' + JSON.stringify(notes));
+  if (notes.length !== 1 || notes[0].status !== 'draft') {
+    const where = await page.evaluate(() => `${location.pathname}: ${document.body.innerText.replace(/\s+/g, ' ').slice(0, 160)}`);
+    throw new Error(`Rascunho: ${JSON.stringify(notes)}; tela depois de salvar: ${where}`);
+  }
   ok('Rascunho de evolução salvo pelo app (fica como rascunho; finalizar só no computador)');
 
   await page.goto(`${base}/tarefas`, { waitUntil: 'networkidle0' });

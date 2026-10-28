@@ -52,9 +52,9 @@ async function selectByLabel(selector, label) {
   await page.select(selector, value);
 }
 async function login(email, password) {
-  await page.$eval('input[name=email]', (el) => { el.value = ''; });
+  await page.$eval('input[name=username]', (el) => { el.value = ''; });
   await page.$eval('input[name=password]', (el) => { el.value = ''; });
-  await page.type('input[name=email]', email);
+  await page.type('input[name=username]', email.split('@')[0]);
   await page.type('input[name=password]', password);
   await clickText('button', 'Entrar');
 }
@@ -68,7 +68,7 @@ try {
   ok('Tela de login carregada');
 
   await login(adminEmail, 'senha-errada-123');
-  await waitText('E-mail ou senha inválidos.');
+  await waitText('Login ou senha inválidos.');
   ok('Senha errada recusada com mensagem');
 
   await login(adminEmail, adminPassword);
@@ -94,6 +94,7 @@ try {
   await clickText('button', 'Novo usuário');
   await typeIn('name', 'Teste Renata');
   await typeIn('email', 'renata@example.test');
+  await typeIn('username', 'renata');
   await selectByLabel('dialog[open] select[name=professionalId]', 'Teste Renata');
   await typeIn('password', 'Senha-Renata-123!');
   await clickText('dialog[open] button', 'Criar usuário');
@@ -201,8 +202,8 @@ try {
   await shot('05-prontuarios');
   ok('Evolução salva, exibida no histórico e campo limpo');
 
+  // No celular o menu lateral vira a barra inferior: a navegação aqui é pelo endereço.
   await page.setViewport({ width: 390, height: 844 });
-  await go('Agenda');
   await page.evaluate((d) => { location.hash = '#/agenda?data=' + d; }, (() => { const d = tomorrowAt(10, 0); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })());
   await page.waitForFunction(() => [...document.querySelectorAll('.slot-item')].some((e) => e.innerText.includes('Paciente Exemplo') && e.innerText.includes('10:00')), { timeout: 10000 });
   await shot('06-celular-agenda');

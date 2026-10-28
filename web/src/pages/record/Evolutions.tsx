@@ -133,7 +133,7 @@ export function Evolutions({ patientId, notes, pending, appointmentId, aiNotes, 
           onChanged();
         }}>
           <p className="modal-text full">O registro original continua no prontuário, marcado como retificado. O texto abaixo é registrado como uma nova evolução finalizada, ligada a ele.</p>
-          <Field label="Texto corrigido" full><textarea className="input" name="body" rows={8} required defaultValue={rectifying.body} /></Field>
+          <RectifyBody initial={rectifying.body} />
           <Field label="Motivo da retificação" full><input className="input" name="reason" required maxLength={500} placeholder="Ex.: erro de digitação, informação incompleta" /></Field>
         </FormModal>
       )}
@@ -196,5 +196,16 @@ function Versions({ note, onClose }: { note: ClinicalNote; onClose: () => void }
         ))}
       </div>
     </Modal>
+  );
+}
+
+// Texto da retificação com o mesmo editor da evolução (negrito, itálico, lista e prévia).
+function RectifyBody({ initial }: { initial: string }) {
+  const [body, setBody] = useState(initial);
+  return (
+    <div className="field full">
+      <span>Texto corrigido</span>
+      <ClinicalEditor value={body} onChange={setBody} label="Texto corrigido" />
+    </div>
   );
 }

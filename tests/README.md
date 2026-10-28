@@ -16,7 +16,7 @@ Requisitos: Google Chrome instalado (ou `CHROME_PATH`); o app da equipe precisa 
 
 | Comando | O que faz |
 | --- | --- |
-| `node run.mjs` | Tudo: banco, telas, app, portal, verificação em duas etapas e integrações. Sobe o sistema local se não estiver rodando. |
+| `node run.mjs` | Tudo: banco, telas, app, portal e integrações. Sobe o sistema local se não estiver rodando. |
 | `node run.mjs agenda portal` | Só os roteiros cujo nome contém essas palavras. |
 | `node run.mjs --sem-app --sem-integracao` | Só banco e telas do sistema web. |
 | `npm run test:banco-local` | Aplica todas as migrações num Postgres temporário e roda os testes do banco, inclusive pagamentos simultâneos. Use **antes** de aplicar uma migração nova. |
@@ -40,12 +40,10 @@ Registros e capturas de cada rodada ficam em `tests/.saida/` (fora do Git). Com 
 | relatorios | `e2e/09-relatorios.mjs` | Relatórios e comparativo |
 | app | `e2e/12-app-equipe.mjs` | Aplicativo da equipe (versão web, tela de celular) |
 | portal | `e2e/13-portal.mjs` | Portal do paciente de ponta a ponta |
-| verificacao | `e2e/14-verificacao.mjs` | Verificação em duas etapas (ativar, exigir, entrar com código) |
 | funcoes | `integracao/funcoes-publicadas.mjs` | Edge Functions publicadas recusam acesso indevido |
 | integracao-* | `integracao/*.mjs` | Google, WhatsApp, IA e portal com as funções rodando localmente (Deno) e os serviços externos simulados |
 
 ## Cuidados
 
 - Os roteiros entram com uma **conta de teste temporária** de Proprietária, criada e apagada pelo `run.mjs`; nunca com a conta de uma pessoa real.
-- Com a verificação em duas etapas **exigida** (Configurações → Segurança), os roteiros de tela não rodam: o `run.mjs` avisa e para.
 - Rodam no banco real: evite rodar durante o atendimento com dados reais. A limpeza apaga só o que tem nomes e e-mails de teste.

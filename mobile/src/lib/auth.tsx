@@ -19,7 +19,7 @@ interface AuthState {
   user: SessionUser | null;
   loading: boolean;
   locked: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (username: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   unlock: (password?: string) => Promise<boolean>;
   // Código do app autenticador (verificação em duas etapas).
@@ -76,8 +76,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value: AuthState = {
     user, loading, locked, canUseBiometrics,
-    signIn: async (email, password) => {
-      await api.login(email, password);
+    signIn: async (username, password) => {
+      await api.login(username, password);
       await load();
       if (!(await api.session())) {
         const patient = await api.isPatientAccount().catch(() => false);

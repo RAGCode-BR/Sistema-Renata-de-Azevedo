@@ -42,6 +42,15 @@ BEGIN
   END;
   INSERT INTO public.appointments (patient_id, professional_id, starts_at, ends_at)
     VALUES (patient, professional, '2030-02-05 12:00-03', '2030-02-05 12:50-03');
+  -- Cancelar é livre; reativar a sessão cancelada sobre o compromisso pessoal é recusado.
+  UPDATE public.appointments SET status = 'cancelled_by_patient' WHERE id = appointment;
+  BEGIN
+    UPDATE public.appointments SET status = 'scheduled' WHERE id = appointment;
+    RAISE EXCEPTION 'FALHA: sessão cancelada reativada sobre compromisso pessoal';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'FALHA:%' THEN RAISE; END IF;
+    IF SQLERRM NOT LIKE 'Compromisso no Google Agenda%' THEN RAISE; END IF;
+  END;
 END $$;
 SELECT 'Conflito com Google Agenda e edição de sessão existente passaram.' AS resultado;
 ROLLBACK;

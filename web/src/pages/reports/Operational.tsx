@@ -31,7 +31,7 @@ const sum = (rows: Totals[], key: (typeof KEYS)[number]) => rows.reduce((total, 
 // a profissional vê só os próprios números ("Meus números").
 export function OperationalReportPage({ user }: { user: SessionUser }) {
   const all = can(user, 'appointments.view_all');
-  const { period, control } = usePeriod();
+  const { period, fields } = usePeriod();
   const [professional, setProfessional] = useState('');
   const [group, setGroup] = useState<Group>('professional');
   const scope = all ? professional || null : user.professional_id;
@@ -39,15 +39,14 @@ export function OperationalReportPage({ user }: { user: SessionUser }) {
     api.reportSessions(period.from, period.to, scope),
     api.reportPatients(period.from, period.to, scope),
     api.noteStatus(new Date(`${period.from}T00:00:00`), new Date(`${period.to}T23:59:59`)),
-    api.reportTasks(period.from, period.to),
     all ? api.professionals() : Promise.resolve([] as Professional[])
   ]), [period.from, period.to, scope]);
 
   const title = all ? 'Relatório operacional' : 'Meus números';
-  const tools = <>{all && data && <ProfessionalFilter professionals={data[4]} value={professional} onChange={setProfessional} />}<PrintButton /></>;
-  if (!data) return <><Heading title={title} lead={period.label}>{tools}</Heading>{control}<PanelState error={error} loading={!error} empty="" /></>;
+  const filters = <div className="report-filters no-print">{fields}{all && data && <ProfessionalFilter professionals={data[3]} value={professional} onChange={setProfessional} />}</div>;
+  if (!data) return <><Heading title={title} lead={period.label}><PrintButton /></Heading>{filters}<PanelState error={error} loading={!error} empty="" /></>;
 
-  const [sessions, patients, notes, tasks] = data;
+  const [sessions, patients, notes] = data;
   const keyOf = (row: SessionReportRow) => group === 'type' ? sessionTypeLabel[row.session_type] : group === 'modality' ? modalityLabel[row.modality] : row.professional_name;
   const grouped = aggregate(sessions, keyOf);
   const totals = aggregate(sessions, () => 'Total')[0];
@@ -80,8 +79,8 @@ export function OperationalReportPage({ user }: { user: SessionUser }) {
 
   return (
     <>
-      <Heading title={title} lead={period.label}>{tools}</Heading>
-      {control}
+      <Heading title={title} lead={period.label}><PrintButton /></Heading>
+      {filters}
 
       <section className="numbers" aria-label="Resumo do período">
         <Stat value={formatValue(totals?.completed ?? 0, 'int')} label="sessões realizadas" />
@@ -131,17 +130,6 @@ export function OperationalReportPage({ user }: { user: SessionUser }) {
           { label: 'Atrasadas agora', value: (row) => row.overdue, format: 'int', total: true }
         ]} />
 
-      <ReportTable title={can(user, 'tasks.manage') ? 'Tarefas da equipe' : 'Minhas tarefas'} rows={tasks} fileName={`tarefas-${period.from}-${period.to}`}
-        empty="Nenhuma tarefa no período."
-        columns={[
-          { label: 'Responsável', value: (row) => row.assignee_name },
-          { label: 'Criadas no período', value: (row) => row.created, format: 'int', total: true },
-          { label: 'Concluídas', value: (row) => row.done, format: 'int', total: true },
-          { label: 'No prazo', value: (row) => ratio(row.done_on_time, row.done), format: 'pct',
-            total: (rows) => ratio(rows.reduce((s, r) => s + r.done_on_time, 0), rows.reduce((s, r) => s + r.done, 0)) },
-          { label: 'Em aberto hoje', value: (row) => row.open_now, format: 'int', total: true },
-          { label: 'Atrasadas hoje', value: (row) => row.overdue_now, format: 'int', total: true }
-        ]} />
     </>
   );
 }

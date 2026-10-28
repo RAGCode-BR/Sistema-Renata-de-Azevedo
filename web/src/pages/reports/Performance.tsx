@@ -9,14 +9,14 @@ import { PrintButton, ReportTable, Stat, formatValue, ratio, usePeriod } from '.
 type ProRow = PerformanceReport['professionals'][number];
 
 export function PerformanceReportPage() {
-  const { period, control } = usePeriod();
+  const { period, fields } = usePeriod();
   const [professional, setProfessional] = useState('');
   const [source, setSource] = useState('');
   const { data, error } = useLoad(() => Promise.all([
     api.reportPerformance(period.from, period.to, professional || null, source || null),
     api.professionals(), api.leadSources()
   ]), [period.from, period.to, professional, source]);
-  const filters = <>{control}<div className="report-filters no-print">
+  const filters = <div className="report-filters no-print">{fields}
     <label className="field-inline">Equipe / profissional
       <Select className="input compact" value={professional} onChange={(event) => setProfessional(event.target.value)}>
         <option value="">Equipe inteira</option>
@@ -29,7 +29,7 @@ export function PerformanceReportPage() {
         {data?.[2].map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
       </Select>
     </label>
-  </div></>;
+  </div>;
   const header = <><Heading title="Indicadores de desempenho" lead={period.label}><PrintButton /></Heading>{filters}</>;
   if (!data) return <>{header}<PanelState error={error} loading={!error} empty="" /></>;
   const [report] = data;

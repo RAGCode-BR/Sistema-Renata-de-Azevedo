@@ -47,4 +47,5 @@ BEGIN
     RAISE EXCEPTION 'FALHA: filtro por profissional: %', r;
   END IF;
 END $$;
+SELECT 'Indicadores de desempenho passaram.' AS resultado;
 ROLLBACK;

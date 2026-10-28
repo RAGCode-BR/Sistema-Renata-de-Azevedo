@@ -231,5 +231,43 @@ BEGIN
 END $$;
 RESET ROLE;
 
+-- Fluxo de caixa do Início: mesmo total da Visão geral; ano com 12 meses; Gerência não vê.
+INSERT INTO auth.users (id, email, raw_app_meta_data, raw_user_meta_data) VALUES
+  ('00000000-0000-4000-8000-0000000f1a06', 'teste-fin-gerente@example.test', '{"roles":["manager"]}', '{"name":"Teste Fin Gerente"}');
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000f1a05","role":"authenticated"}', true);
+DO $$
+DECLARE
+  month_start date := date_trunc('month', (now() AT TIME ZONE 'America/Sao_Paulo')::date)::date;
+  month_end date := (date_trunc('month', (now() AT TIME ZONE 'America/Sao_Paulo')::date) + interval '1 month - 1 day')::date;
+  year_start date := date_trunc('year', (now() AT TIME ZONE 'America/Sao_Paulo')::date)::date;
+  summary record;
+  flow record;
+BEGIN
+  SELECT * INTO summary FROM public.finance_summary(extract(year FROM month_start)::int) s WHERE s.month = month_start;
+  SELECT sum(received) AS received, sum(expenses_paid + payouts_paid) AS out INTO flow FROM public.cash_flow(month_start, month_end, 'day');
+  IF flow.received <> summary.received OR flow.received - flow.out <> summary.cash_result THEN
+    RAISE EXCEPTION 'FALHA: fluxo de caixa do mês (% / %) diferente da Visão geral (% / %)', flow.received, flow.received - flow.out, summary.received, summary.cash_result;
+  END IF;
+  IF (SELECT count(*) FROM public.cash_flow(month_start, month_end, 'day')) <> extract(day FROM month_end)
+    OR (SELECT count(*) FROM public.cash_flow(year_start, (year_start + interval '1 year - 1 day')::date, 'month')) <> 12 THEN
+    RAISE EXCEPTION 'FALHA: agrupamento do fluxo de caixa por dia ou mês';
+  END IF;
+  BEGIN
+    PERFORM * FROM public.cash_flow(year_start, (year_start + interval '2 years')::date, 'month');
+    RAISE EXCEPTION 'FALHA: fluxo de caixa aceitou período maior que um ano';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'FALHA%' THEN RAISE; END IF;
+  END;
+END $$;
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000f1a06","role":"authenticated"}', true);
+DO $$ BEGIN
+  BEGIN
+    PERFORM * FROM public.cash_flow(current_date, current_date, 'day');
+    RAISE EXCEPTION 'FALHA: Gerência viu o fluxo de caixa';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
 SELECT 'Todas as verificações financeiras passaram.' AS resultado;
 ROLLBACK;

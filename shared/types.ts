@@ -52,6 +52,7 @@ export interface UserAccount {
   id: string;
   name: string;
   email: string;
+  username: string | null;
   roles: Role[];
   professional_id: string | null;
   active: boolean;
@@ -354,6 +355,14 @@ export interface PayoutRow {
   payout: number | null;
   paid_amount: number | null;
   paid_at: string | null;
+}
+
+// Fluxo de caixa do Início: um grupo por dia (dia, semana, mês) ou por mês (ano).
+export interface CashFlowRow {
+  bucket: string;
+  received: number;
+  expenses_paid: number;
+  payouts_paid: number;
 }
 
 export interface FinanceMonth {
@@ -698,6 +707,7 @@ export interface NewProfessional { name: string; email: string; specialty: strin
 export interface NewUser {
   name: string;
   email: string;
+  username?: string;
   roles: Role[];
   professionalId: string | null;
   password: string;

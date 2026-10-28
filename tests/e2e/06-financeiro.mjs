@@ -35,10 +35,10 @@ async function logout() {
   await waitText('Entrar no sistema');
 }
 async function login(email, password) {
-  await page.waitForSelector('input[name=email]');
-  await page.$eval('input[name=email]', (e) => { e.value = ''; });
+  await page.waitForSelector('input[name=username]');
+  await page.$eval('input[name=username]', (e) => { e.value = ''; });
   await page.$eval('input[name=password]', (e) => { e.value = ''; });
-  await page.type('input[name=email]', email);
+  await page.type('input[name=username]', email.split('@')[0]);
   await page.type('input[name=password]', password);
   await clickText('button', 'Entrar');
 }
@@ -46,6 +46,7 @@ async function newUser(name, email, roles, professional) {
   await clickText('button', 'Novo usuário');
   await typeIn('name', name);
   await typeIn('email', email);
+  await typeIn('username', email.split('@')[0]);
   for (const role of ['professional', 'owner', 'manager', 'reception', 'finance']) {
     const checked = await page.$eval(`dialog[open] input[name=roles][value=${role}]`, (e) => e.checked);
     if (checked !== roles.includes(role)) await page.click(`dialog[open] input[name=roles][value=${role}]`);
@@ -134,6 +135,8 @@ try {
   await go('Profissionais');
   await clickText('button', 'Nova profissional');
   await typeIn('name', PROF);
+  // O repasse por atendimento só é calculado com a comissão ligada (Proprietária gerencia o financeiro).
+  await page.$eval('dialog[open] input[name=commission_sessions]', (input) => input.click());
   await typeIn('email', 'teste-financeiro-prof@example.test');
   await clickText('dialog[open] button', 'Cadastrar profissional');
   await toast('Profissional cadastrada.');
@@ -295,6 +298,7 @@ try {
   console.log(problems.length ? 'Erros de página: ' + problems.join(' | ') : 'Sem erros de JavaScript na página.');
 } catch (error) {
   console.log('✘ Falhou:', error.message);
+  console.log('  em ' + (error.stack ?? '').split('\n').filter((l) => l.includes('/e2e/')).map((l) => l.trim().replace(/^.*\/e2e\//, '')).join(' ← '));
   await page.screenshot({ path: process.env.SHOT_DIR + '/bloco6-falha.png', fullPage: true }).catch(() => {});
   console.log(problems.join('\n'));
   process.exitCode = 1;

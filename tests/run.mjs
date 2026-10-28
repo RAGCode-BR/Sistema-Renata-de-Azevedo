@@ -71,8 +71,17 @@ async function ensureOwner() {
 // Banco e arquivos -------------------------------------------------------------------------------
 
 const START = new Date().toISOString().replace('T', ' ').replace(/\.\d+Z$/, '+00');
+// Falha momentânea do Supabase (503, tempo esgotado) não derruba a rodada: tenta de novo até 3 vezes.
 function sql(file) {
-  return execFileSync('npx', ['supabase', 'db', 'query', '--linked', '-f', file], { cwd: PROJECT_DIR, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return execFileSync('npx', ['supabase', 'db', 'query', '--linked', '-f', file], { cwd: PROJECT_DIR, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (error) {
+      const text = String(error.stdout ?? '') + String(error.stderr ?? '');
+      if (attempt >= 3 || !/status 5\d\d|timeout|ECONNRESET|upstream connect/i.test(text)) throw error;
+      execFileSync('sleep', [String(5 * attempt)]);
+    }
+  }
 }
 function sqlText(text) {
   const file = path.join(WORK_DIR, `q-${crypto.randomUUID()}.sql`);
@@ -110,6 +119,19 @@ async function startWeb() {
   if (await reachable(BASE_URL)) return;
   children.push(spawn('npm', ['run', 'dev', '--', '--port', new URL(BASE_URL).port || '5173', '--strictPort'], { cwd: PROJECT_DIR, stdio: 'ignore', detached: true }));
   await waitFor(BASE_URL);
+  // Aquecimento: na primeira abertura o Vite otimiza as dependências e recarrega a página. Se isso
+  // acontecer no meio de um roteiro, a página "perde" o que estava fazendo (janela aberta, formulário).
+  const puppeteer = (await import('puppeteer-core')).default;
+  const browser = await puppeteer.launch({ executablePath: CHROME_PATH, headless: true });
+  try {
+    const page = await browser.newPage();
+    for (const hash of ['', '#/portal']) {
+      await page.goto(`${BASE_URL}/${hash}`, { waitUntil: 'networkidle0', timeout: 120000 });
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+  } finally {
+    await browser.close();
+  }
 }
 let appServer;
 async function startApp() {
@@ -141,7 +163,8 @@ const SUITES = [
   web('relatorios', '09-relatorios.mjs', { seed: 'db/seed-relatorios.sql' }),
   { name: 'app', kind: 'app', file: 'e2e/12-app-equipe.mjs' },
   web('portal', '13-portal.mjs'),
-  web('verificacao', '14-verificacao.mjs'),
+  web('inicio', '15-inicio.mjs'),
+  web('telas', '16-telas.mjs'),
   { name: 'funcoes', kind: 'integracao', file: 'integracao/funcoes-publicadas.mjs' },
   { name: 'integracao-google', kind: 'integracao', file: 'integracao/google.mjs' },
   { name: 'integracao-whatsapp', kind: 'integracao', file: 'integracao/whatsapp.mjs' },
@@ -180,10 +203,13 @@ try {
     process.stdout.write(`• ${suite.name}… `);
     let outcome;
     if (suite.kind === 'banco') {
-      const parts = ['permissions.sql', 'seguranca.sql', 'financeiro.sql', 'atividades_pacientes.sql'].map((file) => {
-        try { return rows(sql(path.join('supabase', 'tests', file)))[0]?.resultado ?? 'sem resultado'; } catch (error) { return 'FALHA: ' + String(error.stderr ?? error.message).match(/FALHA[^"\n]*|ERROR[^"\n]*/)?.[0]; }
+      // Todos os arquivos de supabase/tests; passou = terminou sem erro (cada um termina com ROLLBACK).
+      const files = fs.readdirSync(path.join(PROJECT_DIR, 'supabase', 'tests')).filter((file) => file.endsWith('.sql')).sort();
+      const parts = files.map((file) => {
+        try { sql(path.join('supabase', 'tests', file)); return null; }
+        catch (error) { return `${file}: ` + (String(error.stdout ?? '') + String(error.stderr ?? error.message)).match(/FALHA[^"\\\n]*|ERROR[^"\\\n]*/)?.[0]; }
       });
-      outcome = { passed: parts.filter((p) => p.includes('passaram')).length, failed: parts.filter((p) => !p.includes('passaram')), detail: parts };
+      outcome = { passed: parts.filter((p) => p === null).length, failed: parts.filter((p) => p !== null) };
     } else {
       if (suite.kind === 'tela') await startWeb();
       if (suite.kind === 'app') await startApp();

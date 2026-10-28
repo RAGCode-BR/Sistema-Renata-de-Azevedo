@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { can } from '../../../shared/permissions.ts';
+import type { CSSProperties } from 'react';
+import { can, roleLabel } from '../../../shared/permissions.ts';
 import { MIN_PASSWORD_LENGTH } from '../../../shared/rules.ts';
 import type { NewProfessional, Professional, ProfessionalDocument, SessionUser, UserAccount } from '../../../shared/types.ts';
 import { api } from '../api.ts';
-import { ConfirmModal, Field, FormModal } from '../components/Modal.tsx';
+import { ConfirmModal, Field, FormModal, PERSON_ICON } from '../components/Modal.tsx';
 import { Heading, Panel, PanelState } from '../components/Page.tsx';
 import { Select } from '../components/Select.tsx';
 import { useToast } from '../components/Toast.tsx';
-import { plural } from '../format.ts';
+import { initials, plural } from '../format.ts';
 import { errorMessage, secret, text, useLoad } from '../hooks.ts';
 
 const COLORS = [
@@ -30,24 +31,26 @@ export function ProfessionalsPage({ user }: { user: SessionUser }) {
       <button type="button" className="button" disabled={loading} onClick={() => setEditing('new')}>Nova profissional</button>
     </Heading>
     <Panel title="Equipe">
-      {professionals.length ? <div className="table-wrap"><table className="table">
+      {professionals.length ? <div className="table-wrap"><table className="table stacked">
         <thead><tr><th>Nome</th><th>Especialidade</th><th>E-mail</th><th>Situação</th><th><span className="sr-only">Ações</span></th></tr></thead>
         <tbody>{professionals.map((item) => <tr key={item.id}>
-          <td><span className="professional-list-name"><span className="professional-color-dot" style={{ background: item.color }} />{item.name}</span>
-            {item.tags.length > 0 && <span className="sub">{item.tags.join(' · ')}</span>}</td>
-          <td>{item.specialty || '—'}</td><td>{item.email || '—'}</td><td>{item.active ? 'Ativa' : 'Inativa'}</td>
+          <td><div className="pt-who" data-initials={initials(item.name)} style={{ '--avatar-bg': item.color, '--avatar-fg': '#fff' } as CSSProperties}>
+            <strong>{item.name}</strong>
+            {item.tags.length > 0 && <span className="sub">{item.tags.join(' · ')}</span>}</div></td>
+          <td>{item.specialty || '—'}</td><td>{item.email || '—'}</td>
+          <td className="cell-status"><span className={item.active ? 'chip chip-good' : 'chip chip-muted'}>{item.active ? 'Ativa' : 'Inativa'}</span></td>
           <td className="actions-cell"><button type="button" className="link-btn" aria-label={`Editar ${item.name}`} onClick={() => setEditing(item)}>Editar</button></td>
         </tr>)}</tbody>
       </table></div> : <PanelState error={error} loading={!data} empty="Nenhuma profissional cadastrada." />}
     </Panel>
     {editing && <ProfessionalForm professional={editing === 'new' ? null : editing}
       account={editing === 'new' ? null : accounts.find((item) => item.professional_id === editing.id) ?? null}
-      managesUsers={managesUsers} onClose={() => setEditing(null)} onSaved={(message) => { notify(message); reload(); }} />}
+      managesUsers={managesUsers} managesFinance={can(user, 'finance.manage')} onClose={() => setEditing(null)} onSaved={(message) => { notify(message); reload(); }} />}
   </>;
 }
 
-function ProfessionalForm({ professional, account, managesUsers, onClose, onSaved }: {
-  professional: Professional | null; account: UserAccount | null; managesUsers: boolean;
+function ProfessionalForm({ professional, account, managesUsers, managesFinance, onClose, onSaved }: {
+  professional: Professional | null; account: UserAccount | null; managesUsers: boolean; managesFinance: boolean;
   onClose: () => void; onSaved: (message: string) => void;
 }) {
   const savedId = useRef<string | null>(professional?.id ?? null);
@@ -95,8 +98,11 @@ function ProfessionalForm({ professional, account, managesUsers, onClose, onSave
         if (files.some((file) => !FILE_EXTENSIONS.test(file.name) || file.size < 1 || file.size > 10 * 1024 * 1024))
           throw new Error('Use anexos dos tipos mostrados, com até 10 MB por arquivo.');
         const input: NewProfessional = { name: text(data, 'name'), email: text(data, 'email'), specialty: text(data, 'specialty'),
-          tags, color, commission_sales: data.get('commission_sales') === 'on',
-          commission_sessions: data.get('commission_sessions') === 'on', uses_clinic_hours: data.get('uses_clinic_hours') === 'on' };
+          // Comissão define o repasse: só quem gerencia o financeiro altera (o banco também confere).
+          tags, color,
+          commission_sales: managesFinance ? data.get('commission_sales') === 'on' : professional?.commission_sales ?? false,
+          commission_sessions: managesFinance ? data.get('commission_sessions') === 'on' : professional?.commission_sessions ?? false,
+          uses_clinic_hours: data.get('uses_clinic_hours') === 'on' };
         if (savedId.current) await api.updateProfessional(savedId.current, { ...input, active: professional ? data.get('active') === 'on' : true });
         else savedId.current = (await api.createProfessional(input)).id;
         const id = savedId.current;
@@ -109,7 +115,8 @@ function ProfessionalForm({ professional, account, managesUsers, onClose, onSave
           if (account && account.active !== hasAccess)
             await api.updateUserAccess({ userId: account.id, roles: account.roles, professionalId: id, active: hasAccess });
           else if (!account && hasAccess) {
-            try { await api.createUser({ name: input.name, email: input.email, roles: ['professional'], professionalId: id,
+            try { await api.createUser({ name: input.name, email: input.email, username: text(data, 'username').toLowerCase(),
+              roles: ['professional'], professionalId: id,
               password: secret(data, 'password') }); }
             catch (failure) { throw new Error(`Cadastro salvo, mas o acesso não foi criado: ${errorMessage(failure)}`); }
           }
@@ -119,7 +126,7 @@ function ProfessionalForm({ professional, account, managesUsers, onClose, onSave
       <p className="patient-form-lead full">Campos com * são obrigatórios. Os anexos ficam visíveis apenas para quem gerencia profissionais.</p>
       <section className="professional-form-section full"><div className="form-grid">
         <div className="field"><span>Foto</span><label className="patient-photo-picker">
-          {photoUrl ? <img src={photoUrl} alt="Foto da profissional" /> : <span className="patient-photo-avatar" aria-hidden="true">●</span>}
+          {photoUrl ? <img src={photoUrl} alt="Foto da profissional" /> : <span className="patient-photo-avatar" aria-hidden="true">{PERSON_ICON}</span>}
           <span><strong>Escolher foto</strong><small>JPG ou PNG · até 2 MB</small></span>
           <input type="file" accept="image/jpeg,image/png" onChange={(event) => setPhoto(event.target.files?.[0] ?? null)} />
         </label></div>
@@ -147,17 +154,27 @@ function ProfessionalForm({ professional, account, managesUsers, onClose, onSave
         <label className="professional-switch"><input type="checkbox" name="access" checked={hasAccess} disabled={!managesUsers}
           onChange={(event) => setHasAccess(event.target.checked)} /><span>Possui acesso ao sistema?</span></label>
         {!managesUsers && <p className="professional-section-note">Somente a Proprietária pode criar ou alterar o acesso. Use a página Usuários.</p>}
+        {managesUsers && account?.active && !hasAccess && account.roles.some((role) => role !== 'professional') && (
+          <p className="erro" role="alert">
+            Esta conta também tem o perfil {account.roles.filter((role) => role !== 'professional').map((role) => roleLabel[role]).join(' e ')}.
+            Desmarcar desativa a conta inteira, com todos os acessos. Para tirar só o perfil Profissional, use a página Usuários.
+          </p>
+        )}
+        {managesUsers && hasAccess && !account && <Field label="Login *" full>
+          <input className="input" name="username" required minLength={3} maxLength={32}
+            pattern="[A-Za-z](?:[A-Za-z0-9._]|-){2,31}" autoCapitalize="none" autoComplete="off" placeholder="ex.: reinan" />
+        </Field>}
         {managesUsers && hasAccess && !account && <Field label={`Senha inicial * (mínimo de ${MIN_PASSWORD_LENGTH} caracteres)`} full>
           <input className="input" name="password" type="password" minLength={MIN_PASSWORD_LENGTH}
             autoComplete="new-password" required placeholder="Defina a senha inicial" />
         </Field>}
-        {account && <p className="professional-section-note">Conta vinculada: {account.email}. Alterar o e-mail deste cadastro não muda o e-mail de login.</p>}
+        {account && <p className="professional-section-note">Login: {account.username || '—'}. Conta vinculada: {account.email}. Para trocar o login, use Usuários.</p>}
       </section>
 
       <section className="professional-form-section full"><h3>Comissões padrão</h3><div className="professional-switch-grid">
-        <label className="professional-switch"><input type="checkbox" name="commission_sales" defaultChecked={professional?.commission_sales ?? false} /><span>Comissionar vendas</span></label>
-        <label className="professional-switch"><input type="checkbox" name="commission_sessions" defaultChecked={professional?.commission_sessions ?? false} /><span>Comissionar atendimentos</span></label>
-      </div><p className="professional-section-note">O percentual de repasse por atendimento é definido em Financeiro → Repasses. A comissão por vendas ainda não tem cálculo automático.</p></section>
+        <label className="professional-switch"><input type="checkbox" name="commission_sales" disabled={!managesFinance} defaultChecked={professional?.commission_sales ?? false} /><span>Comissionar vendas</span></label>
+        <label className="professional-switch"><input type="checkbox" name="commission_sessions" disabled={!managesFinance} defaultChecked={professional?.commission_sessions ?? false} /><span>Comissionar atendimentos</span></label>
+      </div><p className="professional-section-note">O percentual de repasse por atendimento é definido em Financeiro → Repasses. A comissão por vendas ainda não tem cálculo automático.{!managesFinance && ' Só quem gerencia o financeiro altera as comissões.'}</p></section>
 
       <section className="professional-form-section full"><h3>Horário de Atendimento</h3>
         <label className="professional-switch"><input type="checkbox" name="uses_clinic_hours" defaultChecked={professional?.uses_clinic_hours ?? true} /><span>Igual ao da clínica</span></label>

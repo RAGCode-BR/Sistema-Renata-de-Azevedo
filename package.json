@@ -13,7 +13,7 @@
     "db:push": "supabase db push --linked",
     "db:types": "supabase gen types typescript --linked --schema public > shared/database.types.ts",
     "functions:deploy": "supabase functions deploy --use-api",
-    "test:db": "supabase db query --linked -f supabase/tests/permissions.sql && supabase db query --linked -f supabase/tests/seguranca.sql && supabase db query --linked -f supabase/tests/financeiro.sql && supabase db query --linked -f supabase/tests/previsao_financeira.sql && supabase db query --linked -f supabase/tests/comercial_avaliacoes.sql && supabase db query --linked -f supabase/tests/desempenho.sql && supabase db query --linked -f supabase/tests/tarefas_whatsapp_paciente.sql && supabase db query --linked -f supabase/tests/atividades_pacientes.sql && supabase db query --linked -f supabase/tests/formularios_pacientes.sql && supabase db query --linked -f supabase/tests/google_disponibilidade.sql",
+    "test:db": "for f in supabase/tests/*.sql; do echo \"== $f\"; supabase db query --linked -f \"$f\" || exit 1; done",
     "deploy": "npm run typecheck && npm run build && wrangler deploy",
     "test:e2e": "cd tests && node run.mjs"
   },

@@ -5,7 +5,8 @@
 .quick-trigger { display: flex; align-items: center; gap: 10px; width: min(340px, 30vw); height: 40px; margin: 0 auto; padding: 0 12px; border: 1px solid var(--linha); border-radius: 12px; background: var(--creme); color: var(--suave); text-align: left; }
 .quick-trigger:hover { border-color: var(--vinho-tom); background: var(--vinho-claro); color: var(--vinho); }
 .quick-trigger span { flex: 1; }
-.quick-trigger kbd { padding: 2px 6px; border: 1px solid var(--linha); border-radius: 6px; background: var(--branco); font: 500 12px "Jost", sans-serif; white-space: nowrap; }
+.quick-trigger .quick-keys { display: inline-flex; flex: none; gap: 4px; }
+.quick-trigger kbd { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border: 1px solid var(--linha); border-radius: 6px; background: var(--branco); color: var(--suave); font: 500 12px/1 "Jost", sans-serif; white-space: nowrap; box-shadow: 0 1px 0 var(--linha); }
 .quick-mobile-trigger, .mobile-rail { display: none; }
 .quick-backdrop { position: fixed; inset: 0; z-index: 100; display: flex; justify-content: center; align-items: flex-start; padding: min(16vh, 140px) 16px 20px; background: rgba(44, 35, 38, .45); }
 .quick-dialog { width: min(580px, 100%); max-height: min(680px, 76dvh); display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--linha); border-radius: 20px; background: var(--branco); box-shadow: var(--sombra-flutuante); }
@@ -242,7 +243,61 @@
   .month { gap: 3px; }
   .month-day { min-height: 64px; padding: 6px; border-radius: 10px; }
   .month-item { display: none; }
-  .month-day:has(.month-item)::after { content: "•"; color: var(--vinho); }
+  .month-day:has(.month-item)::after { content: ""; width: 7px; height: 7px; margin-top: auto; border-radius: 50%; background: var(--vinho); }
+}
+
+/* Agenda: painel de controles, faixa colorida pela situação (mesmas cores do Início) e destaque de hoje */
+.agenda-toolbar { padding: 12px 14px; border-radius: 22px; background: var(--branco); }
+.agenda-pager { align-items: center; gap: 2px; }
+.agenda-pager .agenda-today { margin-right: 6px; box-shadow: inset 0 0 0 1px var(--linha); }
+.agenda-pager .agenda-period { padding-left: 10px; }
+.agenda-date-pick { grid-template-columns: auto auto; align-items: center; gap: 8px; margin-right: 6px; }
+.agenda-toolbar .tools { flex-basis: 100%; justify-content: flex-start; margin-left: 0; padding-top: 12px; border-top: 1px solid var(--linha); }
+.col-head.today strong { display: inline-block; margin-left: -8px; padding: 0 8px; border-radius: 999px; background: var(--vinho); color: var(--branco); }
+
+.session, .month-item, .key i { border-left: 3px solid var(--cor-sessao, var(--vinho-tom)); }
+.b-confirmada, .key i.b-confirmada { --cor-sessao: var(--verde); background: #edf3ef; }
+.b-agendada, .key i.b-agendada { --cor-sessao: var(--dourado); background: #fbf6f0; box-shadow: none; }
+.b-aguardando, .key i.b-aguardando { --cor-sessao: var(--dourado); background: var(--branco); box-shadow: none; border: 1px dashed #d4b596; border-left: 3px solid var(--cor-sessao); }
+.b-realizada, .key i.b-realizada { --cor-sessao: var(--vinho); background: var(--vinho-claro); color: var(--texto); }
+.b-falta, .key i.b-falta { --cor-sessao: var(--perigo); background: #f8ecec; }
+.b-aregistrar, .key i.b-aregistrar { --cor-sessao: var(--ambar); background: #fbf0df; }
+.b-cancelada, .key i.b-cancelada { --cor-sessao: #cfc3b6; }
+.b-bloqueio, .key i.b-bloqueio { --cor-sessao: #cfc3b6; }
+.b-emsessao, .key i.b-emsessao { --cor-sessao: var(--dourado); }
+.session.b-realizada span { color: var(--suave); }
+.session.b-confirmada span { color: var(--verde); }
+.key i { width: 14px; height: 14px; border-radius: 4px; }
+.month-item { border-radius: 4px; }
+
+/* Pessoas nas listas: iniciais no círculo (cor própria via --avatar-bg/--avatar-fg) e etiquetas de situação */
+.pt-who { display: grid; grid-template-columns: 38px minmax(0, 1fr); column-gap: 12px; align-items: center; }
+.pt-who::before { content: attr(data-initials); grid-row: 1 / span 2; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--avatar-bg, var(--vinho-claro)); color: var(--avatar-fg, var(--vinho)); font-size: 13px; font-weight: 500; letter-spacing: .02em; }
+.pt-who > * { grid-column: 2; }
+.pt-who > strong { font-weight: 500; }
+/* Sem subtítulo, o círculo ocupa uma linha só e o nome fica centralizado com ele. */
+.pt-who:not(:has(> :nth-child(2)))::before { grid-row: 1; }
+.chip { display: inline-block; padding: 3px 10px; border-radius: 999px; background: var(--creme); color: var(--suave); font-size: 13px; line-height: 1.35; white-space: nowrap; }
+.chip-good { background: #edf3ef; color: var(--verde); }
+.chip-warn { background: #fbf3e6; color: var(--ambar); }
+.chip-wine { background: var(--vinho-claro); color: var(--vinho); }
+.chip-bad { background: #f8ecec; color: var(--perigo); }
+.chips { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+
+/* Tabelas "stacked": no celular cada linha vira um bloco (nome e situação em cima, o resto embaixo). */
+@media (max-width: 720px) {
+  .table.stacked thead { display: none; }
+  .table.stacked tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; padding: 12px 16px; border-top: 1px solid var(--linha); }
+  .table.stacked tbody tr:first-child { border-top: 0; }
+  .table.stacked td, .table.stacked td:first-child, .table.stacked td:last-child { padding: 0; border: 0; }
+  .table.stacked td:first-child { grid-column: 1; }
+  .table.stacked .cell-status { grid-column: 2; grid-row: 1; align-self: center; }
+  .table.stacked td:not(:first-child):not(.cell-status) { grid-column: 1 / -1; color: var(--suave); font-size: 13px; }
+  .table.stacked tr:has(.pt-who) td:not(:first-child):not(.cell-status) { padding-left: 50px; }
+  .table.stacked .actions-cell { display: flex; gap: 16px; margin-top: 4px; }
+  .table.stacked .hide-mobile { display: none; }
+  .patient-tabs { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
+  .patients-heading .tools { gap: 10px; }
 }
 
 /* Pacientes (Bloco 4) -------------------------------------------------------------------------- */
@@ -569,7 +624,7 @@ html { scroll-padding-top: 88px; }
 .ai-item input { margin-top: 3px; accent-color: var(--vinho); flex: none; }
 .ai-source { margin-left: 8px; font-size: 12px; }
 .ai-label { margin: 8px 0 4px; font-size: 13px; color: var(--suave); font-weight: 500; }
-.ai-transcript { position: sticky; top: 0; }
+.ai-transcript { position: sticky; top: 76px; }
 .ai-transcript-text { max-height: 50vh; overflow-y: auto; font-size: 13px; line-height: 1.55; padding: 12px; border-radius: 12px; background: var(--creme); }
 .ai-transcript-text mark { background: #f3d9a8; color: inherit; border-radius: 3px; padding: 0 1px; }
 @media (max-width: 860px) { .ai-columns { grid-template-columns: 1fr; } .ai-transcript { position: static; } }
@@ -597,6 +652,12 @@ html { scroll-padding-top: 88px; }
 .portal-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .portal-card { display: grid; gap: 6px; padding: 18px 20px; border-radius: 20px; background: var(--branco); color: var(--texto); text-decoration: none; }
 .portal-card strong { font-size: 19px; font-weight: 500; }
+.portal-card-next { background: var(--vinho); color: var(--branco); }
+.portal-card-next .muted, .portal-card-next > span { color: rgba(255, 255, 255, .78); }
+.portal-card-next .st, .portal-card-next .st-awaiting_confirmation { color: #f3dcc4; }
+.portal-card-next strong { font-size: 22px; }
+.portal-title { color: var(--vinho-escuro); }
+.portal-main .panel { border-radius: 20px; }
 .portal-list { margin: 0; padding: 0 22px 10px; list-style: none; }
 .portal-item {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px;
@@ -633,14 +694,15 @@ html { scroll-padding-top: 88px; }
 .login-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
 
 @media (max-width: 560px) {
-  /* No celular, as sete seções ficam visíveis em três linhas. */
-  .portal { padding-bottom: calc(154px + env(safe-area-inset-bottom)); }
+  /* No celular, as sete seções ficam visíveis em duas linhas (4 + 3). */
+  .portal { padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
   .portal-nav {
-    position: fixed; top: auto; right: 0; bottom: 0; left: 0; display: grid; grid-template-columns: repeat(3, 1fr);
-    gap: 2px; padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); box-shadow: 0 -1px 0 var(--linha);
+    position: fixed; top: auto; right: 0; bottom: 0; left: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px; padding: 8px 6px calc(8px + env(safe-area-inset-bottom)); border-radius: 22px 22px 0 0;
+    box-shadow: 0 -1px 0 var(--linha), 0 -10px 30px rgba(44, 35, 38, .06);
   }
-  .portal-nav a { padding: 7px 2px; font-size: 13px; text-align: center; }
-  body:has(.portal) .toast { bottom: calc(166px + env(safe-area-inset-bottom)); }
+  .portal-nav a { padding: 9px 2px; font-size: 12.5px; text-align: center; overflow: hidden; text-overflow: ellipsis; }
+  body:has(.portal) .toast { bottom: calc(124px + env(safe-area-inset-bottom)); }
   .portal-top { padding: 10px 16px; }
   .portal-top img { height: 32px; }
   .portal-list { padding: 0 16px 8px; }
@@ -660,3 +722,184 @@ html { scroll-padding-top: 88px; }
 .mfa-qr { display: block; width: 180px; height: 180px; margin: 0 auto; padding: 8px; border-radius: 12px; background: #fff; }
 .mfa-secret { display: block; margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: var(--creme); font-size: 14px; letter-spacing: 1px; overflow-wrap: anywhere; }
 .login-legal { margin: 0; text-align: center; }
+
+/* Início: faixa "Hoje", números da clínica, agenda do dia e fluxo de caixa */
+.day-band { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 32px; margin: 0 0 14px; padding: 24px 28px; border-radius: 22px; background: var(--branco); }
+.day-band-total { display: grid; gap: 2px; padding-right: 32px; border-right: 1px solid var(--linha); color: var(--suave); font-size: 14px; }
+.day-band-title { color: var(--texto); font-size: 15px; font-weight: 500; }
+.day-band-total strong { color: var(--vinho); font-size: 56px; font-weight: 300; line-height: 1.05; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.day-bar { display: flex; gap: 3px; height: 12px; overflow: hidden; border-radius: 999px; background: var(--creme); }
+.day-bar i { min-width: 8px; border-radius: 999px; transition: flex-grow 320ms var(--ease-out); }
+.day-bar .seg-empty { flex: 1; background: var(--creme); }
+.day-legend { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 16px 0 0; padding: 0; list-style: none; }
+.day-key { display: inline-flex; align-items: center; gap: 8px; color: var(--suave); font-size: 14px; }
+.day-key::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--cor-dia); }
+.day-key b { color: var(--texto); font-weight: 500; font-variant-numeric: tabular-nums; }
+.day-key:hover, .day-band-total:hover span { color: var(--vinho); }
+.seg-completed, .key-completed { --cor-dia: var(--vinho); background: var(--cor-dia); }
+.seg-confirmed, .key-confirmed { --cor-dia: var(--verde); background: var(--cor-dia); }
+.seg-pending, .key-pending { --cor-dia: var(--dourado); background: var(--cor-dia); }
+.seg-missed, .key-missed { --cor-dia: var(--perigo); background: var(--cor-dia); }
+.seg-cancelled, .key-cancelled { --cor-dia: #d9cdc0; background: var(--cor-dia); }
+.day-legend .day-key { background: none; }
+.day-band-empty { margin: 12px 0 0; color: var(--suave); font-size: 14px; }
+
+
+.day-list { margin: 0; padding: 0 12px 12px; list-style: none; }
+.day-item { display: grid; grid-template-columns: 74px minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 12px 10px 12px 10px; border-top: 1px solid var(--linha); }
+.day-list > li:first-child { border-top: 0; }
+.day-time { display: grid; align-self: start; padding-left: 12px; border-left: 3px solid var(--cor-dia, var(--dourado)); font-variant-numeric: tabular-nums; }
+.day-time b { font-size: 16px; font-weight: 500; }
+.day-time small, .day-who small { color: var(--suave); font-size: 13px; }
+.day-who { display: grid; min-width: 0; }
+.day-who strong { font-weight: 500; overflow-wrap: anywhere; }
+.day-confirmed { --cor-dia: var(--verde); }
+.day-scheduled, .day-awaiting_confirmation { --cor-dia: var(--dourado); }
+.day-completed { --cor-dia: var(--vinho); }
+.day-missed { --cor-dia: var(--perigo); }
+.day-item.is-past .day-who strong, .day-item.is-past .day-time b { color: var(--suave); }
+.day-now { display: flex; align-items: center; gap: 10px; padding: 2px 10px; color: var(--vinho); font-size: 13px; font-weight: 500; }
+.day-now::after { content: ""; flex: 1; height: 1px; background: var(--vinho-tom); }
+.day-now + .day-item { border-top: 0; }
+.content:has(+ .panel) > .panel { margin-bottom: 0; }
+.content + .panel { margin-top: 24px; }
+
+.cash-flow-tools { display: flex; flex-wrap: wrap; gap: 8px; }
+.cash-flow { display: grid; gap: 16px; }
+.cash-flow-pager { align-items: center; gap: 6px; }
+.cash-flow-pager strong { min-width: 0; padding: 0 6px; font-weight: 500; }
+.cash-flow-numbers { margin: 0; }
+.cash-flow-numbers span { overflow-wrap: anywhere; }
+@media (max-width: 560px) {
+  .day-band { grid-template-columns: minmax(0, 1fr); gap: 18px; padding: 20px; }
+  .day-band-total { grid-template-columns: auto minmax(0, 1fr); align-items: baseline; column-gap: 10px; padding: 0 0 16px; border-right: 0; border-bottom: 1px solid var(--linha); }
+  .day-band-title { grid-column: 1 / -1; }
+  .day-band-total strong { font-size: 44px; }
+  .day-legend { gap: 8px 16px; }
+  .day-list { padding: 0 4px 8px; }
+  .day-item { grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; padding: 12px; }
+  .day-time small { white-space: nowrap; }
+  .cash-flow-numbers .number:last-child { grid-column: 1 / -1; }
+  .day-item .st { grid-column: 2; font-size: 13px; }
+  .cash-flow-tools, .cash-flow-tools .tabs { width: 100%; }
+  .cash-flow-tools .tab { flex: 1; text-align: center; padding-inline: 6px; }
+}
+
+/* Acabamento visual do sistema (todas as telas e janelas) ---------------------------------------
+   Mesma linguagem do Início: superfícies brancas arredondadas sobre o creme, números agrupados numa
+   faixa com divisórias finas, cores de situação (verde, dourado, vinho, vermelho suave). */
+
+/* Números: uma faixa só, com divisórias finas (as sombras de fora são cortadas pelo contorno). */
+.numbers { gap: 0; overflow: hidden; border-radius: 20px; background: var(--branco); }
+.numbers:empty { display: none; }
+.numbers > .number { border-radius: 0; background: none; padding: 16px 22px; box-shadow: -1px 0 0 var(--linha), 0 -1px 0 var(--linha); }
+.panel .numbers, .modal .numbers { background: #faf6f1; }
+a.number:hover { background: #fcf8f4; }
+a.number:hover strong { color: var(--vinho); }
+
+/* Abas soltas sobre o creme ganham um fundo um pouco mais escuro; dentro de superfícies brancas, creme. */
+.tabs { background: var(--creme-fundo); }
+.panel .tabs, .modal .tabs, .agenda-toolbar .tabs, .cash-flow-tools .tabs { background: var(--creme); }
+
+/* Campos e botões com a mesma altura (44 px), para alinharem lado a lado; contorno visível nos campos. */
+.input, .search input, .button { height: 44px; }
+.input, .search input { border-color: #e6dacc; }
+textarea.input { height: auto; }
+.input:hover:not(:focus):not(:disabled), .search input:hover:not(:focus) { border-color: #d8c6b4; }
+.field > span, .checks legend { color: var(--texto); font-size: 14px; font-weight: 500; }
+.form-section legend { color: var(--vinho); font-size: 16px; }
+
+/* Janelas: título e botões fixos enquanto o conteúdo rola; "Fechar" com cara de botão. */
+#modal, .modal { border-radius: 24px; scroll-padding: 84px 0 96px; }
+.modal-head { position: sticky; top: 0; z-index: 4; align-items: center; padding: 22px 26px 14px; background: var(--branco); box-shadow: 0 1px 0 var(--linha); }
+.modal-head h2 { font-size: 22px; }
+.modal-close { padding: 7px 14px; background: var(--creme); color: var(--texto); font-weight: 500; }
+.modal-close:hover { background: var(--vinho-claro); color: var(--vinho); }
+.modal-body { padding-top: 20px; }
+.modal-foot { position: sticky; bottom: 0; z-index: 4; padding: 14px 26px 18px; background: var(--branco); box-shadow: 0 -1px 0 var(--linha); }
+.modal-error { padding-bottom: 6px; }
+
+@media (max-width: 720px) {
+  /* No celular a janela sobe da parte de baixo da tela, ocupando a largura toda. */
+  #modal, dialog.modal[open] { width: 100vw; max-width: 100vw; max-height: 92dvh; margin: auto 0 0; border-radius: 24px 24px 0 0; }
+  #modal[open], .modal[open] { @starting-style { opacity: 0; transform: translateY(32px); } }
+  .modal-head { padding: 20px 18px 12px; }
+  .modal-head::before { content: ""; position: absolute; top: 7px; left: 50%; width: 40px; height: 4px; margin-left: -20px; border-radius: 999px; background: #e3d6c8; }
+  .modal-head h2 { font-size: 20px; }
+  .modal-body { padding: 16px 18px 8px; }
+  .modal-error { padding-inline: 18px; }
+  .modal-foot { padding: 12px 18px calc(14px + env(safe-area-inset-bottom)); }
+  .numbers > .number { padding: 12px 16px; }
+}
+
+/* Ajustes da revisão de todas as telas ------------------------------------------------------------ */
+/* Texto só para leitor de tela não alarga a página (ficava fora da área de rolagem da tabela). */
+.table-wrap { position: relative; }
+.sr-only { clip-path: inset(50%); }
+
+/* Números em flex: a última linha se estica e não sobra célula vazia; divisórias continuam pelas sombras. */
+.numbers { display: flex; flex-wrap: wrap; }
+.numbers > .number { flex: 1 1 180px; }
+@media (max-width: 860px) { .numbers > .number { flex-basis: 140px; } }
+
+/* Situação como etiqueta suave na cor do próprio texto (agendada, paga, vencida, a fechar...). */
+.st { padding: 3px 10px 3px 8px; border-radius: 999px; background: color-mix(in srgb, currentColor 11%, transparent); line-height: 1.35; white-space: nowrap; }
+
+/* Caixas de marcar com dica embaixo: a caixa alinha com o rótulo, não com o bloco todo. */
+.check { align-items: flex-start; }
+.check input { flex: none; margin-top: 2px; }
+
+/* Abas no celular: uma linha que rola de lado em vez de quebrar a pílula. */
+@media (max-width: 720px) {
+  .tabs { flex-wrap: nowrap; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { white-space: nowrap; flex: none; }
+}
+
+/* "Fechar" recebe o foco ao abrir a janela: anel suave em vez do contorno forte. */
+.modal-close:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--vinho-tom); }
+
+/* Busca com espaço para o texto de exemplo. */
+.search input { width: 300px; }
+
+/* Relatórios: mês e nome na primeira coluna sem quebrar; notas de método discretas. */
+.report-table th:first-child, .report-table td:first-child { white-space: nowrap; }
+.report-method { margin: -8px 0 24px; max-width: 92ch; font-size: 13px; line-height: 1.55; }
+.panel-body.plain-list { padding-left: 42px; }
+.finance-split > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+/* Gráficos no celular: largura mínima legível, rolando de lado dentro do painel. */
+@media (max-width: 720px) {
+  .chart-box { overflow-x: auto; }
+  .cash-flow > *, .cash-chart { min-width: 0; }
+  .chart-box svg { min-width: 560px; }
+}
+
+/* Início: sem próxima sessão, o cartão fica claro; link do rodapé do fluxo de caixa visível. */
+.next.is-empty { background: var(--branco); color: var(--suave); }
+p.muted a:not(.button), p.small a:not(.button) { color: var(--vinho); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
+
+/* Tarefas: "Adicionar item" é ação secundária dentro da janela. */
+.activity-checklist-add { border: 1px dashed var(--vinho-tom); background: var(--vinho-claro); color: var(--vinho); }
+.activity-checklist-add:hover { background: var(--vinho-tom); box-shadow: none; }
+
+/* Arquivos: o botão nativo de escolher arquivo ganha a cara dos botões claros do sistema. */
+input[type=file] { max-width: 100%; color: var(--suave); font: inherit; font-size: 14px; }
+input[type=file]::file-selector-button { margin-right: 12px; padding: 9px 16px; border: 0; border-radius: 999px; background: var(--creme); color: var(--vinho); font: inherit; font-weight: 500; cursor: pointer; }
+
+/* Agenda: pílula de hoje sem empurrar a contagem; no celular, filtros na largura toda. */
+.col-head.today strong { display: block; width: fit-content; }
+@media (max-width: 720px) {
+  .agenda-toolbar .tools > * { flex: 1 1 100%; }
+  .agenda-period { font-size: 16px; }
+}
+
+/* Relatórios: filtros numa linha; no celular, grade de duas colunas com o rótulo acima do campo. */
+@media (max-width: 720px) {
+  .report-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .report-filters .field-inline { display: grid; gap: 4px; min-width: 0; }
+  .report-filters .app-select, .report-filters .input { width: 100%; min-width: 0; }
+}
+
+/* Funil: no computador as colunas cabem na largura (antes a última ficava cortada sem aviso). */
+@media (min-width: 861px) { .kanban { grid-auto-columns: minmax(180px, 1fr); } }

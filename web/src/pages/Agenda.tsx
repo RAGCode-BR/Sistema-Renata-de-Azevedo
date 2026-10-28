@@ -168,17 +168,17 @@ export function AgendaPage({ user, date, session }: { user: SessionUser; date: s
               onClick={() => changeView(item)}>{VIEW_LABEL[item]}</button>
           ))}
         </div>
-        <div className="pager">
+        <div className="pager agenda-pager">
+          <button type="button" className="link-btn agenda-today" onClick={() => setAnchor(startOfToday())}>Hoje</button>
           <button type="button" className="link-btn" aria-label="Período anterior" onClick={() => setAnchor(step(view, anchor, -1))}>‹</button>
-          <button type="button" className="link-btn" onClick={() => setAnchor(startOfToday())}>Hoje</button>
           <button type="button" className="link-btn" aria-label="Próximo período" onClick={() => setAnchor(step(view, anchor, 1))}>›</button>
+          <h2 className="agenda-period">{titleOf(view, anchor)}</h2>
         </div>
-        <h2 className="agenda-period">{titleOf(view, anchor)}</h2>
-        <label className="agenda-date-pick">Ir para data
-          <input className="input" type="date" aria-label="Ir para data" value={dateKey(anchor)}
-            onChange={(event) => { const next = parseDateKey(event.target.value); if (next) setAnchor(next); }} />
-        </label>
         <div className="tools">
+          <label className="agenda-date-pick">Ir para data
+            <input className="input" type="date" aria-label="Ir para data" value={dateKey(anchor)}
+              onChange={(event) => { const next = parseDateKey(event.target.value); if (next) setAnchor(next); }} />
+          </label>
           {overview && (
             <Select className="input compact" aria-label="Profissional" value={professionalFilter} onChange={(event) => setProfessionalFilter(event.target.value)}>
               <option value="">Todas as profissionais</option>

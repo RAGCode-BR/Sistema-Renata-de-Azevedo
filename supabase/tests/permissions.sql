@@ -2226,8 +2226,8 @@ DO $$ BEGIN
   BEGIN
     PERFORM public.close_payout('00000000-0000-4000-8000-00000000000a', '2025-03-01', '2025-04-05');
     RAISE EXCEPTION 'FALHA: repasse do mesmo mês fechado duas vezes';
-  EXCEPTION WHEN unique_violation THEN NULL;
-    WHEN raise_exception THEN IF SQLERRM LIKE 'FALHA%' THEN RAISE; END IF;
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM NOT LIKE 'O repasse deste mês já foi fechado%' THEN RAISE EXCEPTION 'FALHA: mensagem do segundo fechamento: %', SQLERRM; END IF;
   END;
   IF (SELECT cash_result FROM public.finance_summary(2025) WHERE month = '2025-03-01') <> -1850 THEN
     RAISE EXCEPTION 'FALHA: resultado de caixa de março deveria ser 150 - 2000 = -1850';
@@ -2347,6 +2347,96 @@ DO $$ BEGIN
   END;
 END $$;
 RESET ROLE;
+
+-- Arquivos de profissionais: a foto é da equipe toda; os anexos (documentos) só de quem gerencia profissionais.
+INSERT INTO storage.objects (bucket_id, name) VALUES
+  ('professional-files', 'professionals/00000000-0000-4000-8000-00000000000a/photo/teste.png'),
+  ('professional-files', 'professionals/00000000-0000-4000-8000-00000000000a/files/teste.pdf');
+SET LOCAL ROLE authenticated;
+DO $$
+DECLARE
+  who record;
+BEGIN
+  FOR who IN SELECT * FROM (VALUES
+    ('00000000-0000-4000-8000-0000000000f2', 1, 0, 'Recepção'),
+    ('00000000-0000-4000-8000-0000000000a1', 1, 0, 'Profissional'),
+    ('00000000-0000-4000-8000-0000000000d2', 1, 1, 'Gerência')) AS t(id, photos, files, label)
+  LOOP
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', who.id, 'role', 'authenticated')::text, true);
+    IF (SELECT count(*) FROM storage.objects WHERE bucket_id = 'professional-files' AND name LIKE '%/photo/teste.png') <> who.photos
+      OR (SELECT count(*) FROM storage.objects WHERE bucket_id = 'professional-files' AND name LIKE '%/files/teste.pdf') <> who.files THEN
+      RAISE EXCEPTION 'FALHA: % com acesso errado aos arquivos de profissionais', who.label;
+    END IF;
+  END LOOP;
+  PERFORM set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000f2","role":"authenticated"}', true);
+  BEGIN
+    INSERT INTO storage.objects (bucket_id, name) VALUES ('professional-files', 'professionals/00000000-0000-4000-8000-00000000000a/files/recepcao.pdf');
+    RAISE EXCEPTION 'FALHA: Recepção enviou anexo de profissional';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
+-- Fotos: só JPG ou PNG (extensão e tipo informado no envio), para paciente e para profissional.
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000d1","role":"authenticated"}', true);
+DO $$
+DECLARE
+  bad record;
+BEGIN
+  INSERT INTO storage.objects (bucket_id, name, metadata) VALUES
+    ('patient-documents', 'patients/00000000-0000-4000-8000-0000000000f1/photo/ok.png', '{"mimetype":"image/png"}'),
+    ('professional-files', 'professionals/00000000-0000-4000-8000-00000000000a/photo/ok.jpg', '{"mimetype":"image/jpeg"}'),
+    ('patient-documents', 'patients/00000000-0000-4000-8000-0000000000f1/contrato-foto.pdf', '{"mimetype":"application/pdf"}');
+  FOR bad IN SELECT * FROM (VALUES
+    ('patient-documents', 'patients/00000000-0000-4000-8000-0000000000f1/photo/pagina.html', '{"mimetype":"text/html"}'),
+    ('patient-documents', 'patients/00000000-0000-4000-8000-0000000000f1/photo/disfarce.jpg', '{"mimetype":"text/html"}'),
+    ('professional-files', 'professionals/00000000-0000-4000-8000-00000000000a/photo/desenho.svg', '{"mimetype":"image/svg+xml"}')) AS t(bucket, name, meta)
+  LOOP
+    BEGIN
+      INSERT INTO storage.objects (bucket_id, name, metadata) VALUES (bad.bucket, bad.name, bad.meta::jsonb);
+      RAISE EXCEPTION 'FALHA: foto que não é JPG/PNG aceita: %', bad.name;
+    EXCEPTION WHEN insufficient_privilege THEN NULL;
+    END;
+  END LOOP;
+END $$;
+RESET ROLE;
+
+-- Comissão (define o repasse): a Gerência edita o cadastro, mas não a comissão; a Proprietária altera e fica registrado.
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000d2","role":"authenticated"}', true);
+DO $$ BEGIN
+  UPDATE public.professionals SET specialty = 'Teste especialidade' WHERE id = '00000000-0000-4000-8000-00000000000a';
+  IF NOT FOUND THEN RAISE EXCEPTION 'FALHA: Gerência não editou o cadastro da profissional'; END IF;
+  BEGIN
+    UPDATE public.professionals SET commission_sessions = NOT commission_sessions WHERE id = '00000000-0000-4000-8000-00000000000a';
+    RAISE EXCEPTION 'FALHA: Gerência alterou a comissão da profissional';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'FALHA%' THEN RAISE; END IF;
+  END;
+END $$;
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000d1","role":"authenticated"}', true);
+DO $$ BEGIN
+  UPDATE public.professionals SET commission_sales = NOT commission_sales WHERE id = '00000000-0000-4000-8000-00000000000a';
+END $$;
+RESET ROLE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.audit_log WHERE action = 'update_commission' AND entity_id = '00000000-0000-4000-8000-00000000000a'
+      AND actor_user_id = '00000000-0000-4000-8000-0000000000d1') THEN
+    RAISE EXCEPTION 'FALHA: mudança de comissão sem registro na auditoria'; END IF;
+END $$;
+
+-- E-mail "Novidade no portal": só para contas de paciente, nunca para a equipe (avisos internos usam o tipo 'portal').
+UPDATE public.integration_state SET enabled = true WHERE key = 'portal_email';
+INSERT INTO public.notifications (user_id, kind, title, link) VALUES
+  ('00000000-0000-4000-8000-0000000000d1', 'portal', 'Teste aviso interno', '#/pacientes'),
+  ('00000000-0000-4000-8000-0000000000c1', 'portal', 'Teste aviso de paciente', '#/portal/inicio');
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM public.portal_email_outbox WHERE user_id = '00000000-0000-4000-8000-0000000000d1') THEN
+    RAISE EXCEPTION 'FALHA: e-mail do portal enfileirado para conta da equipe'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.portal_email_outbox WHERE user_id = '00000000-0000-4000-8000-0000000000c1') THEN
+    RAISE EXCEPTION 'FALHA: e-mail do portal deixou de ir para a conta de paciente'; END IF;
+END $$;
+UPDATE public.integration_state SET enabled = false WHERE key = 'portal_email';
 
 SELECT 'Todas as verificações de permissão passaram.' AS resultado;
 ROLLBACK;

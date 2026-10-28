@@ -10,11 +10,14 @@ const REFRESH_MS = 60_000;
 export function NotificationBell({ icon }: { icon: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<AppNotification[]>([]);
+  const [unreadTotal, setUnreadTotal] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
 
   async function refresh() {
     try {
-      setItems(await api.notifications());
+      const [list, total] = await Promise.all([api.notifications(), api.unreadNotifications()]);
+      setItems(list);
+      setUnreadTotal(total);
     } catch { /* o sino fica como estava; a página mostra os erros */ }
   }
 
@@ -35,7 +38,7 @@ export function NotificationBell({ icon }: { icon: ReactNode }) {
     return () => { document.removeEventListener('click', close); document.removeEventListener('keydown', close); };
   }, [open]);
 
-  const unread = items.filter((item) => !item.read_at).length;
+  const unread = Math.max(unreadTotal, items.filter((item) => !item.read_at).length);
   const badge = unread;
 
   async function markAll() {

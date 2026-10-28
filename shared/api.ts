@@ -17,7 +17,6 @@ import type {
   PayoutReportRow,
   RevenueRow,
   SessionReportRow,
-  TaskReportRow,
   YearRow,
   Campaign,
   CampaignInput,
@@ -45,6 +44,7 @@ import type {
   ClinicalRecord,
   DocumentCategory,
   Expense,
+  CashFlowRow,
   FinanceMonth,
   FinanceForecastRow,
   FormulationSection,
@@ -91,14 +91,6 @@ import type {
   ScheduleBlock,
   SessionPrice,
   SessionUser,
-  Task,
-  TaskCounts,
-  TaskEvent,
-  TaskFrequency,
-  TaskInput,
-  TaskRecurrence,
-  TaskScope,
-  TaskStatus,
   UserAccessUpdate,
   UserAccount
 } from './types.ts';
@@ -195,12 +187,8 @@ export function createApi(supabase: SupabaseClient) {
       const mfa: MfaState = level?.nextLevel === 'aal2' && level.currentLevel !== 'aal2' ? 'verify' : access.mfa ?? 'ok';
       return { ...user, ...access, mfa };
     },
-    // Verificação em duas etapas (TOTP do Supabase Auth).
-    mfaFactor: async () => {
-      const { data, error } = await supabase.auth.mfa.listFactors();
-      if (error) throw new Error('Não foi possível consultar a verificação em duas etapas.');
-      return data.totp.find((factor) => factor.status === 'verified') ?? null;
-    },
+    // Verificação em duas etapas (TOTP do Supabase Auth). A opção foi retirada da tela; isto só atende
+    // a tela de entrada caso a exigência volte a ser ligada no banco.
     mfaEnroll: async (): Promise<MfaEnrollment> => {
       // Tentativas anteriores não concluídas impedem um cadastro novo: saem antes.
       const { data: current } = await supabase.auth.mfa.listFactors();
@@ -218,19 +206,16 @@ export function createApi(supabase: SupabaseClient) {
       const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: id, code: code.replace(/\D/g, '') });
       if (error) throw new Error(error.status === 429 ? 'Muitas tentativas. Aguarde alguns minutos.' : 'Código inválido. Confira o horário do celular e tente o código atual.');
     },
-    mfaUnenroll: async (factorId: string) => {
-      const { error } = await supabase.auth.mfa.unenroll({ factorId });
-      if (error) throw new Error('Para desativar, entre de novo usando o código do app autenticador.');
-    },
-    setMfaRequired: (required: boolean) => run<unknown>(supabase.rpc('set_mfa_required', { p_required: required })),
     // Conta só de paciente: vai para o portal, não para o sistema da equipe.
     isPatientAccount: async () => {
       const access = await run<{ roles: Role[] }>(supabase.rpc('my_access'));
       return access.roles.length > 0 && access.roles.every((role) => role === 'patient');
     },
-    login: async (email: string, password: string) => {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw new Error(error.status === 429 ? 'Muitas tentativas. Aguarde alguns minutos.' : 'E-mail ou senha inválidos.');
+    login: async (username: string, password: string) => {
+      const tokens = await invoke<{ access_token: string; refresh_token: string }>('staff-login',
+        { username, password }, 'Não foi possível entrar agora.');
+      const { error } = await supabase.auth.setSession(tokens);
+      if (error) throw new Error('Não foi possível iniciar a sessão. Tente novamente.');
     },
     logout: async () => {
       leaving = true;
@@ -266,10 +251,13 @@ export function createApi(supabase: SupabaseClient) {
       if (!['image/jpeg', 'image/png'].includes(file.type) || file.size > 2 * 1024 * 1024)
         throw new Error('A foto deve ser JPG ou PNG e ter até 2 MB.');
       const path = `professionals/${professionalId}/photo/${crypto.randomUUID()}.${file.type === 'image/png' ? 'png' : 'jpg'}`;
+      const { data: previous } = await supabase.from('professionals').select('photo_path').eq('id', professionalId).maybeSingle();
       const { error } = await supabase.storage.from('professional-files').upload(path, file, { contentType: file.type, upsert: false });
       if (error) throw new Error(`Não foi possível enviar a foto: ${error.message}`);
       try { await run(supabase.from('professionals').update({ photo_path: path }).eq('id', professionalId).select('id').single()); }
       catch (failure) { await supabase.storage.from('professional-files').remove([path]); throw failure; }
+      // A foto anterior deixa de ser usada: apaga junto (o Storage não apaga sozinho).
+      if (previous?.photo_path && previous.photo_path !== path) await supabase.storage.from('professional-files').remove([previous.photo_path]);
       return path;
     },
     professionalDocuments: (professionalId: string) => run<ProfessionalDocument[]>(supabase.from('professional_documents')
@@ -304,7 +292,7 @@ export function createApi(supabase: SupabaseClient) {
 
     users: async (): Promise<UserAccount[]> => {
       const rows = await run<(Omit<UserAccount, 'roles'> & { user_roles: { role: Role }[] })[]>(supabase.from('profiles')
-        .select('id, name, email, professional_id, active, user_roles(role)').order('name'));
+        .select('id, name, email, username, professional_id, active, user_roles(role)').order('name'));
       // Contas do portal do paciente são geridas na ficha do paciente, não entre as contas da equipe.
       return rows.map(({ user_roles, ...row }) => ({ ...row, roles: user_roles.map((item) => item.role) }))
         .filter((account) => !(account.roles.length && account.roles.every((role) => role === 'patient')));
@@ -319,6 +307,9 @@ export function createApi(supabase: SupabaseClient) {
       p_roles: input.roles,
       p_professional_id: input.professionalId,
       p_active: input.active
+    })),
+    updateUsername: (userId: string, username: string) => run<unknown>(supabase.rpc('set_staff_username', {
+      p_user_id: userId, p_username: username
     })),
     deleteUser: async (userId: string) => {
       await invoke('admin-delete-user', { userId }, 'Não foi possível excluir a conta.');
@@ -345,10 +336,13 @@ export function createApi(supabase: SupabaseClient) {
       if (!['image/jpeg', 'image/png'].includes(file.type) || file.size > 2 * 1024 * 1024)
         throw new Error('A foto deve ser JPG ou PNG e ter até 2 MB.');
       const path = `patients/${patientId}/photo/${crypto.randomUUID()}.${file.type === 'image/png' ? 'png' : 'jpg'}`;
+      const { data: previous } = await supabase.from('patients').select('photo_path').eq('id', patientId).maybeSingle();
       const { error } = await supabase.storage.from(DOCUMENTS_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
       if (error) throw new Error(`Não foi possível enviar a foto: ${error.message}`);
       try { await run(supabase.rpc('set_patient_photo', { p_patient_id: patientId, p_path: path })); }
       catch (failure) { await supabase.storage.from(DOCUMENTS_BUCKET).remove([path]); throw failure; }
+      // A foto anterior deixa de ser usada: apaga junto (o Storage não apaga sozinho).
+      if (previous?.photo_path && previous.photo_path !== path) await supabase.storage.from(DOCUMENTS_BUCKET).remove([previous.photo_path]);
       return path;
     },
     // Todas as sessões do paciente que quem está conectado pode ver (a profissional, só as suas).
@@ -535,6 +529,8 @@ export function createApi(supabase: SupabaseClient) {
     closePayout: (professionalId: string, month: string, paidAt: string) =>
       run<string>(supabase.rpc('close_payout', { p_professional_id: professionalId, p_month: month, p_paid_at: paidAt })),
     financeSummary: (year: number) => run<FinanceMonth[]>(supabase.rpc('finance_summary', { p_year: year })),
+    cashFlow: (from: string, to: string, bucket: 'day' | 'month') =>
+      run<CashFlowRow[]>(supabase.rpc('cash_flow', { p_from: from, p_to: to, p_bucket: bucket })),
     financeForecast: (months = 12) => run<FinanceForecastRow[]>(supabase.rpc('finance_forecast', { p_months: months })),
     expenseBreakdown: (year: number) => run<{ dimension: 'cost_center' | 'category'; name: string; amount: number }[]>(
       supabase.rpc('expense_breakdown', { p_year: year })),
@@ -573,28 +569,12 @@ export function createApi(supabase: SupabaseClient) {
         p_checklist: checklist, p_message_id: messageId })),
     cancelPatientActivity: (id: string) => run<unknown>(supabase.rpc('cancel_patient_activity', { p_id: id })),
 
-    // Tarefas. Regras de quem vê, edita e atribui ficam nas funções do banco.
-    tasks: (scope: TaskScope, open: boolean) => run<Task[]>(supabase.rpc('task_list', { p_scope: scope, p_open: open })),
-    task: async (id: string) => (await run<Task[]>(supabase.rpc('task_list', { p_scope: 'mine', p_open: false, p_task_id: id })))[0] ?? null,
-    taskHistory: (id: string) => run<TaskEvent[]>(supabase.rpc('task_history', { p_task_id: id })),
+    // Quem pode receber os pedidos do portal (Configurações).
     taskAssignees: () => run<{ id: string; name: string }[]>(supabase.rpc('task_assignees')),
-    taskCounts: async () => (await run<TaskCounts[]>(supabase.rpc('task_counts')))[0],
-    saveTask: (id: string | null, input: TaskInput) => run<string>(supabase.rpc('save_task', {
-      p_id: id, p_title: input.title, p_description: input.description, p_assignee_id: input.assigneeId, p_priority: input.priority,
-      p_due_date: input.dueDate, p_due_time: input.dueTime, p_patient_id: input.patientId
-    })),
-    // Devolve a próxima ocorrência quando a tarefa recorrente é concluída.
-    setTaskStatus: (id: string, status: TaskStatus) => run<string | null>(supabase.rpc('set_task_status', { p_id: id, p_status: status })),
-    commentTask: (id: string, body: string) => run<unknown>(supabase.rpc('comment_task', { p_id: id, p_body: body })),
-    recurrences: () => run<TaskRecurrence[]>(supabase.rpc('recurrence_list')),
-    saveRecurrence: (id: string | null, input: Omit<TaskInput, 'dueDate'> & { frequency: TaskFrequency; startsOn: string }) =>
-      run<string>(supabase.rpc('save_recurrence', {
-        p_id: id, p_title: input.title, p_description: input.description, p_assignee_id: input.assigneeId, p_priority: input.priority,
-        p_patient_id: input.patientId, p_frequency: input.frequency, p_starts_on: input.startsOn, p_due_time: input.dueTime
-      })),
-    setRecurrenceActive: (id: string, active: boolean) => run<unknown>(supabase.rpc('set_recurrence_active', { p_id: id, p_active: active })),
     notifications: () => run<AppNotification[]>(supabase.from('notifications')
       .select('id, kind, title, link, read_at, created_at').order('created_at', { ascending: false }).limit(20)),
+    // Total de não lidos (a lista acima traz só os 20 mais recentes).
+    unreadNotifications: () => count(supabase.from('notifications').select('id', { count: 'exact', head: true }).is('read_at', null)),
     markNotificationsRead: (ids?: string[]) => run<unknown>(supabase.rpc('mark_notifications_read', { p_ids: ids ?? null })),
 
     // Comercial (CRM). Leads só mudam por funções do banco, que registram a linha do tempo.
@@ -658,7 +638,6 @@ export function createApi(supabase: SupabaseClient) {
       run<SessionReportRow[]>(supabase.rpc('report_sessions', { p_from: from, p_to: to, p_professional_id: professionalId })),
     reportPatients: (from: string, to: string, professionalId: string | null) =>
       run<PatientReport>(supabase.rpc('report_patients', { p_from: from, p_to: to, p_professional_id: professionalId })),
-    reportTasks: (from: string, to: string) => run<TaskReportRow[]>(supabase.rpc('report_tasks', { p_from: from, p_to: to })),
     reportDre: (from: string, to: string) => run<DreRow[]>(supabase.rpc('report_dre', { p_from: from, p_to: to })),
     reportRevenue: (from: string, to: string) => run<RevenueRow[]>(supabase.rpc('report_revenue', { p_from: from, p_to: to })),
     reportPaymentMethods: (from: string, to: string) => run<PaymentMethodRow[]>(supabase.rpc('report_payment_methods', { p_from: from, p_to: to })),

@@ -4,7 +4,7 @@ import { api } from '../api.ts';
 import { Field, FormModal } from '../components/Modal.tsx';
 import { Panel, PanelState } from '../components/Page.tsx';
 import { useToast } from '../components/Toast.tsx';
-import { chargeStatusLabel, dateOnly, dateTime, fileSize, longDay, modalityLabel, money, paymentMethodLabel, time } from '../format.ts';
+import { chargeStatusLabel, dateOnly, dateTime, dayOf, fileSize, longDay, modalityLabel, money, paymentMethodLabel, time } from '../format.ts';
 import { errorMessage, text, useLoad } from '../hooks.ts';
 
 // Situação da sessão na linguagem do paciente.
@@ -30,7 +30,7 @@ export function Home({ me, patient }: { me: PortalMe; patient: PortalMe['patient
       {patient.relationship === 'guardian' && <p className="muted portal-lead">Você acompanha {patient.name} como responsável.</p>}
       {!data ? <PanelState error={error} loading={!error} empty="" /> : (
         <div className="portal-cards">
-          <a className="portal-card" href="#/portal/consultas">
+          <a className={next ? 'portal-card portal-card-next' : 'portal-card'} href="#/portal/consultas">
             <span className="muted small">Próxima sessão</span>
             {next ? (
               <>
@@ -235,7 +235,7 @@ export function Documents({ patientId }: { patientId: string }) {
               <li key={item.id} className="portal-item">
                 <div>
                   <strong>{item.title}{!item.downloaded && <span className="tag-new">novo</span>}</strong>
-                  <span>{dateOnly(item.created_at)}{item.size_bytes ? ` · ${fileSize(item.size_bytes)}` : ''}</span>
+                  <span>{dayOf(item.created_at)}{item.size_bytes ? ` · ${fileSize(item.size_bytes)}` : ''}</span>
                 </div>
                 <div className="portal-actions">
                   <button type="button" className="button light" disabled={opening === item.id} onClick={() => open(item.id)}>

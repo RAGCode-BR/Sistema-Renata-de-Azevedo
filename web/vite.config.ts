@@ -18,6 +18,17 @@ export default defineConfig(({ command, mode }) => {
     root: fileURLToPath(new URL('.', import.meta.url)),
     envDir,
     plugins: [react()],
-    server: { port: 5173 }
+    server: { port: 5173 },
+    // Bibliotecas em arquivos próprios: mudam pouco e ficam em cache entre versões do sistema.
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id: string) {
+            if (id.includes('/node_modules/@supabase/')) return 'supabase';
+            if (/\/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'react';
+          }
+        }
+      }
+    }
   };
 });

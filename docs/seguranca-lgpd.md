@@ -9,7 +9,7 @@ Como os dados da clínica são protegidos, o que é testado automaticamente e o 
 - **Chaves e tokens** (chave de serviço, Google, WhatsApp, Anthropic, Resend, Expo) ficam só nos segredos do Supabase e no Vault. A varredura do pacote compilado confirma que nada disso vai para o navegador ou para o app.
 - **Arquivos** (documentos administrativos, clínicos e do portal) ficam em armazenamento privado e só abrem por link de 60 segundos, gerado depois da checagem de permissão; aberturas de documentos clínicos e do portal ficam registradas.
 - **Prontuário:** só a profissional responsável; cada abertura vai para o registro de acesso clínico. Evoluções finalizadas não podem ser alteradas (só retificadas).
-- **Login:** sem cadastro público; senha mínima de 10 caracteres; verificação em duas etapas disponível para todos e exigível para Proprietária e Gerência; portal do paciente por código no e-mail.
+- **Login:** sem cadastro público; senha mínima de 10 caracteres; verificação em duas etapas retirada da tela a pedido da clínica em 28/10/2026; portal do paciente por código no e-mail.
 - **Aplicativo:** sessão no cofre do aparelho; trava após 5 minutos em segundo plano; sai após 30 dias sem uso; notificação com texto genérico na tela bloqueada.
 - **Navegador:** cabeçalhos de segurança (`web/public/_headers`) com CSP que só permite conexões com o projeto Supabase, HSTS e bloqueio de incorporação em outros sites.
 
@@ -24,7 +24,7 @@ Como os dados da clínica são protegidos, o que é testado automaticamente e o 
 | Atividades dos pacientes | `supabase/tests/atividades_pacientes.sql` | A profissional responsável e a Proprietária criam e veem as atividades e respostas; a Proprietária deve selecionar uma profissional vinculada. O paciente com acesso ativo ao portal e termos aceitos vê e conclui as próprias. Outras pessoas não leem a tabela diretamente. |
 | Pagamentos simultâneos | `tests/db-local` | Dois registros do mesmo pagamento ao mesmo tempo não pagam a cobrança duas vezes. |
 | Funções publicadas | `tests/integracao/funcoes-publicadas.mjs` | Toda Edge Function recusa chamada sem login, sem segredo ou de outro site. |
-| Telas | `tests/e2e` | Fluxos de cada módulo, do portal e da verificação em duas etapas no navegador, contra o banco real, com limpeza dos dados de teste. |
+| Telas | `tests/e2e` | Fluxos de cada módulo e do portal no navegador, contra o banco real, com limpeza dos dados de teste. |
 
 Os testes do banco rodam a cada publicação de mudanças em `supabase/` (GitHub Action) e com `npm run test:db`.
 
@@ -52,7 +52,7 @@ Os testes do banco rodam a cada publicação de mudanças em `supabase/` (GitHub
 
 ## Em caso de incidente
 
-1. **Conta comprometida:** desative a conta em **Usuários** (corta o acesso na hora) e troque a senha; remova a verificação em duas etapas pelo painel se o celular foi perdido.
+1. **Conta comprometida:** desative a conta em **Usuários** (corta o acesso na hora) e troque a senhao.
 2. **Chave ou token vazado:** gere outro no serviço de origem e atualize com `npx supabase secrets set …`; para a chave do Supabase, gere novas chaves em **Project Settings → API**.
 3. **Registro:** o `audit_log` e o registro de acesso clínico mostram quem fez o quê e quando.
 4. **LGPD:** incidentes com risco aos titulares devem ser comunicados à ANPD e aos titulares (art. 48). Envolva o encarregado.
@@ -61,7 +61,7 @@ Os testes do banco rodam a cada publicação de mudanças em `supabase/` (GitHub
 
 - **Bases legais e textos:** ver a [política de privacidade](../web/public/privacidade.html) (rascunho para revisão jurídica).
 - **Minimização:** o Google recebe só as iniciais do paciente (configurável); notificações e e-mails têm texto genérico; o assistente de IA recebe a transcrição com nomes, documentos e contatos ocultados.
-- **Retenção:** transcrições da IA apagadas em até 30 dias; contatos comerciais anonimizados; prontuário pelo prazo do CFP.
+- **Retenção:** transcrições da IA e de áudios do WhatsApp apagadas em até 30 dias; contatos comerciais anonimizados; prontuário pelo prazo do CFP.
 - **Direitos do titular:** exportação do prontuário (PDF) pela profissional; correção pelo cadastro; encerramento de acesso ao portal pela clínica.
 - **Transferência internacional:** Supabase (servidores em São Paulo, empresa nos EUA), Cloudflare, Expo, Google, Meta, Anthropic e Resend, conforme o que estiver ativado.
 
@@ -70,4 +70,4 @@ Os testes do banco rodam a cada publicação de mudanças em `supabase/` (GitHub
 - **Plano gratuito:** sem cópia automática e com pausa por inatividade.
 - **Ferramentas de build do app:** o `npm audit` aponta 25 alertas em ferramentas usadas só para compilar o aplicativo (Expo CLI, Metro, assinatura de código), não no app instalado. Revisar a cada atualização do Expo (`npx expo install --fix`). O sistema web e os testes não têm alertas.
 - **Recuperação de senha** depende da administração (ver [configurações pendentes](configuracoes-pendentes.md)).
-- **Testes contra o banco real:** os roteiros criam e apagam dados de teste no próprio projeto; com a exigência da verificação em duas etapas ligada, os roteiros de tela não rodam (o orquestrador avisa e para); para uma rodada completa, desligue-a temporariamente (o roteiro `14-verificacao` liga e desliga sozinho).
+- **Testes contra o banco real:** os roteiros criam e apagam dados de teste no próprio projeto.

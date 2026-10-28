@@ -73,7 +73,7 @@ try {
   await client.end();
   await concurrentPayments().catch((error) => { failed = true; console.log('✘ pagamentos simultâneos: ' + error.message); });
   // Uma conexão por arquivo, como no Supabase (configurações da sessão não passam de um teste para outro).
-  for (const file of ['permissions.sql', 'seguranca.sql', 'financeiro.sql', 'atividades_pacientes.sql']) {
+  for (const file of fs.readdirSync(path.join(SUPABASE, 'tests')).filter((f) => f.endsWith('.sql')).sort()) {
     const session = new pg.Client({ host: 'localhost', port, user: 'postgres', password: 'local', database: 'postgres' });
     await session.connect();
     const result = await session.query(fs.readFileSync(path.join(SUPABASE, 'tests', file), 'utf8'))

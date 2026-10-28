@@ -29,7 +29,11 @@ export function PatientActivitiesScreen({ isOwner = false }: { isOwner?: boolean
 
   async function create() {
     const match = due.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (due.trim() && !match) { Alert.alert('Prazo', 'Use DD/MM/AAAA.'); return; }
+    // Confere se a data existe (31/02, por exemplo, não existe).
+    const date = match ? new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1])) : null;
+    if (due.trim() && (!match || !date || date.getMonth() !== Number(match[2]) - 1 || date.getDate() !== Number(match[1]))) {
+      Alert.alert('Prazo', 'Informe uma data válida no formato DD/MM/AAAA.'); return;
+    }
     if (!patientId || (isOwner && !professionalId) || !title.trim() || !instructions.trim()) { Alert.alert('Preencha os campos', 'Escolha o paciente, a profissional responsável, o título e as orientações.'); return; }
     if (checklist.some((item) => !item.trim())) { Alert.alert('Checklist', 'Preencha ou remova os itens vazios.'); return; }
     setBusy(true);

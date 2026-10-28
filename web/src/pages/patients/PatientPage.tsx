@@ -6,10 +6,7 @@ import { api } from '../../api.ts';
 import { ConfirmModal, Field } from '../../components/Modal.tsx';
 import { Heading, Panel, PanelState } from '../../components/Page.tsx';
 import { useToast } from '../../components/Toast.tsx';
-import {
-  age, dateKey, dateOnly, dateTime, documentCategoryLabel, fileSize, formatCpf, longDay, modalityLabel,
-  money, patientStatusLabel, plural, sessionTypeLabel, statusLabel, time
-} from '../../format.ts';
+import { age, dateKey, dateOnly, dateTime, dayOf, documentCategoryLabel, fileSize, formatCpf, longDay, modalityLabel, money, patientStatusLabel, plural, sessionTypeLabel, statusLabel, time } from '../../format.ts';
 import { errorMessage, text, useFormSubmit, useLoad } from '../../hooks.ts';
 import { PatientFinance } from './PatientFinance.tsx';
 import { PatientForm } from './PatientForm.tsx';
@@ -115,7 +112,7 @@ function Overview({ patient, responsible }: { patient: Patient; responsible: str
             <dt>Estado civil</dt><dd>{patient.marital_status ? marital[patient.marital_status] : '—'}</dd>
             <dt>Endereço</dt><dd>{patient.address || '—'}</dd>
             {patient.tags.length > 0 && <><dt>Etiquetas</dt><dd className="patient-overview-tags">{patient.tags.map((tag) => <span className="patient-tag" key={tag}>{tag}</span>)}</dd></>}
-            <dt>Cadastro</dt><dd>{dateOnly(patient.created_at)}</dd>
+            <dt>Cadastro</dt><dd>{dayOf(patient.created_at)}</dd>
           </dl>
         </div>
       </Panel>

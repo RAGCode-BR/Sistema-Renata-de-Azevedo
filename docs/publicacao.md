@@ -34,6 +34,5 @@ Ver [lojas](lojas.md): contas, build de teste, homologação no celular, builds 
 
 1. Homologação concluída e dados fictícios apagados (resultado com zero restantes).
 2. Supabase Pro ativo (cópias diárias) ou rotina de cópia manual definida.
-3. Verificação em duas etapas exigida para Proprietária e Gerência.
-4. Contas reais criadas; contas de teste e de demonstração desativadas.
-5. Integrações ligadas uma a uma, cada uma testada com um paciente fictício antes.
+3. Contas reais criadas; contas de teste e de demonstração desativadas.
+4. Integrações ligadas uma a uma, cada uma testada com um paciente fictício antes.

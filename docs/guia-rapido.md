@@ -4,8 +4,8 @@ O essencial para o dia a dia. Dúvidas sobre acesso: [matriz de acesso](matriz-d
 
 ## Para todos
 
-- **Entrar:** e-mail e senha da conta criada pela clínica. Com a verificação em duas etapas ativa, digite também o código do app autenticador.
-- **Menu da conta** (bolinha com suas iniciais, no alto à direita): trocar senha, verificação em duas etapas, avisos no WhatsApp, sair.
+- **Entrar na equipe:** nome de usuário (login) e senha da conta criada pela clínica. A Proprietária vê e altera os logins em **Usuários**. O e-mail continua no cadastro para contato e recuperação de acesso.
+- **Menu da conta** (bolinha com suas iniciais, no alto à direita): trocar senha, avisos no WhatsApp, sair.
 - **Sino:** avisos de pacientes, contatos e mensagens. Clique para abrir o item.
 - **Aplicativo da equipe:** o mesmo login. Trava depois de 5 minutos em segundo plano (digital, rosto ou senha para voltar).
 - **Esqueceu a senha?** Fale com a administração.
@@ -43,5 +43,5 @@ O essencial para o dia a dia. Dúvidas sobre acesso: [matriz de acesso](matriz-d
 
 - **Usuários:** criar contas, definir perfis, desativar (corta o acesso na hora).
 - **Tarefas:** use a mesma página que as profissionais para criar e acompanhar tarefas reais. Escolha um paciente e uma profissional vinculada; o paciente responde apenas pelo portal.
-- **Configurações:** prazo do prontuário, política de cobrança, Google, WhatsApp, IA, aplicativo, portal e **Segurança** (exigir verificação em duas etapas).
+- **Configurações:** prazo do prontuário, política de cobrança, Google, WhatsApp, IA, aplicativo e portal.
 - Não vê o prontuário de outras profissionais: só a situação, em Controle de prontuários.

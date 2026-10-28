@@ -38,6 +38,12 @@ export function dateOnly(value: string | null): string {
   return value ? new Date(value).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '—';
 }
 
+// Dia de um registro com horário (timestamptz: criado, concluído, respondido…) no fuso da clínica.
+// dateOnly é só para colunas de data sem horário: com horário, mostraria o dia seguinte depois das 21 h.
+export function dayOf(value: string | null): string {
+  return value ? new Date(value).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—';
+}
+
 export function time(value: string): string {
   return new Date(value).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }

@@ -38,6 +38,13 @@ DO $$ DECLARE template uuid; assignment uuid; cancelled uuid; BEGIN
     PERFORM public.assign_patient_form(template, '00000000-0000-4000-8000-0000000d8008', NULL);
     RAISE EXCEPTION 'FALHA: envio a paciente de outra carteira';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  -- "obrigatória" fora de verdadeiro/falso travaria o envio do paciente: recusado ao salvar o modelo.
+  BEGIN
+    PERFORM public.save_patient_form_template(NULL, 'Modelo inválido', '', 'form',
+      '[{"id":"q1","label":"Pergunta","type":"text","required":"sim"}]'::jsonb);
+    RAISE EXCEPTION 'FALHA: modelo com "required" que não é verdadeiro/falso';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'FALHA%' THEN RAISE; END IF;
+  END;
 END $$;
 SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000d8004","role":"authenticated"}', true);
 DO $$ BEGIN
@@ -94,4 +101,5 @@ DO $$ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;
 RESET ROLE;
+SELECT 'Formulários e escalas dos pacientes passaram.' AS resultado;
 ROLLBACK;

@@ -70,7 +70,6 @@ export function SettingsPage() {
       <AiPanel />
       <PushPanel />
       <PortalPanel />
-      <SecurityPanel required={data.require_mfa} onSaved={reload} />
       <Panel title="Política de cobrança">
         <form className="panel-body form-grid" onSubmit={billing.onSubmit}
           key={`c${data.missed_charge_percent}-${data.late_cancel_hours}-${data.late_cancel_charge_percent}`}>
@@ -253,26 +252,6 @@ function PortalPanel() {
           {state.email_queued > 0 && ` ${state.email_queued} e-mail(s) na fila.`}
           {state.email_last_error && ` Último erro: ${state.email_last_error}`}
         </p>
-        {form.error && <p className="erro full" role="alert">{form.error}</p>}
-        <div className="full"><button type="submit" className="button" disabled={form.busy}>{form.busy ? 'Salvando…' : 'Salvar'}</button></div>
-      </form>
-    </Panel>
-  );
-}
-
-// Segurança: exigir a verificação em duas etapas de quem tem perfil de Proprietária ou Gerência.
-function SecurityPanel({ required, onSaved }: { required: boolean; onSaved: () => void }) {
-  const notify = useToast();
-  const form = useFormSubmit(async (values) => {
-    await api.setMfaRequired(values.get('required') === 'on');
-    notify('Configuração de segurança salva.');
-    onSaved();
-  });
-  return (
-    <Panel title="Segurança">
-      <form className="panel-body form-grid" onSubmit={form.onSubmit} key={`mfa${required}`}>
-        <label className="check full"><input type="checkbox" name="required" defaultChecked={required} />
-          <span>Exigir verificação em duas etapas para Proprietária e Gerência<span className="sub">Esses perfis veem o financeiro e todos os pacientes. Ligado, quem entrar só com a senha fica sem acesso até digitar o código do app autenticador (e cadastra o app na primeira vez). Antes de ligar, ative na sua conta (menu da conta → Verificação em duas etapas) e entre de novo com o código.</span></span></label>
         {form.error && <p className="erro full" role="alert">{form.error}</p>}
         <div className="full"><button type="submit" className="button" disabled={form.busy}>{form.busy ? 'Salvando…' : 'Salvar'}</button></div>
       </form>

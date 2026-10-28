@@ -5,7 +5,7 @@ import type { PatientStatus, SessionUser } from '../../../shared/types.ts';
 import { api } from '../api.ts';
 import { Heading, Panel, PanelState } from '../components/Page.tsx';
 import { useToast } from '../components/Toast.tsx';
-import { age, patientStatusLabel, plural } from '../format.ts';
+import { age, initials, patientStatusLabel, plural } from '../format.ts';
 import { useLoad } from '../hooks.ts';
 import { PatientForm } from './patients/PatientForm.tsx';
 import { PatientPage } from './patients/PatientPage.tsx';
@@ -15,6 +15,8 @@ export function PatientsPage({ user, patientId, tab }: { user: SessionUser; pati
   if (patientId) return <PatientPage user={user} patientId={patientId} initialTab={tab} />;
   return <PatientList user={user} />;
 }
+
+const STATUS_TONE: Record<PatientStatus, string> = { active: 'chip-good', paused: 'chip-warn', discharged: 'chip-wine', inactive: 'chip-muted' };
 
 const normalize = (value: string) => value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase('pt-BR');
 
@@ -50,19 +52,21 @@ function PatientList({ user }: { user: SessionUser }) {
       <Panel title="Lista de pacientes">
         {visible.length ? (
           <div className="table-wrap">
-            <table className="table">
+            <table className="table patients-table stacked">
               <thead><tr><th>Nome</th><th>Telefone</th><th>Idade</th><th>Profissionais</th><th>Situação</th></tr></thead>
               <tbody>
                 {visible.map((item) => (
                   <tr key={item.id} className="link">
-                    <td>
-                      <a href={`#/pacientes?id=${item.id}`}>{item.name}</a>
-                      {(item.social_name || item.email) && <span className="sub">{item.social_name ? `Nome social: ${item.social_name}` : item.email}</span>}
+                    <td className="pt-name">
+                      <div className="pt-who" data-initials={initials(item.social_name || item.name)}>
+                        <a href={`#/pacientes?id=${item.id}`}>{item.name}</a>
+                        {(item.social_name || item.email) && <span className="sub">{item.social_name ? `Nome social: ${item.social_name}` : item.email}</span>}
+                      </div>
                     </td>
-                    <td>{item.phone || '—'}</td>
-                    <td>{age(item.birth_date) ?? '—'}</td>
-                    <td>{item.professional_ids.map((id) => names.get(id)).filter(Boolean).join(', ') || '—'}</td>
-                    <td>{patientStatusLabel[item.status]}</td>
+                    <td className="pt-phone">{item.phone || '—'}</td>
+                    <td className="pt-age hide-mobile">{age(item.birth_date) ?? '—'}</td>
+                    <td className="pt-prof">{item.professional_ids.map((id) => names.get(id)).filter(Boolean).join(', ') || '—'}</td>
+                    <td className="pt-status cell-status"><span className={`chip ${STATUS_TONE[item.status]}`}>{patientStatusLabel[item.status]}</span></td>
                   </tr>
                 ))}
               </tbody>

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Patient, PatientInput, PatientStatus, Professional } from '../../../../shared/types.ts';
 import { api } from '../../api.ts';
 import { Select } from '../../components/Select.tsx';
-import { Field, FormModal } from '../../components/Modal.tsx';
+import { Field, FormModal, PERSON_ICON } from '../../components/Modal.tsx';
 import { age, patientStatusLabel, validCpf } from '../../format.ts';
 import { text, useLoad } from '../../hooks.ts';
 
@@ -128,7 +128,7 @@ export function PatientForm({ patient, professionals, onClose, onSaved }: Props)
     <p className="patient-form-lead full">Preencha os dados disponíveis. Campos com * são obrigatórios.</p>
     <section className="patient-form-section full"><h3>Dados principais</h3><div className="form-grid">
       <div className="field"><span>Foto</span><label className="patient-photo-picker">
-        {photoUrl ? <img src={photoUrl} alt="Foto do paciente" /> : <span className="patient-photo-avatar" aria-hidden="true">●</span>}
+        {photoUrl ? <img src={photoUrl} alt="Foto do paciente" /> : <span className="patient-photo-avatar" aria-hidden="true">{PERSON_ICON}</span>}
         <span><strong>Escolher foto</strong><small>JPG ou PNG · até 2 MB</small></span>
         <input type="file" accept="image/jpeg,image/png" onChange={(event) => setPhoto(event.target.files?.[0] ?? null)} />
       </label></div>

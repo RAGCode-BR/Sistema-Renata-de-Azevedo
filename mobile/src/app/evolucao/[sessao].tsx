@@ -33,6 +33,7 @@ export default function EvolutionDraft() {
           router.back();
         } catch (failure) { Alert.alert('Não foi possível', message(failure)); } finally { setBusy(false); }
       }} />
+      <Muted>Formatação feita no computador aparece com marcadores: **negrito**, *itálico* e um hífen no início da linha para lista. Mantenha os marcadores para não perder a formatação.</Muted>
       <Muted>No celular você escreve e salva o rascunho. A finalização (que torna o registro definitivo) e o histórico completo ficam no computador.</Muted>
     </Screen>
   );

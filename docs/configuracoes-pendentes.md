@@ -10,7 +10,6 @@ Lista única do que falta configurar. O passo a passo detalhado de cada integra�
   - termos do portal do paciente: `web/src/portal/terms.ts` (e a regra para pacientes adolescentes);
   - termo e consentimento do assistente de IA (no próprio sistema, aba Assistente de IA).
 - [ ] **Contas da equipe:** definir quem participa e os e-mails; criar em **Usuários** (a Proprietária). Ver [homologação](homologacao.md).
-- [ ] **Verificação em duas etapas:** a Proprietária ativa na própria conta (menu da conta), entra de novo com o código e liga **Configurações → Segurança → Exigir para Proprietária e Gerência**.
 - [ ] **Homologação concluída** e dados fictícios apagados (`node tests/homologacao/rodar.mjs limpar`, resultado com zero restantes).
 
 ## 2. Endereços e login
@@ -28,6 +27,7 @@ Lista única do que falta configurar. O passo a passo detalhado de cada integra�
 | Google Agenda e Meet | Projeto no Google Cloud, tela de consentimento, credencial OAuth com o retorno `https://qnchebjrgnfgszrzlyue.supabase.co/functions/v1/google-oauth-callback` | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `APP_URL` (endereço oficial do sistema) |
 | WhatsApp | Número dedicado, app na Meta, 3 modelos aprovados, webhook | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN` |
 | Assistente de IA | Revisão jurídica, contrato com a Anthropic, limite mensal | `ANTHROPIC_API_KEY` |
+| Transcrição de áudios do WhatsApp do paciente | Mesmas regras da IA; contrato com a OpenAI (operadora de dados de saúde) | `OPENAI_API_KEY` (opcionais `TRANSCRIBE_MODEL`, `TRANSCRIBE_USD_PER_MINUTE`) |
 | Portal: avisos por e-mail | Conta no Resend com domínio verificado | `RESEND_API_KEY`, `PORTAL_EMAIL_FROM` |
 | Formulário de leads do site | Colar o formulário no site; só aceita as origens permitidas | `LEAD_ALLOWED_ORIGINS` (padrão: `renatadeazevedo.com.br`, com e sem www) |
 | Push do aplicativo | Conta na Expo e `projectId` (item 4) | `EXPO_ACCESS_TOKEN` (opcional) |

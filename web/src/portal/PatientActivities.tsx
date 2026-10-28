@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { api } from '../api.ts';
 import { Panel, PanelState } from '../components/Page.tsx';
 import { useToast } from '../components/Toast.tsx';
-import { dateOnly } from '../format.ts';
+import { dateOnly, dayOf } from '../format.ts';
 import { errorMessage, useLoad } from '../hooks.ts';
 
 export function PatientActivities({ patientId }: { patientId: string }) {
@@ -46,7 +46,7 @@ export function PatientActivities({ patientId }: { patientId: string }) {
           <span>{entry.text}</span>
         </label>)}
       </div>}
-      {item.status === 'completed' && <span className="muted small">Concluída em {dateOnly(item.completed_at!)}{item.patient_response ? ` · Sua resposta: ${item.patient_response}` : ''}</span>}
+      {item.status === 'completed' && <span className="muted small">Concluída em {dayOf(item.completed_at!)}{item.patient_response ? ` · Sua resposta: ${item.patient_response}` : ''}</span>}
     </div>
     {item.status === 'assigned' && <div className="portal-actions">
       <label className="field"><span>Resposta para a profissional (opcional)</span>

@@ -16,7 +16,7 @@ Cada item: faça, confira o resultado e anote qualquer coisa estranha, confusa o
 ### Todos
 
 - [ ] Entrar no sistema e no aplicativo do celular (Expo Go ou build de teste) com a própria conta.
-- [ ] Trocar a senha; ativar a verificação em duas etapas (menu da conta) e entrar de novo com o código.
+- [ ] Trocar a senha e entrar de novo com a senha nova.
 - [ ] Conferir que o menu mostra só o que faz sentido para a sua função ([matriz de acesso](matriz-de-acesso.md)).
 - [ ] Conferir os avisos no sino e abrir a página relacionada. Tarefas da equipe permanecem fora do sistema.
 
@@ -51,7 +51,6 @@ Cada item: faça, confira o resultado e anote qualquer coisa estranha, confusa o
 
 - [ ] Tudo acima que for da sua rotina, mais: Usuários (criar, mudar perfil, desativar e reativar uma conta de teste), Configurações.
 - [ ] Conferir que **não** vê o prontuário de outra profissional (só a situação, em Controle de prontuários).
-- [ ] Ligar **Configurações → Segurança → Exigir verificação em duas etapas** e confirmar que a Gerência precisa do código para entrar.
 
 ## Como anotar problemas
 

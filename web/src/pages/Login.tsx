@@ -5,7 +5,7 @@ import { secret, text, useFormSubmit } from '../hooks.ts';
 
 export function LoginPage({ notice, onLogin }: { notice: string; onLogin: (user: SessionUser) => void }) {
   const { busy, error, onSubmit } = useFormSubmit(async (data) => {
-    await api.login(text(data, 'email'), secret(data, 'password'));
+    await api.login(text(data, 'username'), secret(data, 'password'));
     const user = await api.session();
     if (!user) {
       const patient = await api.isPatientAccount().catch(() => false);
@@ -27,8 +27,8 @@ export function LoginPage({ notice, onLogin }: { notice: string; onLogin: (user:
         <h1>Entrar no sistema</h1>
         <p className="muted">Área reservada à equipe da clínica.</p>
         <label className="field">
-          <span>E-mail</span>
-          <input className="input" name="email" type="email" autoComplete="username" required />
+          <span>Login</span>
+          <input className="input" name="username" type="text" autoCapitalize="none" autoComplete="username" required />
         </label>
         <label className="field">
           <span>Senha</span>

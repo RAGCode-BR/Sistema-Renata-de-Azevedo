@@ -34,8 +34,9 @@ export function usePeriod(initial: Preset = 'mes') {
   const value = preset === 'personalizado' ? custom : range(preset);
   const period: Period = { ...value, label: `${dayLabel(value.from)} a ${dayLabel(value.to)}` };
 
-  const control = (
-    <div className="report-filters no-print">
+  // `fields` deixa cada relatório juntar os próprios filtros na mesma linha; `control` é a linha pronta.
+  const fields = (
+    <>
       <label className="field-inline">Período
         <Select className="input compact" value={preset} onChange={(event) => {
           const next = event.target.value as Preset;
@@ -55,9 +56,10 @@ export function usePeriod(initial: Preset = 'mes') {
             onChange={(event) => event.target.value && setCustom({ ...custom, to: event.target.value })} />
         </label>
       </>}
-    </div>
+    </>
   );
-  return { period, control };
+  const control = <div className="report-filters no-print">{fields}</div>;
+  return { period, control, fields };
 }
 
 export function ProfessionalFilter({ professionals, value, onChange }: { professionals: Professional[]; value: string; onChange: (id: string) => void }) {

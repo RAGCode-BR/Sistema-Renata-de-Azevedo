@@ -27,6 +27,8 @@ function periodRange(period: Period): { from: Date; to: Date } {
 
 // Controle administrativo do preenchimento: quais sessões realizadas estão sem evolução, em rascunho,
 // finalizadas ou finalizadas fora do prazo. Sem nenhum conteúdo clínico (clinical_note_status).
+const TONE: Record<string, string> = { pending: 'tone-warn', draft: 'tone-warn', overdue: 'tone-bad', final_late: 'tone-warn', final: 'tone-good' };
+
 export function RecordControlPage() {
   const [period, setPeriod] = useState<Period>('30');
   const [professional, setProfessional] = useState('');
@@ -57,7 +59,7 @@ export function RecordControlPage() {
       <section className="numbers" aria-label="Resumo">
         {([['pending', count('pending')], ['draft', count('draft')], ['overdue', scoped.filter((row) => row.overdue).length],
           ['final_late', count('final_late')], ['final', count('final')]] as const).map(([key, value]) => (
-          <button key={key} type="button" className={status === key ? 'number selected' : 'number'} aria-pressed={status === key}
+          <button key={key} type="button" className={['number', status === key && 'selected', value > 0 && TONE[key]].filter(Boolean).join(' ')} aria-pressed={status === key}
             onClick={() => setStatus(status === key ? '' : key)}>
             <strong>{data ? value : '–'}</strong>
             <span>{key === 'overdue' ? 'atrasadas (prazo vencido)' : STATUS_LABEL[key].toLowerCase()}</span>

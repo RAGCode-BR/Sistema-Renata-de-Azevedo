@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { Fragment, useMemo } from 'react';
 import { can } from '../../../shared/permissions.ts';
 import { occupiesSlot } from '../../../shared/types.ts';
 import type { Appointment, PendingNote, SessionUser } from '../../../shared/types.ts';
@@ -6,6 +6,8 @@ import { api } from '../api.ts';
 import { Heading, Panel, PanelState } from '../components/Page.tsx';
 import { addDays, dateKey, longDay, modalityLabel, money, plural, relativeDay, startOfToday, statusLabel, time } from '../format.ts';
 import { useLoad } from '../hooks.ts';
+import { CashFlow } from './home/CashFlow.tsx';
+import { TodayPatients } from './home/TodayPatients.tsx';
 
 // Painel inicial. Mostra só dados reais e só o que cada perfil pode ver (as consultas passam pelo RLS):
 // - quem vê a agenda geral (Proprietário(a), Gerente, Recepção): a clínica toda e as pendências de
@@ -16,6 +18,7 @@ export function HomePage({ user }: { user: SessionUser }) {
   const overview = can(user, 'appointments.view_all');
   const billing = can(user, 'billing.view');
   const crm = can(user, 'crm.view');
+  const finance = can(user, 'finance.view');
   const ownProfessional = user.roles.includes('professional') ? user.professional_id : null;
   const range = useMemo(() => {
     const today = startOfToday();
@@ -45,12 +48,16 @@ export function HomePage({ user }: { user: SessionUser }) {
         </section>
         <Pendencies overview={false} ownProfessional={null} pending={[]} myPending={[]} unrecorded={[]} myUnrecorded={[]}
           overdueCharges={receivables?.overdue_count ?? 0} overdueAmount={receivables?.overdue_amount ?? 0} loaded={Boolean(data)} />
+        {finance && <CashFlow />}
       </>
     );
   }
 
   const scheduled = appointments.filter((item) => occupiesSlot(item.status));
   const today = scheduled.filter((item) => new Date(item.starts_at) < range.tomorrow);
+  // Todas as situações de hoje (inclusive canceladas), da clínica ou só da profissional.
+  const todayAll = appointments.filter((item) => new Date(item.starts_at) < range.tomorrow
+    && (overview || item.professional_id === ownProfessional));
   const mine = ownProfessional ? scheduled.filter((item) => item.professional_id === ownProfessional) : [];
   const myPending = ownProfessional ? pending.filter((item) => item.professional_id === ownProfessional) : [];
   const myUnrecorded = ownProfessional ? unrecorded.filter((item) => item.professional_id === ownProfessional) : [];
@@ -65,11 +72,9 @@ export function HomePage({ user }: { user: SessionUser }) {
 
       {error && <p className="notice erro" role="alert">{error}</p>}
 
-      <section className="numbers" aria-label="Resumo" aria-busy={!data}>
-        <a className="number" href="#/agenda">
-          <strong>{data ? today.length : '–'}</strong>
-          <span>{overview ? 'sessões hoje na clínica' : 'sessões suas hoje'}</span>
-        </a>
+      <TodayPatients appointments={todayAll} loaded={Boolean(data)} scope={overview ? 'clinic' : 'own'} />
+
+      <section className="numbers home-stats" aria-label="Resumo" aria-busy={!data}>
         <a className="number" href="#/agenda">
           <strong>{data ? (overview ? scheduled : mine).length : '–'}</strong>
           <span>nos próximos 7 dias</span>
@@ -98,12 +103,12 @@ export function HomePage({ user }: { user: SessionUser }) {
 
       <div className="content">
         <Panel title="Sessões de hoje">
-          {today.length ? <TodayTable appointments={today} showProfessional={overview} /> :
+          {today.length ? <DayList appointments={today} showProfessional={overview} /> :
             <PanelState error={error} loading={!data} empty="Nenhuma sessão hoje." />}
         </Panel>
 
         <aside className="side">
-          <section className="next" aria-label="Próxima sessão">
+          <section className={next ? 'next' : 'next is-empty'} aria-label="Próxima sessão">
             {next ? (
               <>
                 <div className="next-when">
@@ -125,30 +130,34 @@ export function HomePage({ user }: { user: SessionUser }) {
             overdueAmount={receivables?.overdue_amount ?? 0} loaded={Boolean(data)} />
         </aside>
       </div>
+
+      {finance && <CashFlow />}
     </>
   );
 }
 
-function TodayTable({ appointments, showProfessional }: { appointments: Appointment[]; showProfessional: boolean }) {
+// Agenda do dia em lista: horário, faixa colorida pela situação e a marca "agora" entre a última sessão
+// que já começou e a próxima. Em telas estreitas os dados se reorganizam sem rolagem lateral.
+function DayList({ appointments, showProfessional }: { appointments: Appointment[]; showProfessional: boolean }) {
+  const now = new Date();
+  const nextIndex = appointments.findIndex((item) => new Date(item.starts_at) > now);
+  const marker = nextIndex > 0 ? nextIndex : -1;
   return (
-    <div className="table-wrap">
-      <table className="table">
-        <thead>
-          <tr><th>Horário</th><th>Paciente</th>{showProfessional && <th>Profissional</th>}<th>Modalidade</th><th>Situação</th></tr>
-        </thead>
-        <tbody>
-          {appointments.map((item) => (
-            <tr key={item.id}>
-              <td className="num-left">{time(item.starts_at)}–{time(item.ends_at)}</td>
-              <td>{item.patient_name}</td>
-              {showProfessional && <td>{item.professional_name}</td>}
-              <td>{modalityLabel[item.modality]}</td>
-              <td><span className={`st st-${item.status}`}>{statusLabel[item.status]}</span></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <ol className="day-list">
+      {appointments.map((item, index) => (
+        <Fragment key={item.id}>
+          {index === marker && <li className="day-now" aria-label={`Agora, ${time(now.toISOString())}`}><span>agora, {time(now.toISOString())}</span></li>}
+          <li className={`day-item day-${item.status}${new Date(item.ends_at) < now ? ' is-past' : ''}`}>
+            <span className="day-time"><b>{time(item.starts_at)}</b><small>até {time(item.ends_at)}</small></span>
+            <span className="day-who">
+              <strong>{item.patient_name}</strong>
+              <small>{showProfessional ? `Com ${item.professional_name}, ` : ''}{modalityLabel[item.modality].toLowerCase()}</small>
+            </span>
+            <span className={`st st-${item.status}`}>{statusLabel[item.status]}</span>
+          </li>
+        </Fragment>
+      ))}
+    </ol>
   );
 }
 

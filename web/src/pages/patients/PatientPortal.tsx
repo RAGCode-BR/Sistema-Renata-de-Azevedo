@@ -6,7 +6,7 @@ import { api } from '../../api.ts';
 import { ConfirmModal, Field } from '../../components/Modal.tsx';
 import { Panel, PanelState } from '../../components/Page.tsx';
 import { useToast } from '../../components/Toast.tsx';
-import { age, dateOnly, dateTime, fileSize } from '../../format.ts';
+import { age, dateTime, dayOf, fileSize } from '../../format.ts';
 import { errorMessage, text, useFormSubmit, useLoad } from '../../hooks.ts';
 
 const REQUEST: Record<string, string> = { reschedule: 'Remarcar sessão', cancel: 'Cancelar sessão', paid: 'Avisou pagamento' };
@@ -75,11 +75,11 @@ export function PatientPortal({ user, patient, caresFor }: { user: SessionUser; 
                 <div>
                   <strong>{item.name}</strong> · {item.email}
                   <span className="sub">
-                    {item.relationship === 'guardian' ? 'Responsável' : 'O próprio paciente'} · convidado em {dateOnly(item.invited_at)}
+                    {item.relationship === 'guardian' ? 'Responsável' : 'O próprio paciente'} · convidado em {dayOf(item.invited_at)}
                     {item.invited_by_name && ` por ${item.invited_by_name}`}
-                    {item.revoked_at ? ` · acesso encerrado em ${dateOnly(item.revoked_at)}`
+                    {item.revoked_at ? ` · acesso encerrado em ${dayOf(item.revoked_at)}`
                       : item.last_sign_in_at ? ` · último acesso ${dateTime(item.last_sign_in_at)}` : ' · ainda não entrou'}
-                    {!item.revoked_at && item.terms_accepted_at && ` · aceitou os termos em ${dateOnly(item.terms_accepted_at)}`}
+                    {!item.revoked_at && item.terms_accepted_at && ` · aceitou os termos em ${dayOf(item.terms_accepted_at)}`}
                   </span>
                 </div>
                 {canManage && !item.revoked_at && <button type="button" className="link-btn danger" onClick={() => setRevoking(item)}>Encerrar acesso</button>}
@@ -132,7 +132,7 @@ export function PatientPortal({ user, patient, caresFor }: { user: SessionUser; 
                 {documents.map((item) => (
                   <tr key={item.id}>
                     <td>{item.title}</td>
-                    <td>{dateOnly(item.created_at)}{item.shared_by_name && ` · ${item.shared_by_name}`}</td>
+                    <td>{dayOf(item.created_at)}{item.shared_by_name && ` · ${item.shared_by_name}`}</td>
                     <td>{fileSize(item.size_bytes)}</td>
                     <td>{item.first_download_at ? `${dateTime(item.first_download_at)}${item.downloads > 1 ? ` (${item.downloads} vezes)` : ''}` : 'Ainda não'}</td>
                     <td className="actions-cell">

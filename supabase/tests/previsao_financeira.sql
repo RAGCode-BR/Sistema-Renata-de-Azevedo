@@ -51,4 +51,5 @@ DO $$ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
 END $$;
+SELECT 'Previsão financeira passou.' AS resultado;
 ROLLBACK;

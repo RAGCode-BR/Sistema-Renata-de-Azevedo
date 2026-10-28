@@ -1,6 +1,6 @@
 import { api } from '../../api.ts';
 import { Panel, PanelState } from '../../components/Page.tsx';
-import { dateOnly } from '../../format.ts';
+import { dayOf } from '../../format.ts';
 import { useLoad } from '../../hooks.ts';
 
 export function PatientFormResults({ patientId }: { patientId: string }) {
@@ -8,7 +8,7 @@ export function PatientFormResults({ patientId }: { patientId: string }) {
   return <Panel title="Formulários e escalas respondidos">
     {!data ? <PanelState error={error} loading={!error} empty="" />
       : data.length ? <div className="form-result-list">{data.map((form) => <article className="form-result-card" key={form.id}>
-        <span className="muted small">Respondido em {dateOnly(form.completed_at)} · {form.kind === 'scale' ? 'Escala' : form.kind === 'exercise' ? 'Exercício' : 'Formulário'}</span>
+        <span className="muted small">Respondido em {dayOf(form.completed_at)} · {form.kind === 'scale' ? 'Escala' : form.kind === 'exercise' ? 'Exercício' : 'Formulário'}</span>
         <h3>{form.title}</h3>
         {form.description && <p className="muted pre">{form.description}</p>}
         {form.score !== null && <p className="form-result-score">Pontuação: {Number(form.score)} de {Number(form.score_max)}

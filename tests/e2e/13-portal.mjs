@@ -106,7 +106,7 @@ try {
   staff.on('pageerror', (e) => problems.push(e.message));
   await staff.setViewport({ width: 1366, height: 900 });
   await staff.goto(base, { waitUntil: 'networkidle0' });
-  await staff.type('input[name=email]', STAFF.email);
+  await staff.type('input[name=username]', STAFF.email.split('@')[0]);
   await staff.type('input[name=password]', STAFF.password);
   await staff.click('button[type=submit]');
   await staff.waitForSelector('.rail-link');

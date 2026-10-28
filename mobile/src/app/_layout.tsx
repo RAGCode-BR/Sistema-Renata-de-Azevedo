@@ -118,7 +118,7 @@ function MfaScreen() {
         </>
       ) : (
         <Text style={{ color: theme.muted, textAlign: 'center', marginBottom: 20 }}>
-          A clínica exige um código do celular para o seu perfil. Ative a verificação em duas etapas pelo computador (sistema → menu da conta) e depois entre aqui de novo.
+          A clínica exige um código do celular para o seu perfil. Entre primeiro pelo sistema no computador, que mostra o passo a passo do app autenticador, e depois entre aqui de novo.
         </Text>
       )}
       <View style={{ marginTop: 8 }}><Button label="Sair da conta" variant="light" onPress={signOut} /></View>

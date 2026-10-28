@@ -55,6 +55,7 @@ BEGIN
   SELECT string_agg(p.proname, ', ') INTO found
   FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
   WHERE n.nspname = 'public' AND p.proname IN ('capture_lead', 'portal_grant_access', 'ai_finish_run', 'set_google_calendar_as_owner',
+      'attach_whatsapp_audio', 'finish_patient_whatsapp_audio', 'fail_patient_whatsapp_audio',
       'whatsapp_inbound', 'whatsapp_status', 'whatsapp_enqueue_due')
     AND has_function_privilege('authenticated', p.oid, 'EXECUTE');
   IF found IS NOT NULL THEN RAISE EXCEPTION 'FALHA: funções internas liberadas para contas logadas: %', found; END IF;

@@ -4,7 +4,7 @@ Quem vê e faz o quê. **A regra vale no banco** (RLS e funções em `supabase/m
 
 - O teste automático `supabase/tests/seguranca.sql` falha se a tabela de permissões do banco ficar diferente desta matriz. Para mudar uma permissão, mude a migração, o teste e este documento juntos.
 - Uma pessoa pode ter vários perfis (ex.: Renata = Proprietária + Profissional); as permissões se somam.
-- Com a **verificação em duas etapas exigida** (Configurações → Segurança), Proprietária e Gerência ficam sem nenhuma permissão até digitar o código.
+- A verificação em duas etapas foi retirada da tela a pedido da clínica em 28/10/2026. No banco, a exigência continua existindo, desligada (`clinic_settings.require_mfa = false`).
 
 ## Perfis
 
@@ -44,6 +44,9 @@ Quem vê e faz o quê. **A regra vale no banco** (RLS e funções em `supabase/m
 ## Regras que não seguem o cargo
 
 - **Prontuário:** só a profissional responsável lê e escreve as evoluções dos próprios pacientes. Nem a Proprietária nem a Gerência leem o prontuário de outra profissional; elas veem só a situação (pendente, finalizado, fora do prazo). Cada abertura fica registrada.
+- **Tarefas dos pacientes (exceção decidida pela clínica em 27/10/2026):** a Proprietária vê e edita o conteúdo das tarefas de todas as profissionais, inclusive orientações e respostas do paciente. A Gerência e as demais funções não veem.
+- **Formulários e escalas no portal (decidido pela clínica em 27/10/2026):** o paciente (ou responsável) vê as próprias respostas e a pontuação das escalas logo ao enviar, antes da devolutiva.
+- **Mensagens de WhatsApp do lead (decidido pela clínica em 27/10/2026):** ao converter o lead em paciente, as mensagens recebidas durante o contato comercial passam a constar no paciente e ficam visíveis para a profissional responsável (por exemplo, ao criar tarefas a partir do WhatsApp).
 - **Assistente de IA:** só a profissional responsável, com o termo dela aceito e o consentimento do paciente registrado.
 - **Portal:** o paciente (ou responsável) vê só os pacientes vinculados à própria conta; acesso revogado corta tudo na hora.
 - **Contas:** ninguém exclui ou desativa a própria conta; sempre resta uma Proprietária ativa.

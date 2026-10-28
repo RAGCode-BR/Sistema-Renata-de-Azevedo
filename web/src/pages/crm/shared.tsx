@@ -260,7 +260,7 @@ export function LeadDetail({ user, leadId, lists, onClose, onChanged }: {
             <h3 className="task-section">Avaliações</h3>
             {assessments.map((item) => <div key={item.id} className="lead-assessment-row">
               <span><strong>{dateTime(item.starts_at)}</strong> · {item.professional_name}<span className="sub">
-                {item.status === 'scheduled' ? 'Agendada' : item.status === 'attended' ? 'Compareceu' : item.status === 'missed' ? 'Faltou'
+                {item.status === 'scheduled' ? (new Date(item.ends_at).getTime() <= Date.now() ? 'Já passou: registre se compareceu ou faltou' : 'Agendada') : item.status === 'attended' ? 'Compareceu' : item.status === 'missed' ? 'Faltou'
                   : item.status === 'converted' ? 'Virou sessão do paciente' : 'Cancelada'}</span></span>
               <span className="lead-assessment-actions">
                 {item.status === 'scheduled' && <a className="link-btn" href={`#/agenda?data=${dateKey(new Date(item.starts_at))}`}>Ver agenda</a>}
@@ -363,17 +363,17 @@ function ConvertForm({ lead, lists, onClose, onDone }: { lead: Lead; lists: CrmL
           </Select>
         </Field>
       )}
-      {(
-        <fieldset className="full checks">
-          <legend>{existing ? 'Adicionar profissional ao paciente (opcional)' : 'Profissional responsável'}</legend>
-          {lists.professionals.filter((item) => item.active).map((item) => (
-            <label key={item.id} className="check">
-              <input type="checkbox" name="professionals" value={item.id} defaultChecked={item.id === lead.preferred_professional_id} />
-              <span>{item.name}</span>
-            </label>
-          ))}
-        </fieldset>
-      )}
+      {/* Paciente existente: nada vem marcado, para não dar acesso ao cadastro dele sem querer. A chave recria as caixas ao trocar. */}
+      <fieldset key={existing ? 'existente' : 'novo'} className="full checks">
+        <legend>{existing ? 'Adicionar profissional ao paciente (opcional)' : 'Profissional responsável'}</legend>
+        {existing && <p className="muted small">A profissional marcada passa a ver o cadastro, a agenda e o portal deste paciente.</p>}
+        {lists.professionals.filter((item) => item.active).map((item) => (
+          <label key={item.id} className="check">
+            <input type="checkbox" name="professionals" value={item.id} defaultChecked={!existing && item.id === lead.preferred_professional_id} />
+            <span>{item.name}</span>
+          </label>
+        ))}
+      </fieldset>
     </FormModal>
   );
 }

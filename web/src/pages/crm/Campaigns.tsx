@@ -116,7 +116,7 @@ function CampaignForm({ campaign, sources, onClose, onSaved }: {
           <button type="button" className="link-btn" onClick={() => navigator.clipboard?.writeText(campaignLink({ utm_campaign: slug(code), source_name: sourceName }))}>Copiar link</button>
         </div>
       )}
-      <Field label="Observações" full><input className="input" name="notes" maxLength={500} defaultValue={campaign?.notes ?? ''} /></Field>
+      <Field label="Observações" full><textarea className="input" name="notes" rows={2} maxLength={500} defaultValue={campaign?.notes ?? ''} /></Field>
       {campaign && (
         <label className="check full"><input type="checkbox" name="active" defaultChecked={campaign.active} /><span>Campanha ativa</span></label>
       )}

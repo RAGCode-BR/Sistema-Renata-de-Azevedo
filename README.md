@@ -65,13 +65,13 @@ Projeto **RenatadeAzevedo_Projeto** (região São Paulo). Os comandos usam o Sup
 
 - **Migrações:** crie um arquivo novo com `npx supabase migration new descricao`; não edite migrações já aplicadas. Antes de aplicar, rode `npm run test:banco-local` em `tests/` (aplica tudo num Postgres temporário). Toda tabela nova precisa de RLS e de políticas próprias.
 - **Automático:** a GitHub Action `.github/workflows/supabase.yml` aplica migrações, publica as Edge Functions e roda os testes do banco a cada push na `main` que mexa em `supabase/`. Precisa dos segredos `SUPABASE_ACCESS_TOKEN` e `SUPABASE_DB_PASSWORD` no repositório.
-- **Login:** configuração em `supabase/config.toml` (sem cadastro público, senha mínima de 10 caracteres, código de 6 dígitos no portal). No projeto real, os ajustes de e-mail ficam no painel (ver [configurações pendentes](docs/configuracoes-pendentes.md)).
+- **Login:** a equipe usa nome de usuário e senha (mínimo de 10 caracteres); pacientes continuam com código por e-mail. Não há cadastro público. Os ajustes de e-mail ficam no painel (ver [configurações pendentes](docs/configuracoes-pendentes.md)).
 
 ## Testes
 
 ```sh
 cd tests && npm install
-node run.mjs                 # tudo: banco, telas, app, portal, verificação em duas etapas e integrações
+node run.mjs                 # tudo: banco, telas, app, portal e integrações
 node run.mjs agenda portal   # só alguns roteiros
 npm run test:banco-local     # migrações e testes do banco num Postgres temporário (inclui pagamentos simultâneos)
 ```

@@ -1,4 +1,7 @@
+import { createRequire } from 'node:module';
 import puppeteer from 'puppeteer-core';
+const { createClient } = createRequire(`${process.env.PROJECT_DIR}/package.json`)('@supabase/supabase-js');
+const admin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 const [base, ownerEmail, ownerPassword] = process.argv.slice(2);
 const browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH, headless: true });
 const page = await browser.newPage();
@@ -36,10 +39,10 @@ async function logout() {
   await waitText('Entrar no sistema');
 }
 async function login(email, password) {
-  await page.waitForSelector('input[name=email]');
-  await page.$eval('input[name=email]', (e) => { e.value = ''; });
+  await page.waitForSelector('input[name=username]');
+  await page.$eval('input[name=username]', (e) => { e.value = ''; });
   await page.$eval('input[name=password]', (e) => { e.value = ''; });
-  await page.type('input[name=email]', email);
+  await page.type('input[name=username]', email.split('@')[0]);
   await page.type('input[name=password]', password);
   await clickText('button', 'Entrar');
 }
@@ -47,6 +50,7 @@ async function newUser(name, email, roles, professional) {
   await clickText('button', 'Novo usuário');
   await typeIn('name', name);
   await typeIn('email', email);
+  await typeIn('username', email.split('@')[0]);
   for (const role of ['professional', 'owner', 'manager', 'reception', 'finance']) {
     const checked = await page.$eval(`dialog[open] input[name=roles][value=${role}]`, (e) => e.checked);
     if (checked !== roles.includes(role)) await page.click(`dialog[open] input[name=roles][value=${role}]`);
@@ -165,10 +169,15 @@ try {
   await page.waitForSelector('dialog[open] select[name=status]');
   await page.select('dialog[open] select[name=status]', 'paused');
   await page.type('dialog[open] textarea[name=admin_notes]', 'Prefere contato por WhatsApp.');
+  await (await page.$('dialog[open] .patient-photo-picker input[type=file]')).uploadFile(`${FILES}/foto-teste.png`);
   await clickText('dialog[open] button', 'Salvar cadastro');
   await toast('Cadastro atualizado.');
   await page.waitForFunction(() => document.querySelector('.lead')?.textContent.includes('Pausado') && document.querySelector('main').innerText.includes('Prefere contato por WhatsApp.'), { timeout: 10000 });
   ok('Edição: situação "Pausado" e observação administrativa salvas');
+  const fichaId = await page.evaluate(() => new URLSearchParams(location.hash.split('?')[1]).get('id'));
+  const { data: photos } = await admin.storage.from('patient-documents').list(`patients/${fichaId}/photo`);
+  if (photos?.length !== 1) throw new Error(`troca de foto deixou ${photos?.length} arquivos na pasta`);
+  ok('Troca de foto: a anterior é apagada do armazenamento (1 arquivo na pasta)');
 
   await clickText('.tab', 'Documentos');
   const input = await page.waitForSelector('input[type=file]');
@@ -200,6 +209,13 @@ try {
   await page.select('select[aria-label=Situação]', 'paused');
   await page.waitForFunction(() => [...document.querySelectorAll('tbody a')].some((a) => a.textContent === 'Paciente Ficha'), { timeout: 10000 });
   ok('Lista: busca por telefone e filtro por situação (paciente pausado só aparece com o filtro certo)');
+  await page.screenshot({ path: `${process.env.SHOT_DIR}/pacientes-lista.png` });
+  await page.setViewport({ width: 390, height: 844 });
+  await new Promise((r) => setTimeout(r, 400));
+  if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)) throw new Error('lista de pacientes com rolagem lateral no celular');
+  await page.screenshot({ path: `${process.env.SHOT_DIR}/pacientes-lista-celular.png` });
+  await page.setViewport({ width: 1366, height: 860 });
+  ok('Lista no celular sem rolagem lateral');
 
   await page.evaluate(() => [...document.querySelectorAll('tbody a')].find((a) => a.textContent === 'Paciente Ficha').click());
   await page.waitForFunction(() => document.querySelector('main h1')?.textContent === 'Paciente Ficha');

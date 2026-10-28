@@ -11,12 +11,15 @@ const text = (value: unknown, max = 255) => (typeof value === 'string' ? value.t
 serveAdmin(async ({ admin, caller, input }) => {
   const name = text(input.name);
   const email = text(input.email).toLowerCase();
+  const username = typeof input.username === 'string' ? input.username.trim().toLowerCase() : '';
   const password = typeof input.password === 'string' ? input.password : '';
   const roles = [...new Set(Array.isArray(input.roles) ? input.roles : [])];
   const professionalId = roles.includes('professional') ? text(input.professionalId) : null;
 
   if (!name) return reply(400, { error: 'Informe o nome.' });
   if (!EMAIL.test(email)) return reply(400, { error: 'Informe um e-mail válido.' });
+  if (username && !/^[a-z][a-z0-9._-]{2,31}$/.test(username))
+    return reply(400, { error: 'Login inválido. Use de 3 a 32 letras sem acento, números, ponto, hífen ou sublinhado; comece com uma letra.' });
   if (!roles.length || !roles.every((role) => typeof role === 'string' && ROLES.includes(role))) {
     return reply(400, { error: 'Escolha ao menos um perfil.' });
   }
@@ -33,16 +36,21 @@ serveAdmin(async ({ admin, caller, input }) => {
     const { count } = await admin.from('profiles').select('id', { count: 'exact', head: true }).eq('professional_id', professionalId);
     if (count) return reply(409, { error: 'Esta profissional já tem uma conta.' });
   }
+  if (username) {
+    const { count } = await admin.from('profiles').select('id', { count: 'exact', head: true }).eq('username', username);
+    if (count) return reply(409, { error: 'Este login já está em uso.' });
+  }
 
   const { data, error } = await admin.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
     user_metadata: { name },
-    app_metadata: { roles, professional_id: professionalId }
+    app_metadata: { roles, professional_id: professionalId, ...(username ? { username } : {}) }
   });
   if (error || !data.user) {
     if (error?.code === 'email_exists') return reply(409, { error: 'Este cadastro já existe.' });
+    if (error?.message?.includes('profiles_username_unique')) return reply(409, { error: 'Este login já está em uso.' });
     if (error?.code === 'weak_password') return reply(400, { error: 'Senha fraca. Escolha uma senha mais longa.' });
     console.error(error);
     return reply(500, { error: 'Não foi possível criar a conta.' });

@@ -5,7 +5,7 @@ import { api } from '../api.ts';
 import { Field, FormModal } from '../components/Modal.tsx';
 import { Heading, Panel, PanelState } from '../components/Page.tsx';
 import { useToast } from '../components/Toast.tsx';
-import { dateOnly } from '../format.ts';
+import { dateOnly, dayOf } from '../format.ts';
 import { errorMessage, text, useLoad } from '../hooks.ts';
 
 export function PatientActivitiesPage({ isOwner = false, initialPatient = null }: { isOwner?: boolean; initialPatient?: string | null }) {
@@ -64,7 +64,7 @@ export function PatientActivitiesPage({ isOwner = false, initialPatient = null }
             </span>}
             {item.patient_response && <span className="sub pre"><strong>Resposta:</strong> {item.patient_response}</span>}</td>
           <td>{item.due_date ? dateOnly(item.due_date) : 'Sem prazo'}</td>
-          <td>{item.status === 'assigned' ? 'Em aberto' : item.status === 'completed' ? `Concluída em ${dateOnly(item.completed_at!)}` : 'Cancelada'}</td>
+          <td>{item.status === 'assigned' ? 'Em aberto' : item.status === 'completed' ? `Concluída em ${dayOf(item.completed_at!)}` : 'Cancelada'}</td>
           <td className="actions-cell">{item.status === 'assigned' && <>
             <button type="button" className="link-btn" onClick={() => { setSelectedPatient(item.patient_id); setSelectedProfessional(item.professional_id); setSourceMessage(''); setDraftTitle(item.title); setDraftInstructions(item.instructions); setChecklist(item.checklist ?? []); setEditing(item); }}>Editar</button>
             <button type="button" className="link-btn danger" disabled={busy === item.id} onClick={() => cancel(item)}>Cancelar</button>
@@ -110,7 +110,7 @@ export function PatientActivitiesPage({ isOwner = false, initialPatient = null }
           {sourceRows.map((message) => {
             const content = message.audio ? message.transcript : message.body;
             return <div className={sourceMessage === message.id ? 'activity-whatsapp-item selected' : 'activity-whatsapp-item'} key={message.id}>
-              <span className="muted small">{message.audio ? 'Áudio' : 'Mensagem'} · {dateOnly(message.created_at)}</span>
+              <span className="muted small">{message.audio ? 'Áudio' : 'Mensagem'} · {dayOf(message.created_at)}</span>
               <p className="pre">{content || 'Áudio ainda não transcrito.'}</p>
               {message.audio && !message.transcript
                 ? <button type="button" className="button light" disabled={Boolean(transcribing)} onClick={async () => {

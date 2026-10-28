@@ -5,7 +5,7 @@ import { Field, FormModal } from '../components/Modal.tsx';
 import { Heading, Panel, PanelState } from '../components/Page.tsx';
 import { Select } from '../components/Select.tsx';
 import { useToast } from '../components/Toast.tsx';
-import { dateOnly } from '../format.ts';
+import { dateOnly, dayOf } from '../format.ts';
 import { errorMessage, text, useLoad } from '../hooks.ts';
 
 const labels: Record<PatientFormKind, string> = { exercise: 'Exercício', form: 'Formulário', scale: 'Escala' };
@@ -52,7 +52,7 @@ export function PatientFormsPage() {
         : assignments.data.length ? <div className="table-wrap"><table className="table">
           <thead><tr><th>Paciente</th><th>Conteúdo</th><th>Enviado</th><th>Prazo</th><th>Situação</th><th><span className="sr-only">Ações</span></th></tr></thead>
           <tbody>{assignments.data.map((item) => <tr key={item.id}>
-            <td>{item.patient_name}</td><td>{item.title}</td><td>{dateOnly(item.assigned_at)}</td>
+            <td>{item.patient_name}</td><td>{item.title}</td><td>{dayOf(item.assigned_at)}</td>
             <td>{dateOnly(item.due_date)}</td><td>{item.status === 'completed'
               ? <a href={`#/prontuarios?paciente=${item.patient_id}`}>Respondido · abrir prontuário</a>
               : item.status === 'cancelled' ? 'Cancelado' : 'Aguardando resposta'}</td>
