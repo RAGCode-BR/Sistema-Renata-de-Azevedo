@@ -124,7 +124,7 @@ try {
 
   await go('Agenda');
   await waitText('no período');
-  await newSession({ when: at(monday, 0, 10), frequency: 'weekly', count: 3 });
+  await newSession({ when: at(monday, 0, 10), duration: '45', frequency: 'weekly', count: 3 });
   await toast('3 sessões agendadas.');
   await goWeekOf(monday);
   await page.waitForFunction(() => [...document.querySelectorAll('.slot-item')].some((e) => e.innerText.includes('Paciente Agenda')), { timeout: 10000 });
@@ -139,10 +139,15 @@ try {
 
   await clickText('dialog[open] button', 'Remarcar');
   await page.waitForSelector('dialog[open] input[name=startsAt]');
+  const durationBefore = await page.$eval('dialog[open] select[name=duration]', (el) => el.value);
+  if (durationBefore !== '45') throw new Error(`Remarcação mudou a duração antes de salvar: ${durationBefore}`);
   await page.$eval('dialog[open] input[name=startsAt]', (el, v) => { el.value = v; }, localInput(at(monday, 0, 14)));
   await page.click('dialog[open] button[type=submit]');
   await toast('Sessão remarcada.');
   await page.waitForFunction(() => [...document.querySelectorAll('.slot-item')].some((e) => e.innerText.includes('14:00')), { timeout: 10000 });
+  const durationAfter = await page.evaluate(() => [...document.querySelectorAll('.slot-item')]
+    .find((e) => e.innerText.includes('14:00'))?.style.getPropertyValue('--dur'));
+  if (durationAfter !== '45') throw new Error(`Remarcação não preservou 45 minutos: ${durationAfter}`);
   if (await card('10:00')) throw new Error('sessão remarcada continua no horário antigo');
   await page.click('.agenda-toolbar input[type=checkbox]');
   await page.waitForFunction(() => [...document.querySelectorAll('.slot-item')].some((e) => e.innerText.includes('remarcada')), { timeout: 10000 });
@@ -157,6 +162,7 @@ try {
   await page.type('dialog[open] input[name=reason]', 'Férias do paciente');
   await page.click('dialog[open] button[type=submit]');
   await toast('2 sessões canceladas.');
+  await page.waitForFunction(() => !document.querySelector('dialog[open]'), { timeout: 10000 });
   ok('Cancelada pelo paciente com "também as próximas": 2 sessões canceladas');
 
   await goWeekOf(monday);

@@ -190,6 +190,12 @@
   flex: none;
 }
 .slot-item:hover, .slot-item:focus-visible { z-index: 3; }
+.slot-item.is-short { padding: 3px 8px; line-height: 1.15; }
+.slot-item.is-short strong { font-size: 13px; }
+.slot-item.is-short span { font-size: 12px; }
+.slot-item.is-compact { display: flex; align-items: center; gap: 6px; padding: 2px 7px; line-height: 1; }
+.slot-item.is-compact strong { flex: 1; font-size: 13px; }
+.slot-item.is-compact span { flex: none; font-size: 11px; }
 
 .b-confirmada { background: var(--vinho-claro); }
 .b-aguardando { background: var(--branco); box-shadow: inset 0 0 0 1px #d7b99f; border: 1px dashed #c9a27f; }
@@ -271,12 +277,13 @@
 .month-item { border-radius: 4px; }
 
 /* Pessoas nas listas: iniciais no círculo (cor própria via --avatar-bg/--avatar-fg) e etiquetas de situação */
-.pt-who { display: grid; grid-template-columns: 38px minmax(0, 1fr); column-gap: 12px; align-items: center; }
+.pt-who { position: relative; display: grid; grid-template-columns: 38px minmax(0, 1fr); column-gap: 12px; align-items: center; }
 .pt-who::before { content: attr(data-initials); grid-row: 1 / span 2; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--avatar-bg, var(--vinho-claro)); color: var(--avatar-fg, var(--vinho)); font-size: 13px; font-weight: 500; letter-spacing: .02em; }
-.pt-who > * { grid-column: 2; }
+.pt-who > .pt-photo { position: absolute; top: 50%; left: 0; width: 38px; height: 38px; border-radius: 50%; object-fit: cover; transform: translateY(-50%); }
+.pt-who > :not(.pt-photo) { grid-column: 2; }
 .pt-who > strong { font-weight: 500; }
 /* Sem subtítulo, o círculo ocupa uma linha só e o nome fica centralizado com ele. */
-.pt-who:not(:has(> :nth-child(2)))::before { grid-row: 1; }
+.pt-who:not(:has(> .sub))::before { grid-row: 1; }
 .chip { display: inline-block; padding: 3px 10px; border-radius: 999px; background: var(--creme); color: var(--suave); font-size: 13px; line-height: 1.35; white-space: nowrap; }
 .chip-good { background: #edf3ef; color: var(--verde); }
 .chip-warn { background: #fbf3e6; color: var(--ambar); }

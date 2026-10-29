@@ -59,6 +59,7 @@ function PatientList({ user }: { user: SessionUser }) {
                   <tr key={item.id} className="link">
                     <td className="pt-name">
                       <div className="pt-who" data-initials={initials(item.social_name || item.name)}>
+                        {item.photo_path && <PatientListPhoto path={item.photo_path} />}
                         <a href={`#/pacientes?id=${item.id}`}>{item.name}</a>
                         {(item.social_name || item.email) && <span className="sub">{item.social_name ? `Nome social: ${item.social_name}` : item.email}</span>}
                       </div>
@@ -83,4 +84,10 @@ function PatientList({ user }: { user: SessionUser }) {
       )}
     </>
   );
+}
+
+function PatientListPhoto({ path }: { path: string }) {
+  const { data: url } = useLoad(() => api.patientPhotoUrl(path), [path]);
+  const [failed, setFailed] = useState(false);
+  return url && !failed ? <img className="pt-photo" src={url} alt="" aria-hidden="true" onError={() => setFailed(true)} /> : null;
 }

@@ -85,6 +85,12 @@ function position(start: Date, minutes: number, lane: number, lanes: number): CS
   } as CSSProperties;
 }
 
+function durationClass(minutes: number): string {
+  if (minutes <= 35) return 'is-compact';
+  if (minutes <= 50) return 'is-short';
+  return '';
+}
+
 export function ScheduleGrid({ columns, week, showProfessional, onOpenAppointment, onOpenBlock, onFreeSlot }: ScheduleGridProps) {
   const items = columns.flatMap((column) => [...column.appointments, ...column.blocks]);
   const firstHour = Math.min(FIRST_HOUR, ...items.map((item) => new Date(item.starts_at).getHours()));
@@ -158,20 +164,23 @@ function Row({ hour, columns, placed, now, showProfessional, onOpenAppointment, 
               </button>
             )}
             {blocks.map(({ item, start, lane, lanes }) => (
-              <button key={item.id} type="button" className="session slot-item b-bloqueio"
+              <button key={item.id} type="button" className={`session slot-item b-bloqueio ${durationClass(minutesBetween(item.starts_at, item.ends_at))}`}
                 style={position(start, minutesBetween(item.starts_at, item.ends_at), lane, lanes)}
-                title={`Bloqueado das ${time(item.starts_at)} às ${time(item.ends_at)}`} onClick={() => onOpenBlock(item)}>
+                title={`Bloqueado das ${time(item.starts_at)} às ${time(item.ends_at)}`}
+                aria-label={`Horário bloqueado das ${time(item.starts_at)} às ${time(item.ends_at)}${item.reason ? `: ${item.reason}` : ''}`}
+                onClick={() => onOpenBlock(item)}>
                 <strong>{item.reason ?? 'Horário bloqueado'}</strong>
-                <span>{time(item.starts_at)}–{time(item.ends_at)}{showProfessional ? `, ${item.professional_name}` : ''}</span>
+                <span>{time(item.starts_at)}{durationClass(minutesBetween(item.starts_at, item.ends_at)) === 'is-compact' ? '' : `–${time(item.ends_at)}${showProfessional ? `, ${item.professional_name}` : ''}`}</span>
               </button>
             ))}
             {appointments.map(({ item, start, lane, lanes }) => (
-              <button key={item.id} type="button" className={`session slot-item ${statusClass(item)}`}
+              <button key={item.id} type="button" className={`session slot-item ${statusClass(item)} ${durationClass(minutesBetween(item.starts_at, item.ends_at))}`}
                 style={position(start, minutesBetween(item.starts_at, item.ends_at), lane, lanes)}
                 title={`${item.patient_name}, ${time(item.starts_at)}, ${statusLabel[item.status]}`}
+                aria-label={`${item.patient_name}, ${time(item.starts_at)} às ${time(item.ends_at)}, ${statusLabel[item.status]}`}
                 onClick={() => onOpenAppointment(item)}>
                 <strong>{item.patient_name}</strong>
-                <span>{time(item.starts_at)}{showProfessional ? `, ${item.professional_name}` : ''}, {statusLabel[item.status].toLowerCase()}</span>
+                <span>{time(item.starts_at)}{durationClass(minutesBetween(item.starts_at, item.ends_at)) === 'is-compact' ? '' : `${showProfessional ? `, ${item.professional_name}` : ''}, ${statusLabel[item.status].toLowerCase()}`}</span>
               </button>
             ))}
           </div>

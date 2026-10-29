@@ -130,6 +130,8 @@ export function AppointmentDetails({ appointment, canManage, ownProfessional, on
   const [mode, setMode] = useState<Mode>('view');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const originalDuration = minutesBetween(appointment.starts_at, appointment.ends_at);
+  const [rescheduleDuration, setRescheduleDuration] = useState(originalDuration);
   const { data: events } = useLoad(() => api.appointmentEvents(appointment.id), [appointment.id]);
   const started = new Date(appointment.starts_at).getTime() <= Date.now();
   const active = ACTIVE.includes(appointment.status);
@@ -174,12 +176,12 @@ export function AppointmentDetails({ appointment, canManage, ownProfessional, on
   }
 
   if (mode === 'reschedule') {
-    const duration = minutesBetween(appointment.starts_at, appointment.ends_at);
+    const durations = [...new Set([...DURATIONS, originalDuration])].sort((a, b) => a - b);
     return (
       <FormModal title="Remarcar sessão" submitLabel="Remarcar" onClose={onClose} onSubmit={async (data) => {
         const start = new Date(text(data, 'startsAt'));
         if (Number.isNaN(start.getTime())) throw new Error('Informe o novo horário.');
-        const end = new Date(start.getTime() + Number(text(data, 'duration')) * 60_000);
+        const end = new Date(start.getTime() + rescheduleDuration * 60_000);
         await api.rescheduleAppointment(appointment.id, start.toISOString(), end.toISOString());
         notify('Sessão remarcada.');
         onChanged('Sessão remarcada.');
@@ -192,10 +194,12 @@ export function AppointmentDetails({ appointment, canManage, ownProfessional, on
           <input className="input" name="startsAt" type="datetime-local" required defaultValue={toLocalInput(new Date(appointment.starts_at))} />
         </Field>
         <Field label="Duração">
-          <Select className="input" name="duration" defaultValue={String(DURATIONS.includes(duration) ? duration : 50)}>
-            {DURATIONS.map((minutes) => <option key={minutes} value={minutes}>{minutes} minutos</option>)}
+          <Select className="input" name="duration" value={String(rescheduleDuration)}
+            onChange={(event) => setRescheduleDuration(Number(event.target.value))}>
+            {durations.map((minutes) => <option key={minutes} value={minutes}>{minutes} minutos</option>)}
           </Select>
         </Field>
+        <p className="muted small full">A duração original de {originalDuration} minutos é mantida, a menos que você altere esta opção.</p>
       </FormModal>
     );
   }
