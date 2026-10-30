@@ -8,7 +8,6 @@ import { useHashRoute } from '../hooks.ts';
 import { HomePage } from '../pages/Home.tsx';
 import { NotificationBell } from './Notifications.tsx';
 import { PasswordDialog } from './PasswordDialog.tsx';
-import { WhatsappNoticeDialog } from './WhatsappNotice.tsx';
 
 // Cada página é baixada só quando aberta (o Início vem junto, por ser a primeira tela).
 const AgendaPage = lazy(() => import('../pages/Agenda.tsx').then((module) => ({ default: module.AgendaPage })));
@@ -112,12 +111,7 @@ function modulesFor(user: SessionUser): Module[] {
         ...(can(user, 'appointments.view_all') ? [recordControl] : [])
       ]
     },
-    {
-      title: 'Equipe', icon: 'team', routes: [
-        ...(can(user, 'professionals.manage') ? [professionals] : []),
-        ...(can(user, 'users.manage') ? [users] : [])
-      ]
-    },
+    { title: 'Equipe', icon: 'team', routes: can(user, 'professionals.manage') ? [professionals] : [] },
     {
       title: 'Comercial', icon: 'target', routes: can(user, 'crm.view')
         ? [funnel, campaigns, crmDashboard, ...(can(user, 'crm.manage') ? [crmSettings] : [])] : []
@@ -144,6 +138,7 @@ function modulesFor(user: SessionUser): Module[] {
       ]
     }
   ];
+  if (can(user, 'users.manage')) modules.push({ title: 'Usuários', icon: 'account', routes: [users] });
   if (can(user, 'settings.manage')) modules.push({ title: 'Configurações', short: 'Ajustes', icon: 'gear', routes: [settings] });
   return modules.filter((module) => module.routes.length);
 }
@@ -157,7 +152,6 @@ function readSubmenu(): boolean {
 export function Shell({ user, onLogout }: { user: SessionUser; onLogout: () => void }) {
   const { path, params } = useHashRoute();
   const [changingPassword, setChangingPassword] = useState(false);
-  const [whatsappNotice, setWhatsappNotice] = useState(false);
   const [submenuOpen, setSubmenuOpen] = useState(readSubmenu);
   const [accountOpen, setAccountOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
@@ -282,9 +276,6 @@ export function Shell({ user, onLogout }: { user: SessionUser; onLogout: () => v
             <button type="button" className="pop-item" onClick={() => { setAccountOpen(false); setChangingPassword(true); }}>
               <Icon name="key" />Trocar senha
             </button>
-            <button type="button" className="pop-item" onClick={() => { setAccountOpen(false); setWhatsappNotice(true); }}>
-              <Icon name="bell" />Avisos no WhatsApp
-            </button>
             <hr />
             <button type="button" className="pop-item" onClick={logout}><Icon name="logout" />Sair</button>
           </div>
@@ -371,7 +362,6 @@ export function Shell({ user, onLogout }: { user: SessionUser; onLogout: () => v
       </div>}
 
       {changingPassword && <PasswordDialog onClose={() => setChangingPassword(false)} />}
-      {whatsappNotice && <WhatsappNoticeDialog onClose={() => setWhatsappNotice(false)} />}
     </div>
   );
 }
@@ -383,6 +373,7 @@ const ICONS = {
   search: <><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.5 4.5" /></>,
   calendar: <><rect x="3.5" y="5" width="17" height="15.5" rx="3" /><path d="M8 3v4M16 3v4M3.5 10h17" /></>,
   users: <><circle cx="9" cy="8.5" r="3.5" /><path d="M2.8 19.5c.6-3.2 3.1-5.2 6.2-5.2s5.6 2 6.2 5.2M16 5.3a3.4 3.4 0 0 1 0 6.4M18.3 14.6c1.6.8 2.6 2.4 2.9 4.9" /></>,
+  account: <><rect x="3.5" y="3.5" width="17" height="17" rx="3" /><circle cx="12" cy="9" r="2.5" /><path d="M7.5 17.5c.4-2.3 2-3.5 4.5-3.5s4.1 1.2 4.5 3.5" /></>,
   team: <><rect x="3.5" y="7" width="17" height="13" rx="3" /><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3.5 12.5h17" /></>,
   key: <><circle cx="8" cy="15" r="4" /><path d="m11 12 8-8M16 7l2 2M14 9l2 2" /></>,
   wallet: <><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3" /><rect x="4" y="8" width="16.5" height="11.5" rx="2.5" /><path d="M16.5 13.75h.01" strokeWidth="2.4" /></>,

@@ -661,8 +661,6 @@ export function createApi(supabase: SupabaseClient) {
         .then(() => true, () => false);
     },
     setPatientWhatsapp: (patientId: string, optIn: boolean) => run<unknown>(supabase.rpc('set_patient_whatsapp', { p_patient_id: patientId, p_opt_in: optIn })),
-    myWhatsapp: async () => (await run<{ phone: string | null; notify: boolean }[]>(supabase.rpc('my_whatsapp')))[0] ?? { phone: null, notify: false },
-    setMyWhatsapp: (phone: string, notify: boolean) => run<unknown>(supabase.rpc('set_my_whatsapp', { p_phone: phone, p_notify: notify })),
     whatsappState: async () => (await run<WhatsappState[]>(supabase.rpc('whatsapp_state')))[0] ?? null,
     setWhatsappSettings: (enabled: boolean, appUrl: string) => run<unknown>(supabase.rpc('set_whatsapp_settings', { p_enabled: enabled, p_app_url: appUrl })),
 
