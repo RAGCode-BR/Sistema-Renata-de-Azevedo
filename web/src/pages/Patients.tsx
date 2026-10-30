@@ -20,14 +20,42 @@ const STATUS_TONE: Record<PatientStatus, string> = { active: 'chip-good', paused
 
 const normalize = (value: string) => value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase('pt-BR');
 
+// A lista só aparece depois que as fotos estão prontas para pintar. Uma imagem indisponível
+// não impede a página de abrir: nesse caso, o avatar continua mostrando as iniciais.
+async function preloadPatientPhotos(urls: Record<string, string>): Promise<Record<string, string>> {
+  const ready = await Promise.all(Object.entries(urls).map(async ([path, url]) => {
+    const image = new Image();
+    image.src = url;
+    let timeout = 0;
+    try {
+      await Promise.race([
+        image.decode(),
+        new Promise<never>((_resolve, reject) => { timeout = window.setTimeout(() => reject(new Error('Foto indisponível')), 8_000); })
+      ]);
+      return [path, url] as const;
+    } catch {
+      return null;
+    } finally {
+      window.clearTimeout(timeout);
+    }
+  }));
+  return Object.fromEntries(ready.filter((entry): entry is readonly [string, string] => entry !== null));
+}
+
 function PatientList({ user }: { user: SessionUser }) {
   const manager = can(user, 'patients.manage');
   const notify = useToast();
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<PatientStatus | ''>('active');
-  const { data, error, loading, reload } = useLoad(() => Promise.all([api.patients(), api.professionals()]), []);
-  const [patients, professionals] = data ?? [[], []];
+  const { data, error, loading } = useLoad(async () => {
+    const [patients, professionals] = await Promise.all([api.patients(), api.professionals()]);
+    const signedUrls = await api.patientPhotoUrls(patients.flatMap((item) => item.photo_path ? [item.photo_path] : []))
+      .catch((): Record<string, string> => ({}));
+    const photoUrls = await preloadPatientPhotos(signedUrls);
+    return { patients, professionals, photoUrls };
+  }, []);
+  const { patients = [], professionals = [], photoUrls = {} } = data ?? {};
   const names = new Map(professionals.map((item) => [item.id, item.name]));
   const term = normalize(search.trim());
   const digits = search.replace(/\D/g, '');
@@ -37,7 +65,9 @@ function PatientList({ user }: { user: SessionUser }) {
 
   return (
     <>
-      <Heading className="patients-heading" title="Pacientes" lead={plural(patients.filter((item) => item.status === 'active').length, 'paciente em acompanhamento', 'pacientes em acompanhamento')}>
+      <Heading className="patients-heading" title="Pacientes" lead={data
+        ? plural(patients.filter((item) => item.status === 'active').length, 'paciente em acompanhamento', 'pacientes em acompanhamento')
+        : 'Carregando pacientes…'}>
         <label className="search">
           <input type="search" placeholder="Buscar por nome, e-mail ou telefone" aria-label="Buscar paciente"
             value={search} onChange={(event) => setSearch(event.target.value)} />
@@ -59,7 +89,7 @@ function PatientList({ user }: { user: SessionUser }) {
                   <tr key={item.id} className="link">
                     <td className="pt-name">
                       <div className="pt-who" data-initials={initials(item.social_name || item.name)}>
-                        {item.photo_path && <PatientListPhoto path={item.photo_path} />}
+                        {item.photo_path && photoUrls[item.photo_path] && <PatientListPhoto key={item.photo_path} url={photoUrls[item.photo_path]} />}
                         <a href={`#/pacientes?id=${item.id}`}>{item.name}</a>
                         {(item.social_name || item.email) && <span className="sub">{item.social_name ? `Nome social: ${item.social_name}` : item.email}</span>}
                       </div>
@@ -86,8 +116,7 @@ function PatientList({ user }: { user: SessionUser }) {
   );
 }
 
-function PatientListPhoto({ path }: { path: string }) {
-  const { data: url } = useLoad(() => api.patientPhotoUrl(path), [path]);
+function PatientListPhoto({ url }: { url: string }) {
   const [failed, setFailed] = useState(false);
-  return url && !failed ? <img className="pt-photo" src={url} alt="" aria-hidden="true" onError={() => setFailed(true)} /> : null;
+  return failed ? null : <img className="pt-photo" src={url} alt="" aria-hidden="true" onError={() => setFailed(true)} />;
 }

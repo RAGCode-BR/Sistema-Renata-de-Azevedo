@@ -150,9 +150,32 @@ export type Api = ReturnType<typeof createApi>;
 export function createApi(supabase: SupabaseClient) {
   let onSessionEnded = () => {};
   let leaving = false;
+  const patientPhotoCache = new Map<string, { url: string; validUntil: number }>();
+  let photoSession = 0;
+
+  async function patientPhotoUrls(paths: string[]): Promise<Record<string, string>> {
+    const unique = [...new Set(paths)];
+    const session = photoSession;
+    const now = Date.now();
+    const missing = unique.filter((path) => (patientPhotoCache.get(path)?.validUntil ?? 0) <= now);
+    if (missing.length) {
+      const { data, error } = await supabase.storage.from(DOCUMENTS_BUCKET).createSignedUrls(missing, 60);
+      if (error || !data) throw new Error('Não foi possível abrir as fotos.');
+      if (session !== photoSession) return {};
+      for (const item of data) {
+        if (item.path && item.signedUrl && !item.error)
+          patientPhotoCache.set(item.path, { url: item.signedUrl, validUntil: Date.now() + 45_000 });
+      }
+    }
+    return Object.fromEntries(unique.flatMap((path) => {
+      const cached = patientPhotoCache.get(path);
+      return cached && cached.validUntil > Date.now() ? [[path, cached.url]] : [];
+    }));
+  }
 
   // Sessão encerrada sem a pessoa ter pedido para sair (ex.: expirou ou saiu em outra aba).
   supabase.auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_OUT') { photoSession += 1; patientPhotoCache.clear(); }
     if (event === 'SIGNED_OUT' && !leaving) onSessionEnded();
   });
 
@@ -327,10 +350,11 @@ export function createApi(supabase: SupabaseClient) {
     // Cria (id nulo) ou edita o cadastro e os vínculos com profissionais numa só transação.
     savePatient: (id: string | null, { professionalIds, ...data }: PatientInput) =>
       run<string>(supabase.rpc('save_patient', { p_id: id, p_data: data, p_professional_ids: professionalIds })),
+    patientPhotoUrls,
     patientPhotoUrl: async (path: string) => {
-      const { data, error } = await supabase.storage.from(DOCUMENTS_BUCKET).createSignedUrl(path, 60);
-      if (error || !data) throw new Error('Não foi possível abrir a foto.');
-      return data.signedUrl;
+      const urls = await patientPhotoUrls([path]);
+      if (!urls[path]) throw new Error('Não foi possível abrir a foto.');
+      return urls[path];
     },
     uploadPatientPhoto: async (patientId: string, file: File) => {
       if (!['image/jpeg', 'image/png'].includes(file.type) || file.size > 2 * 1024 * 1024)
@@ -342,7 +366,10 @@ export function createApi(supabase: SupabaseClient) {
       try { await run(supabase.rpc('set_patient_photo', { p_patient_id: patientId, p_path: path })); }
       catch (failure) { await supabase.storage.from(DOCUMENTS_BUCKET).remove([path]); throw failure; }
       // A foto anterior deixa de ser usada: apaga junto (o Storage não apaga sozinho).
-      if (previous?.photo_path && previous.photo_path !== path) await supabase.storage.from(DOCUMENTS_BUCKET).remove([previous.photo_path]);
+      if (previous?.photo_path && previous.photo_path !== path) {
+        patientPhotoCache.delete(previous.photo_path);
+        await supabase.storage.from(DOCUMENTS_BUCKET).remove([previous.photo_path]);
+      }
       return path;
     },
     // Todas as sessões do paciente que quem está conectado pode ver (a profissional, só as suas).
